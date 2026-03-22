@@ -46,8 +46,16 @@ git push -u origin main
 npx shadcn@latest add dialog sheet tabs
 ```
 
+## Маршруты
+
+- `/` — вход и регистрация (данные в `localStorage`)
+- `/panel` — панель (после входа)
+- `/risks`, `/risks/new`, `/risks/[id]`, `/risks/[id]/edit`
+- `/analytics`, `/settings`, `/settings/system`, `/help`
+- `/privacy`, `/terms`, `/about`, `/support` — публичные страницы
+
 ## Структура
 
-- `src/app` — маршруты App Router, группа `(dashboard)` — основной каркас с сайдбаром
-- `src/components/ui` — примитивы (Button, Card, Table, …)
-- `src/components/layout` — сайдбар и шапка
+- `src/app/(main)` — защищённая зона: `AuthGuard` + `DashboardShell`
+- `src/components/ui` — примитивы (shadcn-стиль)
+- `src/contexts` — риски и локаль интерфейса

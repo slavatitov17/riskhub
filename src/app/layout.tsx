@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 
+import { AppProviders } from '@/components/providers/app-providers'
+
 import './globals.css'
 
 const inter = Inter({ subsets: ['latin', 'cyrillic'], variable: '--font-sans' })
@@ -17,8 +19,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ru" suppressHydrationWarning>
-      <body className={`${inter.variable} min-h-screen font-sans antialiased`}>
-        {children}
+      <body className={`${inter.variable} min-h-dvh font-sans antialiased`}>
+        <AppProviders>{children}</AppProviders>
       </body>
     </html>
   )

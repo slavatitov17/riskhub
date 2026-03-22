@@ -1,3 +1,5 @@
+'use client'
+
 import Link from 'next/link'
 import {
   BarChart3,
@@ -8,40 +10,48 @@ import {
   Shield
 } from 'lucide-react'
 
+import { useLocale } from '@/contexts/locale-context'
 import { cn } from '@/lib/utils'
-
-const navItems = [
-  { href: '/', label: 'Панель', icon: LayoutDashboard },
-  { href: '/risks', label: 'Список рисков', icon: ListChecks },
-  { href: '/analytics', label: 'Аналитика', icon: BarChart3 },
-  { href: '/settings', label: 'Настройки', icon: Settings }
-] as const
 
 interface AppSidebarProps {
   pathname: string
+  onNavigate?: () => void
 }
 
-export function AppSidebar({ pathname }: AppSidebarProps) {
+export function AppSidebar({ pathname, onNavigate }: AppSidebarProps) {
+  const { t } = useLocale()
+
+  const navItems = [
+    { href: '/panel', label: t('navPanel'), icon: LayoutDashboard },
+    { href: '/risks', label: t('navRisks'), icon: ListChecks },
+    { href: '/analytics', label: t('navAnalytics'), icon: BarChart3 },
+    { href: '/settings', label: t('navSettings'), icon: Settings }
+  ] as const
+
   return (
-    <aside className="flex h-full w-60 flex-col border-r bg-card">
-      <div className="flex h-16 items-center gap-2 border-b px-6">
+    <div className="flex h-full min-h-0 flex-1 flex-col">
+      <div className="flex h-16 shrink-0 items-center gap-2 border-b px-5">
         <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
           <Shield className="h-5 w-5" aria-hidden />
         </div>
         <span className="text-lg font-semibold tracking-tight">RiskHub</span>
       </div>
 
-      <nav className="flex flex-1 flex-col gap-1 p-3" aria-label="Основная навигация">
+      <nav
+        className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto p-3"
+        aria-label="Основная навигация"
+      >
         {navItems.map(({ href, label, icon: Icon }) => {
           const isActive =
-            href === '/'
-              ? pathname === '/'
-              : pathname.startsWith(href)
+            href === '/panel'
+              ? pathname === '/panel'
+              : pathname === href || pathname.startsWith(`${href}/`)
 
           return (
             <Link
               key={href}
               href={href}
+              onClick={onNavigate}
               className={cn(
                 'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
                 isActive
@@ -50,7 +60,7 @@ export function AppSidebar({ pathname }: AppSidebarProps) {
               )}
             >
               <Icon
-                className={cn('h-5 w-5', isActive && 'text-primary')}
+                className={cn('h-5 w-5 shrink-0', isActive && 'text-primary')}
                 aria-hidden
               />
               {label}
@@ -59,15 +69,16 @@ export function AppSidebar({ pathname }: AppSidebarProps) {
         })}
       </nav>
 
-      <div className="border-t p-3">
+      <div className="shrink-0 border-t p-3">
         <Link
           href="/help"
+          onClick={onNavigate}
           className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
-          <CircleHelp className="h-5 w-5" aria-hidden />
-          Помощь
+          <CircleHelp className="h-5 w-5 shrink-0" aria-hidden />
+          {t('navHelp')}
         </Link>
       </div>
-    </aside>
+    </div>
   )
 }

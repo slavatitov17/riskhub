@@ -57,3 +57,31 @@
     @apply bg-background text-foreground antialiased;
   }
 }
+
+.risk-table-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--primary)) transparent;
+}
+
+.risk-table-scroll::-webkit-scrollbar {
+  height: 6px;
+}
+
+.risk-table-scroll::-webkit-scrollbar-track {
+  background: hsl(var(--primary) / 0.2);
+  border-radius: 9999px;
+}
+
+.risk-table-scroll::-webkit-scrollbar-thumb {
+  background: hsl(var(--primary));
+  border-radius: 9999px;
+}
+
+/* Hide arrow buttons on Windows/WebKit-style scrollbars */
+.risk-table-scroll::-webkit-scrollbar-button {
+  display: none;
+}
+
+.risk-table-scroll::-webkit-scrollbar-corner {
+  background: transparent;
+}

@@ -52,6 +52,7 @@ import {
 } from '@/components/ui/table'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { useRisks } from '@/contexts/risks-context'
+import { useNotifications } from '@/contexts/notifications-context'
 import { formatDisplayDate } from '@/lib/risks-storage'
 
 function probabilityBadgeClass(value: string) {
@@ -77,9 +78,16 @@ function statusBadgeClass(status: string) {
   return 'border-transparent bg-sky-500/15 text-sky-900'
 }
 
+function filterPlural(count: number) {
+  if (count === 1) return 'фильтр'
+  if (count >= 2 && count <= 4) return 'фильтра'
+  return 'фильтров'
+}
+
 export function PanelDashboard() {
   const router = useRouter()
   const { risks, removeRisk } = useRisks()
+  const { openNotifications } = useNotifications()
   const [filterOpen, setFilterOpen] = useState(false)
   const [bulkOpen, setBulkOpen] = useState(false)
   const [search, setSearch] = useState('')
@@ -144,10 +152,10 @@ export function PanelDashboard() {
       transition={{ duration: 0.25 }}
       className="mx-auto flex max-w-7xl flex-col gap-6"
     >
-      <section className="grid gap-4 lg:grid-cols-[1fr_minmax(0,280px)] lg:items-start">
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          <Card className="shadow-sm">
-            <CardContent className="flex items-center gap-3 p-4">
+      <section className="grid gap-4 lg:grid-cols-[1fr_minmax(0,280px)] lg:items-stretch">
+        <div className="grid h-full gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <Card className="shadow-sm h-full">
+            <CardContent className="flex h-full flex-col gap-3 p-4">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
                 <Zap className="h-5 w-5" aria-hidden />
               </div>
@@ -157,10 +165,19 @@ export function PanelDashboard() {
                   Активных рисков
                 </p>
               </div>
+              <div className="mt-auto flex justify-end">
+                <Button
+                  variant="link"
+                  className="h-auto shrink-0 p-0 text-primary"
+                  asChild
+                >
+                  <Link href="/risks">Смотреть →</Link>
+                </Button>
+              </div>
             </CardContent>
           </Card>
-          <Card className="shadow-sm">
-            <CardContent className="flex items-center gap-3 p-4">
+          <Card className="shadow-sm h-full">
+            <CardContent className="flex h-full flex-col gap-3 p-4">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600">
                 <CheckCircle2 className="h-5 w-5" aria-hidden />
               </div>
@@ -170,10 +187,19 @@ export function PanelDashboard() {
                   Закрытых рисков
                 </p>
               </div>
+              <div className="mt-auto flex justify-end">
+                <Button
+                  variant="link"
+                  className="h-auto shrink-0 p-0 text-primary"
+                  asChild
+                >
+                  <Link href="/risks">Смотреть →</Link>
+                </Button>
+              </div>
             </CardContent>
           </Card>
-          <Card className="shadow-sm sm:col-span-2 xl:col-span-1">
-            <CardContent className="flex items-center gap-3 p-4">
+          <Card className="shadow-sm h-full sm:col-span-2 xl:col-span-1">
+            <CardContent className="flex h-full flex-col gap-3 p-4">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-red-500/10 text-red-600">
                 <Flame className="h-5 w-5" aria-hidden />
               </div>
@@ -183,11 +209,20 @@ export function PanelDashboard() {
                   Критические риски
                 </p>
               </div>
+              <div className="mt-auto flex justify-end">
+                <Button
+                  variant="link"
+                  className="h-auto shrink-0 p-0 text-primary"
+                  asChild
+                >
+                  <Link href="/risks">Смотреть →</Link>
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
 
-        <Card className="shadow-sm lg:sticky lg:top-4">
+        <Card className="shadow-sm lg:sticky lg:top-4 h-full">
           <CardHeader className="pb-2 pt-4">
             <CardTitle className="text-base">Быстрые действия</CardTitle>
           </CardHeader>
@@ -256,11 +291,9 @@ export function PanelDashboard() {
               variant="link"
               className="h-auto shrink-0 p-0 text-primary"
               type="button"
-              onClick={() =>
-                toast.success('Открыта лента уведомлений (демо)')
-              }
+              onClick={openNotifications}
             >
-              Смотреть все
+              Все уведомления →
             </Button>
           </CardHeader>
           <CardContent className="pt-0">
@@ -315,23 +348,25 @@ export function PanelDashboard() {
                 <Filter className="h-4 w-4" />
                 Фильтры
               </Button>
-              <span className="whitespace-nowrap text-sm text-muted-foreground">
-                {appliedFilters > 0
-                  ? `${appliedFilters} ${appliedFilters === 1 ? 'фильтр' : appliedFilters < 5 ? 'фильтра' : 'фильтров'} применено`
-                  : 'Фильтры не применены'}
-              </span>
-              <Button
-                type="button"
-                variant="link"
-                className="h-auto whitespace-nowrap p-0 text-primary"
-                onClick={() => {
-                  setStatusFilter([])
-                  setCatFilter([])
-                  toast.message('Фильтры сброшены')
-                }}
-              >
-                Сбросить
-              </Button>
+              {appliedFilters > 0 && (
+                <span className="whitespace-nowrap text-sm text-muted-foreground">
+                  {appliedFilters} {filterPlural(appliedFilters)}
+                </span>
+              )}
+              {appliedFilters > 0 && (
+                <Button
+                  type="button"
+                  variant="link"
+                  className="h-auto whitespace-nowrap p-0 text-primary"
+                  onClick={() => {
+                    setStatusFilter([])
+                    setCatFilter([])
+                    toast.message('Фильтры сброшены')
+                  }}
+                >
+                  Сбросить
+                </Button>
+              )}
             </div>
             <div className="flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:items-center lg:max-w-xl lg:flex-1">
               <Input
@@ -355,7 +390,7 @@ export function PanelDashboard() {
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="flex flex-col gap-2 border-b px-4 py-3 sm:flex-row sm:items-center sm:justify-between md:px-6">
+          <div className="flex flex-col gap-2 border-b px-4 pb-3 pt-2 sm:flex-row sm:items-center sm:justify-between md:px-6">
             <h2 className="text-base font-semibold">Список рисков</h2>
             <Button
               type="button"
@@ -367,7 +402,7 @@ export function PanelDashboard() {
             </Button>
           </div>
 
-          <div className="w-full overflow-x-auto">
+          <div className="risk-table-scroll w-full overflow-x-auto overflow-y-hidden">
             <Table className="min-w-[1200px]">
               <TableHeader>
                 <TableRow>

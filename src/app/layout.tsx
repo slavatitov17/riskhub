@@ -8,8 +8,11 @@ import './globals.css'
 const inter = Inter({ subsets: ['latin', 'cyrillic'], variable: '--font-sans' })
 
 export const metadata: Metadata = {
-  title: 'RiskHub — база знаний по рискам',
-  description: 'Панель управления рисками ИТ-проектов'
+  title: 'RiskHub | База знаний по рискам',
+  description: 'Панель управления рисками ИТ-проектов',
+  icons: {
+    icon: '/favicon.svg'
+  }
 }
 
 export default function RootLayout({

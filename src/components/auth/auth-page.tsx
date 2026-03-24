@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff, Shield } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -76,18 +76,19 @@ export function AuthPage() {
   }
 
   const getPasswordStrength = (password: string) => {
-    const hasMinLength = password.length >= 8
-    const hasLower = /[a-zа-я]/.test(password)
-    const hasUpper = /[A-ZА-Я]/.test(password)
+    const hasMinLength = password.length >= 6
+    const hasLetter = /[A-Za-zА-Яа-я]/.test(password)
     const hasDigit = /\d/.test(password)
     const hasSpecial = /[^A-Za-zА-Яа-я0-9]/.test(password)
-    const score = [hasMinLength, hasLower, hasUpper, hasDigit, hasSpecial].filter(
+    const score = [hasMinLength, hasLetter, hasDigit, hasSpecial].filter(
       Boolean
     ).length
 
-    if (score <= 2) return { value: 33, label: 'Ненадежный', barClass: 'bg-red-500' }
-    if (score <= 4) return { value: 66, label: 'Средний', barClass: 'bg-amber-500' }
-    return { value: 100, label: 'Надежный', barClass: 'bg-emerald-500' }
+    if (!hasMinLength || !hasLetter || !hasDigit)
+      return { value: 33, label: 'Слабый пароль', textClass: 'text-red-500', barClass: 'bg-red-500' }
+    if (score === 3)
+      return { value: 66, label: 'Средний пароль', textClass: 'text-amber-500', barClass: 'bg-amber-500' }
+    return { value: 100, label: 'Надежный пароль', textClass: 'text-emerald-500', barClass: 'bg-emerald-500' }
   }
 
   const loginStrength = getPasswordStrength(loginPassword)
@@ -102,7 +103,10 @@ export function AuthPage() {
         className="mx-auto flex w-full max-w-lg flex-col gap-6"
       >
         <div className="text-center">
-          <h1 className="text-3xl font-bold tracking-tight md:text-4xl">
+          <h1 className="flex items-center justify-center gap-3 text-3xl font-bold tracking-tight md:text-4xl">
+            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+              <Shield className="h-6 w-6" aria-hidden />
+            </span>
             RiskHub
           </h1>
           <p className="mt-2 text-sm text-muted-foreground md:text-base">
@@ -166,19 +170,21 @@ export function AuthPage() {
                       </Button>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Минимум 8 символов, строчные и заглавные буквы, цифра и спецсимвол
+                      Минимум 6 символов, включая буквы и цифры
                     </p>
-                    <div className="space-y-1">
-                      <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-                        <div
-                          className={`h-full transition-all ${loginPassword ? loginStrength.barClass : 'bg-muted'}`}
-                          style={{ width: `${loginPassword ? loginStrength.value : 0}%` }}
-                        />
+                    {loginPassword && (
+                      <div className="space-y-1">
+                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                          <div
+                            className={`h-full transition-all ${loginStrength.barClass}`}
+                            style={{ width: `${loginStrength.value}%` }}
+                          />
+                        </div>
+                        <p className={`text-xs ${loginStrength.textClass}`}>
+                          {loginStrength.label}
+                        </p>
                       </div>
-                      <p className="text-xs text-muted-foreground">
-                        Надежность: {loginPassword ? loginStrength.label : '—'}
-                      </p>
-                    </div>
+                    )}
                   </div>
                   <Button type="submit" className="w-full">
                     Войти
@@ -226,7 +232,7 @@ export function AuthPage() {
                         value={regPassword}
                         onChange={(e) => setRegPassword(e.target.value)}
                         required
-                        minLength={8}
+                        minLength={6}
                         className="pr-10"
                       />
                       <Button
@@ -245,19 +251,21 @@ export function AuthPage() {
                       </Button>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Минимум 8 символов, строчные и заглавные буквы, цифра и спецсимвол
+                      Минимум 6 символов, включая буквы и цифры
                     </p>
-                    <div className="space-y-1">
-                      <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-                        <div
-                          className={`h-full transition-all ${regPassword ? registerStrength.barClass : 'bg-muted'}`}
-                          style={{ width: `${regPassword ? registerStrength.value : 0}%` }}
-                        />
+                    {regPassword && (
+                      <div className="space-y-1">
+                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                          <div
+                            className={`h-full transition-all ${registerStrength.barClass}`}
+                            style={{ width: `${registerStrength.value}%` }}
+                          />
+                        </div>
+                        <p className={`text-xs ${registerStrength.textClass}`}>
+                          {registerStrength.label}
+                        </p>
                       </div>
-                      <p className="text-xs text-muted-foreground">
-                        Надежность: {regPassword ? registerStrength.label : '—'}
-                      </p>
-                    </div>
+                    )}
                   </div>
                   <Button type="submit" className="w-full">
                     Создать аккаунт

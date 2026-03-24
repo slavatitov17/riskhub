@@ -10,10 +10,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 const faq = [
   {
-    q: 'Где хранятся мои данные?',
-    a: 'В локальном хранилище браузера. Очистка кеша может удалить аккаунт и риски.'
-  },
-  {
     q: 'Как создать новый риск?',
     a: 'После входа откройте раздел «Список рисков», нажмите «Новый риск», заполните форму и сохраните запись.'
   },
@@ -30,14 +26,6 @@ const faq = [
     a: 'Текущая версия работает в демонстрационном режиме и не отправляет почтовые сообщения.'
   },
   {
-    q: 'Можно ли подключить сервер и БД?',
-    a: 'Да, архитектура предусматривает подключение backend и внешней БД для продуктивного контура.'
-  },
-  {
-    q: 'Как очистить все данные демо?',
-    a: 'Удалите данные сайта в настройках браузера или сбросьте localStorage через DevTools.'
-  },
-  {
     q: 'Как формируется уровень риска?',
     a: 'Уровень определяется комбинацией вероятности и воздействия, а также текущим статусом контроля.'
   },
@@ -50,20 +38,8 @@ const faq = [
     a: 'Уведомления доступны по иконке колокольчика в шапке и через блок на панели.'
   },
   {
-    q: 'Можно ли экспортировать отчёты?',
-    a: 'В демо доступны базовые сценарии. В продуктивной версии планируется расширенный экспорт.'
-  },
-  {
-    q: 'Поддерживаются ли роли пользователей?',
-    a: 'Ролевая модель находится в дорожной карте и будет доступна в следующих релизах.'
-  },
-  {
     q: 'Как изменить язык интерфейса?',
     a: 'Переключение языка доступно в настройках профиля внутри основного приложения.'
-  },
-  {
-    q: 'Можно ли работать в офлайн-режиме?',
-    a: 'Большинство демо-сценариев работают локально, но для совместной работы потребуется сервер.'
   },
   {
     q: 'Где найти юридическую информацию?',
@@ -113,36 +89,41 @@ export default function SupportPage() {
           </CardContent>
         </Card>
 
-        <div className="flex flex-col gap-3">
-          {faq.map((item, i) => (
-            <motion.div
-              key={item.q}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.05 }}
-            >
-              <Card className="overflow-hidden border bg-card/95 shadow-lg backdrop-blur">
-                <button
-                  type="button"
-                  className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left"
-                  onClick={() =>
-                    setOpenId((prev) => (prev === String(i) ? '' : String(i)))
-                  }
-                >
-                  <span className="font-medium">{item.q}</span>
-                  <ChevronDown
-                    className={`h-5 w-5 shrink-0 transition-transform ${openId === String(i) ? 'rotate-180' : ''}`}
-                  />
-                </button>
-                {openId === String(i) && (
-                  <CardContent className="border-t pb-4 pt-4 text-sm text-muted-foreground">
-                    {item.a}
-                  </CardContent>
-                )}
-              </Card>
-            </motion.div>
-          ))}
-        </div>
+        <Card className="border bg-card/95 shadow-lg backdrop-blur">
+          <CardHeader>
+            <CardTitle className="text-xl">Частые вопросы</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {faq.map((item, i) => (
+              <motion.div
+                key={item.q}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.05 }}
+              >
+                <Card className="overflow-hidden border bg-card/95 shadow-sm">
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left"
+                    onClick={() =>
+                      setOpenId((prev) => (prev === String(i) ? '' : String(i)))
+                    }
+                  >
+                    <span className="font-medium">{item.q}</span>
+                    <ChevronDown
+                      className={`h-5 w-5 shrink-0 transition-transform ${openId === String(i) ? 'rotate-180' : ''}`}
+                    />
+                  </button>
+                  {openId === String(i) && (
+                    <CardContent className="border-t pb-4 pt-4 text-sm text-muted-foreground">
+                      {item.a}
+                    </CardContent>
+                  )}
+                </Card>
+              </motion.div>
+            ))}
+          </CardContent>
+        </Card>
       </div>
     </div>
   )

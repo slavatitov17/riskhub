@@ -121,6 +121,14 @@ export function PanelDashboard() {
     () => Array.from(new Set(risks.map((r) => r.impact))),
     [risks]
   )
+  const projects = useMemo(
+    () => Array.from(new Set(risks.map((r) => r.project))),
+    [risks]
+  )
+  const authors = useMemo(
+    () => Array.from(new Set(risks.map((r) => r.author))),
+    [risks]
+  )
 
   const filtered = useMemo(() => {
     return risks.filter((r) => {
@@ -226,9 +234,11 @@ export function PanelDashboard() {
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
                 <Zap className="h-5 w-5" aria-hidden />
               </div>
-              <div className="ml-auto mt-auto flex flex-col items-end text-right">
-                <p className="text-2xl font-bold leading-none">{activeCount}</p>
-                <p className="mt-1 text-sm text-muted-foreground">Активных рисков</p>
+              <div className="mt-auto flex items-end justify-between gap-3">
+                <div className="min-w-0 text-left">
+                  <p className="text-4xl font-bold leading-none">{activeCount}</p>
+                  <p className="mt-2 text-sm text-muted-foreground">Активных рисков</p>
+                </div>
                 <Button variant="outline" size="icon" className="mt-3 h-8 w-8" asChild>
                   <Link href="/risks" aria-label="Открыть список рисков">
                     <ArrowRight className="h-4 w-4" />
@@ -242,9 +252,11 @@ export function PanelDashboard() {
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600">
                 <CheckCircle2 className="h-5 w-5" aria-hidden />
               </div>
-              <div className="ml-auto mt-auto flex flex-col items-end text-right">
-                <p className="text-2xl font-bold leading-none">{closedCount}</p>
-                <p className="mt-1 text-sm text-muted-foreground">Закрытых рисков</p>
+              <div className="mt-auto flex items-end justify-between gap-3">
+                <div className="min-w-0 text-left">
+                  <p className="text-4xl font-bold leading-none">{closedCount}</p>
+                  <p className="mt-2 text-sm text-muted-foreground">Закрытых рисков</p>
+                </div>
                 <Button variant="outline" size="icon" className="mt-3 h-8 w-8" asChild>
                   <Link href="/risks" aria-label="Открыть список рисков">
                     <ArrowRight className="h-4 w-4" />
@@ -258,9 +270,11 @@ export function PanelDashboard() {
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-red-500/10 text-red-600">
                 <Flame className="h-5 w-5" aria-hidden />
               </div>
-              <div className="ml-auto mt-auto flex flex-col items-end text-right">
-                <p className="text-2xl font-bold leading-none">{criticalCount}</p>
-                <p className="mt-1 text-sm text-muted-foreground">Критические риски</p>
+              <div className="mt-auto flex items-end justify-between gap-3">
+                <div className="min-w-0 text-left">
+                  <p className="text-4xl font-bold leading-none">{criticalCount}</p>
+                  <p className="mt-2 text-sm text-muted-foreground">Критических рисков</p>
+                </div>
                 <Button variant="outline" size="icon" className="mt-3 h-8 w-8" asChild>
                   <Link href="/risks" aria-label="Открыть список рисков">
                     <ArrowRight className="h-4 w-4" />
@@ -452,7 +466,7 @@ export function PanelDashboard() {
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="flex flex-col gap-2 border-b px-4 pb-3 pt-2 sm:flex-row sm:items-center sm:justify-between md:px-6">
+          <div className="flex flex-col gap-2 border-b px-4 pb-3 pt-2 sm:flex-row sm:items-center md:px-6">
             <div className="flex flex-wrap items-center gap-2">
               <Button
                 type="button"
@@ -477,15 +491,6 @@ export function PanelDashboard() {
                 Удалить выбранные
               </Button>
             </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setFilterOpen(true)}
-            >
-              <Filter className="mr-2 h-4 w-4" />
-              Фильтры
-            </Button>
           </div>
 
           <div className="risk-table-scroll w-full overflow-x-auto overflow-y-hidden">
@@ -619,7 +624,7 @@ export function PanelDashboard() {
               </TableBody>
             </Table>
           </div>
-          <div className="px-4 py-2 text-sm md:px-6">
+          <div className="px-4 py-4 text-sm md:px-6">
             <span className="text-muted-foreground">Всего записей: </span>
             <span className="text-foreground">{filtered.length}</span>
           </div>
@@ -627,7 +632,7 @@ export function PanelDashboard() {
       </Card>
 
       <Dialog open={filterOpen} onOpenChange={setFilterOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
+        <DialogContent className="risk-filter-scroll max-h-[90vh] overflow-y-auto sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Фильтры</DialogTitle>
           </DialogHeader>
@@ -713,9 +718,15 @@ export function PanelDashboard() {
               <Input
                 id="project-filter"
                 placeholder="Поиск по проекту..."
+                list="projects-list"
                 value={projectFilter}
                 onChange={(e) => setProjectFilter(e.target.value)}
               />
+              <datalist id="projects-list">
+                {projects.map((project) => (
+                  <option key={project} value={project} />
+                ))}
+              </datalist>
             </div>
             <div>
               <Label htmlFor="author-filter" className="mb-2 block text-sm font-medium">
@@ -724,9 +735,15 @@ export function PanelDashboard() {
               <Input
                 id="author-filter"
                 placeholder="Поиск по автору..."
+                list="authors-list"
                 value={authorFilter}
                 onChange={(e) => setAuthorFilter(e.target.value)}
               />
+              <datalist id="authors-list">
+                {authors.map((author) => (
+                  <option key={author} value={author} />
+                ))}
+              </datalist>
             </div>
             <div>
               <p className="mb-2 text-sm font-medium">Создан</p>
@@ -735,14 +752,14 @@ export function PanelDashboard() {
                   type="date"
                   value={createdFrom}
                   onChange={(e) => setCreatedFrom(e.target.value)}
-                  className="accent-primary"
+                  className="calendar-input accent-primary pr-1"
                   aria-label="Создан с"
                 />
                 <Input
                   type="date"
                   value={createdTo}
                   onChange={(e) => setCreatedTo(e.target.value)}
-                  className="accent-primary"
+                  className="calendar-input accent-primary pr-1"
                   aria-label="Создан по"
                 />
               </div>
@@ -754,14 +771,14 @@ export function PanelDashboard() {
                   type="date"
                   value={updatedFrom}
                   onChange={(e) => setUpdatedFrom(e.target.value)}
-                  className="accent-primary"
+                  className="calendar-input accent-primary pr-1"
                   aria-label="Обновлен с"
                 />
                 <Input
                   type="date"
                   value={updatedTo}
                   onChange={(e) => setUpdatedTo(e.target.value)}
-                  className="accent-primary"
+                  className="calendar-input accent-primary pr-1"
                   aria-label="Обновлен по"
                 />
               </div>
@@ -795,8 +812,11 @@ export function PanelDashboard() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Отмена</AlertDialogCancel>
-            <AlertDialogAction onClick={handleBulkConfirm}>
-              Подтвердить
+            <AlertDialogAction
+              className={bulkAction === 'delete' ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90' : ''}
+              onClick={handleBulkConfirm}
+            >
+              {bulkAction === 'delete' ? 'Удалить' : 'Подтвердить'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

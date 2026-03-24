@@ -85,3 +85,34 @@
 .risk-table-scroll::-webkit-scrollbar-corner {
   background: transparent;
 }
+
+.risk-filter-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--primary)) transparent;
+}
+
+.risk-filter-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.risk-filter-scroll::-webkit-scrollbar-track {
+  background: hsl(var(--primary) / 0.2);
+  border-radius: 9999px;
+}
+
+.risk-filter-scroll::-webkit-scrollbar-thumb {
+  background: hsl(var(--primary));
+  border-radius: 9999px;
+}
+
+.risk-filter-scroll::-webkit-scrollbar-button {
+  display: none;
+}
+
+.risk-filter-scroll::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+.calendar-input::-webkit-calendar-picker-indicator {
+  margin-left: auto;
+}

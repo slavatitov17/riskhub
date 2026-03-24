@@ -30,7 +30,8 @@ export function AuthPage() {
   const router = useRouter()
   const [loginEmail, setLoginEmail] = useState('')
   const [loginPassword, setLoginPassword] = useState('')
-  const [regName, setRegName] = useState('')
+  const [regFirstName, setRegFirstName] = useState('')
+  const [regLastName, setRegLastName] = useState('')
   const [regEmail, setRegEmail] = useState('')
   const [regPassword, setRegPassword] = useState('')
   const [isLoginPasswordVisible, setIsLoginPasswordVisible] = useState(false)
@@ -57,12 +58,12 @@ export function AuthPage() {
     e.preventDefault()
     const strength = getPasswordStrength(regPassword)
     if (strength.level === 'weak') {
-      toast.error('Введенный пароль является слабым. Изменить пароль')
+      toast.error('Введенный пароль является слабым. Измените пароль')
       return
     }
 
     const res = registerUser({
-      name: regName,
+      name: `${regFirstName.trim()} ${regLastName.trim()}`.trim(),
       email: regEmail,
       password: regPassword
     })
@@ -86,9 +87,9 @@ export function AuthPage() {
     const hasLower = /[a-zа-я]/.test(password)
     const hasUpper = /[A-ZА-Я]/.test(password)
     const hasDigit = /\d/.test(password)
-    const hasSpecial = /[^A-Za-zА-Яа-я0-9]/.test(password)
+    const groupsCount = [hasLower, hasUpper, hasDigit].filter(Boolean).length
 
-    if (!hasMinLength || !hasLower || !hasUpper || !hasDigit)
+    if (!hasMinLength || groupsCount <= 1)
       return {
         level: 'weak',
         value: 33,
@@ -96,7 +97,7 @@ export function AuthPage() {
         textClass: 'text-red-500',
         barClass: 'bg-red-500'
       } as const
-    if (!hasSpecial)
+    if (groupsCount === 2)
       return {
         level: 'medium',
         value: 66,
@@ -161,6 +162,7 @@ export function AuthPage() {
                       onChange={(e) => setLoginEmail(e.target.value)}
                       required
                       placeholder="example@mail.ru"
+                      className="placeholder:text-muted-foreground/50"
                     />
                   </div>
                   <div className="space-y-2">
@@ -208,13 +210,25 @@ export function AuthPage() {
               <TabsContent value="register" className="mt-4 space-y-4">
                 <form onSubmit={handleRegister} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="reg-name">Имя</Label>
+                    <Label htmlFor="reg-first-name">Имя</Label>
                     <Input
-                      id="reg-name"
-                      value={regName}
-                      onChange={(e) => setRegName(e.target.value)}
+                      id="reg-first-name"
+                      value={regFirstName}
+                      onChange={(e) => setRegFirstName(e.target.value)}
                       required
-                      placeholder="Иван Иванов"
+                      placeholder="Иван"
+                      className="placeholder:text-muted-foreground/50"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="reg-last-name">Фамилия</Label>
+                    <Input
+                      id="reg-last-name"
+                      value={regLastName}
+                      onChange={(e) => setRegLastName(e.target.value)}
+                      required
+                      placeholder="Иванов"
+                      className="placeholder:text-muted-foreground/50"
                     />
                   </div>
                   <div className="space-y-2">
@@ -226,6 +240,7 @@ export function AuthPage() {
                       onChange={(e) => setRegEmail(e.target.value)}
                       required
                       placeholder="example@mail.ru"
+                      className="placeholder:text-muted-foreground/50"
                     />
                   </div>
                   <div className="space-y-2">
@@ -293,7 +308,7 @@ export function AuthPage() {
         </p>
         <Separator />
         <div className="flex items-center justify-between text-sm">
-          <p className="text-muted-foreground">2026, RiskHub</p>
+          <p className="text-muted-foreground">© 2026, RiskHub</p>
           <div className="flex items-center gap-4">
             <Link
               href="/about"

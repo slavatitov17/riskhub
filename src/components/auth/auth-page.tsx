@@ -55,6 +55,12 @@ export function AuthPage() {
 
   const handleRegister = (e: React.FormEvent) => {
     e.preventDefault()
+    const strength = getPasswordStrength(regPassword)
+    if (strength.level === 'weak') {
+      toast.error('Введенный пароль является слабым. Изменить пароль')
+      return
+    }
+
     const res = registerUser({
       name: regName,
       email: regEmail,
@@ -77,21 +83,36 @@ export function AuthPage() {
 
   const getPasswordStrength = (password: string) => {
     const hasMinLength = password.length >= 6
-    const hasLetter = /[A-Za-zА-Яа-я]/.test(password)
+    const hasLower = /[a-zа-я]/.test(password)
+    const hasUpper = /[A-ZА-Я]/.test(password)
     const hasDigit = /\d/.test(password)
     const hasSpecial = /[^A-Za-zА-Яа-я0-9]/.test(password)
-    const score = [hasMinLength, hasLetter, hasDigit, hasSpecial].filter(
-      Boolean
-    ).length
 
-    if (!hasMinLength || !hasLetter || !hasDigit)
-      return { value: 33, label: 'Слабый пароль', textClass: 'text-red-500', barClass: 'bg-red-500' }
-    if (score === 3)
-      return { value: 66, label: 'Средний пароль', textClass: 'text-amber-500', barClass: 'bg-amber-500' }
-    return { value: 100, label: 'Надежный пароль', textClass: 'text-emerald-500', barClass: 'bg-emerald-500' }
+    if (!hasMinLength || !hasLower || !hasUpper || !hasDigit)
+      return {
+        level: 'weak',
+        value: 33,
+        label: 'Слабый пароль',
+        textClass: 'text-red-500',
+        barClass: 'bg-red-500'
+      } as const
+    if (!hasSpecial)
+      return {
+        level: 'medium',
+        value: 66,
+        label: 'Средний пароль',
+        textClass: 'text-amber-500',
+        barClass: 'bg-amber-500'
+      } as const
+    return {
+      level: 'strong',
+      value: 100,
+      label: 'Надежный пароль',
+      textClass: 'text-emerald-500',
+      barClass: 'bg-emerald-500'
+    } as const
   }
 
-  const loginStrength = getPasswordStrength(loginPassword)
   const registerStrength = getPasswordStrength(regPassword)
 
   return (
@@ -124,7 +145,7 @@ export function AuthPage() {
           <CardContent>
             <Tabs defaultValue="login" className="w-full">
               <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="login">Вход</TabsTrigger>
+                <TabsTrigger value="login">Авторизация</TabsTrigger>
                 <TabsTrigger value="register">Регистрация</TabsTrigger>
               </TabsList>
 
@@ -169,22 +190,6 @@ export function AuthPage() {
                         )}
                       </Button>
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      Минимум 6 символов, включая буквы и цифры
-                    </p>
-                    {loginPassword && (
-                      <div className="space-y-1">
-                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                          <div
-                            className={`h-full transition-all ${loginStrength.barClass}`}
-                            style={{ width: `${loginStrength.value}%` }}
-                          />
-                        </div>
-                        <p className={`text-xs ${loginStrength.textClass}`}>
-                          {loginStrength.label}
-                        </p>
-                      </div>
-                    )}
                   </div>
                   <Button type="submit" className="w-full">
                     Войти
@@ -195,7 +200,7 @@ export function AuthPage() {
                     className="w-full"
                     onClick={handleDemoFill}
                   >
-                    Заполнить демо-данные
+                    Использовать демо-аккаунт
                   </Button>
                 </form>
               </TabsContent>
@@ -251,11 +256,11 @@ export function AuthPage() {
                       </Button>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Минимум 6 символов, включая буквы и цифры
+                      Минимум 6 символов, включая цифры, строчные и заглавные буквы
                     </p>
                     {regPassword && (
                       <div className="space-y-1">
-                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                        <div className="h-1 w-full overflow-hidden rounded-full bg-muted">
                           <div
                             className={`h-full transition-all ${registerStrength.barClass}`}
                             style={{ width: `${registerStrength.value}%` }}

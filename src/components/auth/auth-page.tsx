@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
+import { Eye, EyeOff } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -14,17 +15,9 @@ import {
   CardHeader,
   CardTitle
 } from '@/components/ui/card'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger
-} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   ensureDemoUser,
@@ -40,7 +33,8 @@ export function AuthPage() {
   const [regName, setRegName] = useState('')
   const [regEmail, setRegEmail] = useState('')
   const [regPassword, setRegPassword] = useState('')
-  const [forgotEmail, setForgotEmail] = useState('')
+  const [isLoginPasswordVisible, setIsLoginPasswordVisible] = useState(false)
+  const [isRegisterPasswordVisible, setIsRegisterPasswordVisible] = useState(false)
 
   useEffect(() => {
     ensureDemoUser()
@@ -81,6 +75,24 @@ export function AuthPage() {
     toast.message('Подставлен демо-аккаунт — нажмите «Войти»')
   }
 
+  const getPasswordStrength = (password: string) => {
+    const hasMinLength = password.length >= 8
+    const hasLower = /[a-zа-я]/.test(password)
+    const hasUpper = /[A-ZА-Я]/.test(password)
+    const hasDigit = /\d/.test(password)
+    const hasSpecial = /[^A-Za-zА-Яа-я0-9]/.test(password)
+    const score = [hasMinLength, hasLower, hasUpper, hasDigit, hasSpecial].filter(
+      Boolean
+    ).length
+
+    if (score <= 2) return { value: 33, label: 'Ненадежный', barClass: 'bg-red-500' }
+    if (score <= 4) return { value: 66, label: 'Средний', barClass: 'bg-amber-500' }
+    return { value: 100, label: 'Надежный', barClass: 'bg-emerald-500' }
+  }
+
+  const loginStrength = getPasswordStrength(loginPassword)
+  const registerStrength = getPasswordStrength(regPassword)
+
   return (
     <div className="relative min-h-dvh bg-gradient-to-b from-primary/10 via-background to-background px-4 py-10 md:py-16">
       <motion.div
@@ -100,9 +112,9 @@ export function AuthPage() {
 
         <Card className="border bg-card/95 shadow-lg backdrop-blur">
           <CardHeader className="space-y-1 pb-4">
-            <CardTitle className="text-xl">Доступ к системе</CardTitle>
+            <CardTitle className="text-xl">Вход в систему</CardTitle>
             <CardDescription>
-              Войдите или создайте локальный аккаунт — данные хранятся в браузере.
+              Введите данные для входа в систему
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -123,64 +135,50 @@ export function AuthPage() {
                       value={loginEmail}
                       onChange={(e) => setLoginEmail(e.target.value)}
                       required
-                      placeholder="you@company.com"
+                      placeholder="example@mail.ru"
                     />
                   </div>
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <Label htmlFor="login-password">Пароль</Label>
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button
-                            type="button"
-                            variant="link"
-                            className="h-auto p-0 text-xs"
-                          >
-                            Забыли пароль?
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader>
-                            <DialogTitle>Восстановление доступа</DialogTitle>
-                            <DialogDescription>
-                              Демо-режим: укажите email — мы покажем подсказку
-                              (без реальной отправки писем).
-                            </DialogDescription>
-                          </DialogHeader>
-                          <div className="space-y-2">
-                            <Label htmlFor="forgot">Email</Label>
-                            <Input
-                              id="forgot"
-                              value={forgotEmail}
-                              onChange={(e) => setForgotEmail(e.target.value)}
-                              placeholder="you@company.com"
-                            />
-                          </div>
-                          <DialogFooter>
-                            <Button
-                              type="button"
-                              onClick={() => {
-                                toast.success(
-                                  forgotEmail
-                                    ? `Инструкция «отправлена» на ${forgotEmail}`
-                                    : 'Введите email для подсказки'
-                                )
-                              }}
-                            >
-                              Отправить подсказку
-                            </Button>
-                          </DialogFooter>
-                        </DialogContent>
-                      </Dialog>
+                    <Label htmlFor="login-password">Пароль</Label>
+                    <div className="relative">
+                      <Input
+                        id="login-password"
+                        type={isLoginPasswordVisible ? 'text' : 'password'}
+                        autoComplete="current-password"
+                        value={loginPassword}
+                        onChange={(e) => setLoginPassword(e.target.value)}
+                        required
+                        className="pr-10"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-1 top-1 h-8 w-8 text-muted-foreground"
+                        aria-label={isLoginPasswordVisible ? 'Скрыть пароль' : 'Показать пароль'}
+                        onClick={() => setIsLoginPasswordVisible((prev) => !prev)}
+                      >
+                        {isLoginPasswordVisible ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </Button>
                     </div>
-                    <Input
-                      id="login-password"
-                      type="password"
-                      autoComplete="current-password"
-                      value={loginPassword}
-                      onChange={(e) => setLoginPassword(e.target.value)}
-                      required
-                    />
+                    <p className="text-xs text-muted-foreground">
+                      Минимум 8 символов, строчные и заглавные буквы, цифра и спецсимвол
+                    </p>
+                    <div className="space-y-1">
+                      <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                        <div
+                          className={`h-full transition-all ${loginPassword ? loginStrength.barClass : 'bg-muted'}`}
+                          style={{ width: `${loginPassword ? loginStrength.value : 0}%` }}
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Надежность: {loginPassword ? loginStrength.label : '—'}
+                      </p>
+                    </div>
                   </div>
                   <Button type="submit" className="w-full">
                     Войти
@@ -205,7 +203,7 @@ export function AuthPage() {
                       value={regName}
                       onChange={(e) => setRegName(e.target.value)}
                       required
-                      placeholder="Алексей Иванов"
+                      placeholder="Иван Иванов"
                     />
                   </div>
                   <div className="space-y-2">
@@ -216,18 +214,50 @@ export function AuthPage() {
                       value={regEmail}
                       onChange={(e) => setRegEmail(e.target.value)}
                       required
+                      placeholder="example@mail.ru"
                     />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="reg-password">Пароль</Label>
-                    <Input
-                      id="reg-password"
-                      type="password"
-                      value={regPassword}
-                      onChange={(e) => setRegPassword(e.target.value)}
-                      required
-                      minLength={4}
-                    />
+                    <div className="relative">
+                      <Input
+                        id="reg-password"
+                        type={isRegisterPasswordVisible ? 'text' : 'password'}
+                        value={regPassword}
+                        onChange={(e) => setRegPassword(e.target.value)}
+                        required
+                        minLength={8}
+                        className="pr-10"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-1 top-1 h-8 w-8 text-muted-foreground"
+                        aria-label={isRegisterPasswordVisible ? 'Скрыть пароль' : 'Показать пароль'}
+                        onClick={() => setIsRegisterPasswordVisible((prev) => !prev)}
+                      >
+                        {isRegisterPasswordVisible ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Минимум 8 символов, строчные и заглавные буквы, цифра и спецсимвол
+                    </p>
+                    <div className="space-y-1">
+                      <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                        <div
+                          className={`h-full transition-all ${regPassword ? registerStrength.barClass : 'bg-muted'}`}
+                          style={{ width: `${regPassword ? registerStrength.value : 0}%` }}
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Надежность: {regPassword ? registerStrength.label : '—'}
+                      </p>
+                    </div>
                   </div>
                   <Button type="submit" className="w-full">
                     Создать аккаунт
@@ -247,22 +277,24 @@ export function AuthPage() {
           <Link href="/privacy" className="underline underline-offset-2">
             политикой конфиденциальности
           </Link>
-          .
         </p>
-
-        <div className="flex flex-wrap justify-center gap-3 text-sm">
-          <Link
-            href="/about"
-            className="text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-          >
-            О системе
-          </Link>
-          <Link
-            href="/support"
-            className="text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-          >
-            Помощь
-          </Link>
+        <Separator />
+        <div className="flex items-center justify-between text-sm">
+          <p className="text-muted-foreground">2026, RiskHub</p>
+          <div className="flex items-center gap-4">
+            <Link
+              href="/about"
+              className="text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+            >
+              О системе
+            </Link>
+            <Link
+              href="/support"
+              className="text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+            >
+              Помощь
+            </Link>
+          </div>
         </div>
       </motion.div>
     </div>

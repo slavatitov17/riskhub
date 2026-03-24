@@ -1,7 +1,9 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
+import { ChevronDown } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -12,37 +14,106 @@ const faq = [
     a: 'В локальном хранилище браузера. Очистка кеша может удалить аккаунт и риски.'
   },
   {
-    q: 'Как сбросить пароль?',
-    a: 'В демо-режиме используйте форму «Забыли пароль?» — письма не отправляются, это имитация UX.'
+    q: 'Как создать новый риск?',
+    a: 'После входа откройте раздел «Список рисков», нажмите «Новый риск», заполните форму и сохраните запись.'
+  },
+  {
+    q: 'Как работает фильтрация?',
+    a: 'Нажмите кнопку «Фильтры», выберите нужные статусы и категории. Выбранные фильтры отображаются рядом.'
   },
   {
     q: 'Есть ли мобильная версия?',
-    a: 'Да, интерфейс адаптирован под телефоны и планшеты: меню открывается слева.'
+    a: 'Да, интерфейс адаптирован под телефоны и планшеты. Основное меню открывается через кнопку в шапке.'
+  },
+  {
+    q: 'Почему не приходят письма подтверждения?',
+    a: 'Текущая версия работает в демонстрационном режиме и не отправляет почтовые сообщения.'
+  },
+  {
+    q: 'Можно ли подключить сервер и БД?',
+    a: 'Да, архитектура предусматривает подключение backend и внешней БД для продуктивного контура.'
+  },
+  {
+    q: 'Как очистить все данные демо?',
+    a: 'Удалите данные сайта в настройках браузера или сбросьте localStorage через DevTools.'
+  },
+  {
+    q: 'Как формируется уровень риска?',
+    a: 'Уровень определяется комбинацией вероятности и воздействия, а также текущим статусом контроля.'
+  },
+  {
+    q: 'Что делать при ошибке интерфейса?',
+    a: 'Обновите страницу, проверьте браузер и очистите кэш. Если проблема повторяется, опишите шаги в поддержку.'
+  },
+  {
+    q: 'Где посмотреть уведомления?',
+    a: 'Уведомления доступны по иконке колокольчика в шапке и через блок на панели.'
+  },
+  {
+    q: 'Можно ли экспортировать отчёты?',
+    a: 'В демо доступны базовые сценарии. В продуктивной версии планируется расширенный экспорт.'
+  },
+  {
+    q: 'Поддерживаются ли роли пользователей?',
+    a: 'Ролевая модель находится в дорожной карте и будет доступна в следующих релизах.'
+  },
+  {
+    q: 'Как изменить язык интерфейса?',
+    a: 'Переключение языка доступно в настройках профиля внутри основного приложения.'
+  },
+  {
+    q: 'Можно ли работать в офлайн-режиме?',
+    a: 'Большинство демо-сценариев работают локально, но для совместной работы потребуется сервер.'
+  },
+  {
+    q: 'Где найти юридическую информацию?',
+    a: 'На странице входа доступны ссылки «Условия» и «Политика конфиденциальности» с подробными пояснениями.'
   }
 ]
 
 export default function SupportPage() {
+  const [openId, setOpenId] = useState('0')
+
   return (
-    <div className="min-h-dvh bg-muted/30 px-4 py-10 md:py-16">
-      <div className="mx-auto flex max-w-2xl flex-col gap-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <Button variant="ghost" asChild>
-            <Link href="/">← Вход</Link>
-          </Button>
-          <Button variant="outline" asChild>
-            <Link href="/about">О системе</Link>
-          </Button>
-        </div>
+    <div className="min-h-dvh bg-gradient-to-b from-primary/10 via-background to-background px-4 py-10 md:py-16">
+      <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
+        <Button variant="ghost" asChild className="w-fit">
+          <Link href="/">← Назад</Link>
+        </Button>
+
         <motion.div
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          <h1 className="text-3xl font-bold tracking-tight">Справка и FAQ</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Помощь</h1>
           <p className="mt-2 text-muted-foreground">
-            Ответы на частые вопросы до входа в систему.
+            Инструкции по работе с системой и ответы на частые вопросы.
           </p>
         </motion.div>
-        <div className="flex flex-col gap-4">
+
+        <Card className="border bg-card/95 shadow-lg backdrop-blur">
+          <CardHeader>
+            <CardTitle className="text-xl">Как мы можем помочь</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm text-muted-foreground">
+            <section className="rounded-lg border p-4">
+              <h2 className="mb-2 text-base font-semibold text-foreground">Поддержка пользователей</h2>
+              <p>
+                В этом разделе собраны практические рекомендации по входу, работе
+                с рисками, уведомлениями и настройками интерфейса.
+              </p>
+            </section>
+            <section className="rounded-lg border p-4">
+              <h2 className="mb-2 text-base font-semibold text-foreground">Формат помощи</h2>
+              <p>
+                Ниже расположен расширенный FAQ в формате аккордеона: откройте
+                нужный вопрос, чтобы быстро получить ответ.
+              </p>
+            </section>
+          </CardContent>
+        </Card>
+
+        <div className="flex flex-col gap-3">
           {faq.map((item, i) => (
             <motion.div
               key={item.q}
@@ -50,13 +121,24 @@ export default function SupportPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.05 }}
             >
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base">{item.q}</CardTitle>
-                </CardHeader>
-                <CardContent className="text-sm text-muted-foreground">
-                  {item.a}
-                </CardContent>
+              <Card className="overflow-hidden border bg-card/95 shadow-lg backdrop-blur">
+                <button
+                  type="button"
+                  className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left"
+                  onClick={() =>
+                    setOpenId((prev) => (prev === String(i) ? '' : String(i)))
+                  }
+                >
+                  <span className="font-medium">{item.q}</span>
+                  <ChevronDown
+                    className={`h-5 w-5 shrink-0 transition-transform ${openId === String(i) ? 'rotate-180' : ''}`}
+                  />
+                </button>
+                {openId === String(i) && (
+                  <CardContent className="border-t pb-4 pt-4 text-sm text-muted-foreground">
+                    {item.a}
+                  </CardContent>
+                )}
               </Card>
             </motion.div>
           ))}

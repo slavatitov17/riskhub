@@ -1,36 +1,64 @@
 import Link from 'next/link'
 
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 export default function TermsPage() {
   return (
-    <div className="min-h-dvh bg-background px-4 py-10 md:py-16">
-      <div className="mx-auto max-w-3xl">
-        <Button variant="ghost" asChild className="mb-6">
-          <Link href="/">← На страницу входа</Link>
+    <div className="min-h-dvh bg-gradient-to-b from-primary/10 via-background to-background px-4 py-10 md:py-16">
+      <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
+        <Button variant="ghost" asChild className="w-fit">
+          <Link href="/">← Назад</Link>
         </Button>
-        <h1 className="text-3xl font-bold tracking-tight">
-          Условия использования
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Демонстрационная версия RiskHub
-        </p>
-        <div className="mt-8 space-y-4 text-sm text-muted-foreground">
-          <p>
-            Настоящие условия регулируют использование веб-интерфейса RiskHub в
-            целях оценки UX и прототипирования. Продукт поставляется «как есть»,
-            без гарантий доступности или сохранности данных.
-          </p>
-          <p>
-            Пользователь несёт ответственность за содержание вводимой
-            информации и за сохранность устройства, на котором хранятся
-            локальные данные.
-          </p>
-          <p>
-            Запрещается использовать демо-версию для обработки реальных
-            персональных данных без выполнения требований законодательства.
-          </p>
-        </div>
+
+        <Card className="border bg-card/95 shadow-lg backdrop-blur">
+          <CardHeader>
+            <CardTitle className="text-3xl font-bold tracking-tight">
+              Условия использования
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">Демонстрационная версия RiskHub</p>
+          </CardHeader>
+          <CardContent className="space-y-4 text-sm text-muted-foreground">
+            <section className="space-y-2 rounded-lg border p-4">
+              <h2 className="text-base font-semibold text-foreground">1. Назначение сервиса</h2>
+              <p>
+                RiskHub предоставляется как демонстрационный продукт для оценки
+                интерфейса, пользовательских сценариев и логики работы с реестром
+                рисков.
+              </p>
+            </section>
+            <section className="space-y-2 rounded-lg border p-4">
+              <h2 className="text-base font-semibold text-foreground">2. Формат предоставления</h2>
+              <p>
+                Сервис работает по модели «как есть», без гарантий непрерывной
+                доступности, полноты данных и совместимости со всеми браузерами.
+              </p>
+            </section>
+            <section className="space-y-2 rounded-lg border p-4">
+              <h2 className="text-base font-semibold text-foreground">3. Ответственность пользователя</h2>
+              <p>
+                Пользователь самостоятельно отвечает за корректность вводимой
+                информации и за сохранность устройства, где хранятся локальные
+                данные приложения.
+              </p>
+            </section>
+            <section className="space-y-2 rounded-lg border p-4">
+              <h2 className="text-base font-semibold text-foreground">4. Ограничения использования</h2>
+              <p>
+                Запрещается использовать демонстрационный контур для обработки
+                критичных данных, коммерчески значимых реестров и реальных
+                персональных данных без внедрения мер защиты.
+              </p>
+            </section>
+            <section className="space-y-2 rounded-lg border p-4">
+              <h2 className="text-base font-semibold text-foreground">5. Изменение условий</h2>
+              <p>
+                Команда RiskHub может обновлять условия использования и структуру
+                демо-окружения без предварительного уведомления.
+              </p>
+            </section>
+          </CardContent>
+        </Card>
       </div>
     </div>
   )

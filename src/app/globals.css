@@ -117,8 +117,14 @@
   margin: 0;
   padding: 0;
   cursor: pointer;
+  position: relative;
+  right: -2px;
 }
 
 .calendar-input {
-  padding-right: 0.5rem;
+  padding-right: 0.125rem;
+}
+
+.calendar-input::-webkit-datetime-edit {
+  padding-right: 0;
 }

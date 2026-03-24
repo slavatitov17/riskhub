@@ -721,7 +721,11 @@ export function PanelDashboard() {
                 <SelectContent>
                   <SelectItem value="__all__">Все проекты</SelectItem>
                   {projects.map((project) => (
-                    <SelectItem key={project} value={project}>
+                    <SelectItem
+                      key={project}
+                      value={project}
+                      className="rounded-md py-2.5"
+                    >
                       <span className="flex w-full items-center gap-2">
                         <FolderKanban className="h-4 w-4 text-primary" />
                         <span>{project}</span>
@@ -747,7 +751,11 @@ export function PanelDashboard() {
                 <SelectContent>
                   <SelectItem value="__all__">Все авторы</SelectItem>
                   {authors.map((author) => (
-                    <SelectItem key={author} value={author}>
+                    <SelectItem
+                      key={author}
+                      value={author}
+                      className="rounded-md py-2.5"
+                    >
                       <span className="flex w-full items-center gap-2">
                         <UserCircle2 className="h-4 w-4 text-primary" />
                         <span>{author}</span>

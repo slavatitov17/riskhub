@@ -11,12 +11,14 @@ import {
   CheckCircle2,
   Eye,
   Filter,
+  FolderKanban,
   Flame,
   List,
   Pencil,
   Plus,
   Search,
   Trash2,
+  UserCircle2,
   Zap
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -43,6 +45,13 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
 import {
   Table,
   TableBody,
@@ -88,7 +97,7 @@ function filterPlural(count: number) {
 export function PanelDashboard() {
   const router = useRouter()
   const { risks, removeRisk, updateRisk } = useRisks()
-  const { openNotifications } = useNotifications()
+  const { openNotifications, notifications } = useNotifications()
   const [filterOpen, setFilterOpen] = useState(false)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string[]>([])
@@ -366,34 +375,19 @@ export function PanelDashboard() {
           </CardHeader>
           <CardContent className="pt-0">
             <ul className="flex flex-col gap-2">
-              {[
-                {
-                  id: 'n1',
-                  dot: 'bg-red-500',
-                  text: 'Просрочена мера по риску #104 — обновите документацию',
-                  meta: 'Просрочено'
-                },
-                {
-                  id: 'n2',
-                  dot: 'bg-amber-500',
-                  text: 'Срок проверки по риску #101 через 2 дня',
-                  meta: 'Скоро'
-                },
-                {
-                  id: 'n3',
-                  dot: 'bg-primary',
-                  text: 'Новый комментарий к риску #99',
-                  meta: 'Комментарий'
-                }
-              ].map((n) => (
+              {notifications
+                .filter((n) => !n.isRead)
+                .map((n) => (
                 <li key={n.id} className="flex gap-3 rounded-lg border p-3">
                   <span
-                    className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${n.dot}`}
+                    className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${
+                      n.tone === 'destructive' ? 'bg-red-500' : 'bg-amber-500'
+                    }`}
                     aria-hidden
                   />
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm leading-snug">{n.text}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">{n.meta}</p>
+                    <p className="text-sm leading-snug">{n.body}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{n.title}</p>
                   </div>
                 </li>
               ))}
@@ -638,26 +632,6 @@ export function PanelDashboard() {
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <p className="mb-2 text-sm font-medium">Статус</p>
-              <div className="flex flex-col gap-2">
-                {statuses.map((s) => (
-                  <label key={s} className="flex items-center gap-2 text-sm">
-                    <Checkbox
-                      checked={statusFilter.includes(s)}
-                      onCheckedChange={(v) => {
-                        setStatusFilter((prev) =>
-                          v
-                            ? [...prev, s]
-                            : prev.filter((x) => x !== s)
-                        )
-                      }}
-                    />
-                    {s}
-                  </label>
-                ))}
-              </div>
-            </div>
-            <div>
               <p className="mb-2 text-sm font-medium">Категория</p>
               <div className="flex flex-col gap-2">
                 {categories.map((c) => (
@@ -712,38 +686,76 @@ export function PanelDashboard() {
               </div>
             </div>
             <div>
+              <p className="mb-2 text-sm font-medium">Статус</p>
+              <div className="flex flex-col gap-2">
+                {statuses.map((s) => (
+                  <label key={s} className="flex items-center gap-2 text-sm">
+                    <Checkbox
+                      checked={statusFilter.includes(s)}
+                      onCheckedChange={(v) => {
+                        setStatusFilter((prev) =>
+                          v
+                            ? [...prev, s]
+                            : prev.filter((x) => x !== s)
+                        )
+                      }}
+                    />
+                    {s}
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div>
               <Label htmlFor="project-filter" className="mb-2 block text-sm font-medium">
                 Проект
               </Label>
-              <Input
-                id="project-filter"
-                placeholder="Поиск по проекту..."
-                list="projects-list"
-                value={projectFilter}
-                onChange={(e) => setProjectFilter(e.target.value)}
-              />
-              <datalist id="projects-list">
-                {projects.map((project) => (
-                  <option key={project} value={project} />
-                ))}
-              </datalist>
+              <Select
+                value={projectFilter || '__all__'}
+                onValueChange={(value) =>
+                  setProjectFilter(value === '__all__' ? '' : value)
+                }
+              >
+                <SelectTrigger id="project-filter" className="w-full">
+                  <SelectValue placeholder="Выберите проект" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">Все проекты</SelectItem>
+                  {projects.map((project) => (
+                    <SelectItem key={project} value={project}>
+                      <span className="flex w-full items-center gap-2">
+                        <FolderKanban className="h-4 w-4 text-primary" />
+                        <span>{project}</span>
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label htmlFor="author-filter" className="mb-2 block text-sm font-medium">
                 Автор
               </Label>
-              <Input
-                id="author-filter"
-                placeholder="Поиск по автору..."
-                list="authors-list"
-                value={authorFilter}
-                onChange={(e) => setAuthorFilter(e.target.value)}
-              />
-              <datalist id="authors-list">
-                {authors.map((author) => (
-                  <option key={author} value={author} />
-                ))}
-              </datalist>
+              <Select
+                value={authorFilter || '__all__'}
+                onValueChange={(value) =>
+                  setAuthorFilter(value === '__all__' ? '' : value)
+                }
+              >
+                <SelectTrigger id="author-filter" className="w-full">
+                  <SelectValue placeholder="Выберите автора" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">Все авторы</SelectItem>
+                  {authors.map((author) => (
+                    <SelectItem key={author} value={author}>
+                      <span className="flex w-full items-center gap-2">
+                        <UserCircle2 className="h-4 w-4 text-primary" />
+                        <span>{author}</span>
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <p className="mb-2 text-sm font-medium">Создан</p>

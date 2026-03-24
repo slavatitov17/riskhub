@@ -114,5 +114,11 @@
 }
 
 .calendar-input::-webkit-calendar-picker-indicator {
-  margin-left: auto;
+  margin: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+.calendar-input {
+  padding-right: 0.5rem;
 }

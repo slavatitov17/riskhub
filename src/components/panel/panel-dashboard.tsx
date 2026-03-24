@@ -532,7 +532,7 @@ export function PanelDashboard() {
                         aria-label={`Выбрать ${row.code}`}
                       />
                     </TableCell>
-                    <TableCell className="whitespace-nowrap font-mono text-xs">
+                    <TableCell className="whitespace-nowrap font-medium">
                       {row.code}
                     </TableCell>
                     <TableCell className="whitespace-nowrap font-medium">
@@ -772,14 +772,14 @@ export function PanelDashboard() {
                   type="date"
                   value={createdFrom}
                   onChange={(e) => setCreatedFrom(e.target.value)}
-                  className="calendar-input accent-primary pr-1"
+                  className="calendar-input accent-primary"
                   aria-label="Создан с"
                 />
                 <Input
                   type="date"
                   value={createdTo}
                   onChange={(e) => setCreatedTo(e.target.value)}
-                  className="calendar-input accent-primary pr-1"
+                  className="calendar-input accent-primary"
                   aria-label="Создан по"
                 />
               </div>
@@ -791,14 +791,14 @@ export function PanelDashboard() {
                   type="date"
                   value={updatedFrom}
                   onChange={(e) => setUpdatedFrom(e.target.value)}
-                  className="calendar-input accent-primary pr-1"
+                  className="calendar-input accent-primary"
                   aria-label="Обновлен с"
                 />
                 <Input
                   type="date"
                   value={updatedTo}
                   onChange={(e) => setUpdatedTo(e.target.value)}
-                  className="calendar-input accent-primary pr-1"
+                  className="calendar-input accent-primary"
                   aria-label="Обновлен по"
                 />
               </div>

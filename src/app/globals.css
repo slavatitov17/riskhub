@@ -113,18 +113,23 @@
   background: transparent;
 }
 
-.calendar-input::-webkit-calendar-picker-indicator {
+input.calendar-input[type='date'] {
+  position: relative;
+  padding-right: 2rem;
+}
+
+input.calendar-input[type='date']::-webkit-calendar-picker-indicator {
+  position: absolute;
+  top: 50%;
+  right: 0.5rem;
   margin: 0;
   padding: 0;
+  width: 1.125rem;
+  height: 1.125rem;
   cursor: pointer;
-  position: relative;
-  right: -2px;
+  transform: translateY(-50%);
 }
 
-.calendar-input {
-  padding-right: 0.125rem;
-}
-
-.calendar-input::-webkit-datetime-edit {
+input.calendar-input[type='date']::-webkit-datetime-edit {
   padding-right: 0;
 }

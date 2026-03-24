@@ -294,7 +294,7 @@ export function RisksListView() {
                         }
                       />
                     </TableCell>
-                    <TableCell className="whitespace-nowrap font-mono text-xs">
+                    <TableCell className="whitespace-nowrap font-medium">
                       {r.code}
                     </TableCell>
                     <TableCell className="whitespace-nowrap font-medium">

@@ -5,7 +5,9 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import {
+  ArrowRight,
   BarChart3,
+  Check,
   CheckCircle2,
   Eye,
   Filter,
@@ -36,7 +38,6 @@ import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
-  DialogFooter,
   DialogHeader,
   DialogTitle
 } from '@/components/ui/dialog'
@@ -86,15 +87,23 @@ function filterPlural(count: number) {
 
 export function PanelDashboard() {
   const router = useRouter()
-  const { risks, removeRisk } = useRisks()
+  const { risks, removeRisk, updateRisk } = useRisks()
   const { openNotifications } = useNotifications()
   const [filterOpen, setFilterOpen] = useState(false)
-  const [bulkOpen, setBulkOpen] = useState(false)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string[]>([])
   const [catFilter, setCatFilter] = useState<string[]>([])
+  const [probabilityFilter, setProbabilityFilter] = useState<string[]>([])
+  const [impactFilter, setImpactFilter] = useState<string[]>([])
+  const [projectFilter, setProjectFilter] = useState('')
+  const [authorFilter, setAuthorFilter] = useState('')
+  const [createdFrom, setCreatedFrom] = useState('')
+  const [createdTo, setCreatedTo] = useState('')
+  const [updatedFrom, setUpdatedFrom] = useState('')
+  const [updatedTo, setUpdatedTo] = useState('')
   const [selected, setSelected] = useState<Record<string, boolean>>({})
   const [deleteId, setDeleteId] = useState<string | null>(null)
+  const [bulkAction, setBulkAction] = useState<'close' | 'delete' | null>(null)
 
   const categories = useMemo(
     () => Array.from(new Set(risks.map((r) => r.category))),
@@ -104,11 +113,29 @@ export function PanelDashboard() {
     () => Array.from(new Set(risks.map((r) => r.status))),
     [risks]
   )
+  const probabilities = useMemo(
+    () => Array.from(new Set(risks.map((r) => r.probability))),
+    [risks]
+  )
+  const impacts = useMemo(
+    () => Array.from(new Set(risks.map((r) => r.impact))),
+    [risks]
+  )
 
   const filtered = useMemo(() => {
     return risks.filter((r) => {
       if (statusFilter.length && !statusFilter.includes(r.status)) return false
       if (catFilter.length && !catFilter.includes(r.category)) return false
+      if (probabilityFilter.length && !probabilityFilter.includes(r.probability)) return false
+      if (impactFilter.length && !impactFilter.includes(r.impact)) return false
+      if (projectFilter.trim() && !r.project.toLowerCase().includes(projectFilter.toLowerCase()))
+        return false
+      if (authorFilter.trim() && !r.author.toLowerCase().includes(authorFilter.toLowerCase()))
+        return false
+      if (createdFrom && r.created < createdFrom) return false
+      if (createdTo && r.created > createdTo) return false
+      if (updatedFrom && r.updated < updatedFrom) return false
+      if (updatedTo && r.updated > updatedTo) return false
       if (search.trim()) {
         const q = search.toLowerCase()
         if (
@@ -119,7 +146,20 @@ export function PanelDashboard() {
       }
       return true
     })
-  }, [risks, statusFilter, catFilter, search])
+  }, [
+    risks,
+    statusFilter,
+    catFilter,
+    probabilityFilter,
+    impactFilter,
+    projectFilter,
+    authorFilter,
+    createdFrom,
+    createdTo,
+    updatedFrom,
+    updatedTo,
+    search
+  ])
 
   const activeCount = risks.filter((r) => r.status === 'Активный').length
   const closedCount = risks.filter((r) => r.status === 'Закрыт').length
@@ -127,7 +167,17 @@ export function PanelDashboard() {
     (r) => r.impact === 'Высокое' && r.probability === 'Высокая'
   ).length
 
-  const appliedFilters = statusFilter.length + catFilter.length
+  const appliedFilters =
+    statusFilter.length +
+    catFilter.length +
+    probabilityFilter.length +
+    impactFilter.length +
+    (projectFilter.trim() ? 1 : 0) +
+    (authorFilter.trim() ? 1 : 0) +
+    (createdFrom ? 1 : 0) +
+    (createdTo ? 1 : 0) +
+    (updatedFrom ? 1 : 0) +
+    (updatedTo ? 1 : 0)
 
   const toggleAll = (checked: boolean) => {
     const next: Record<string, boolean> = {}
@@ -136,6 +186,23 @@ export function PanelDashboard() {
   }
 
   const selectedIds = Object.keys(selected).filter((id) => selected[id])
+
+  const handleBulkConfirm = () => {
+    if (!bulkAction || !selectedIds.length) return
+
+    if (bulkAction === 'close') {
+      selectedIds.forEach((id) => updateRisk(id, { status: 'Закрыт' }))
+      toast.success('Выбранные риски закрыты')
+    }
+
+    if (bulkAction === 'delete') {
+      selectedIds.forEach((id) => removeRisk(id))
+      toast.success('Выбранные риски удалены')
+    }
+
+    setSelected({})
+    setBulkAction(null)
+  }
 
   const handleSearch = () => {
     toast.success(
@@ -159,19 +226,13 @@ export function PanelDashboard() {
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
                 <Zap className="h-5 w-5" aria-hidden />
               </div>
-              <div className="min-w-0">
+              <div className="ml-auto mt-auto flex flex-col items-end text-right">
                 <p className="text-2xl font-bold leading-none">{activeCount}</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Активных рисков
-                </p>
-              </div>
-              <div className="mt-auto flex justify-end">
-                <Button
-                  variant="link"
-                  className="h-auto shrink-0 p-0 text-primary"
-                  asChild
-                >
-                  <Link href="/risks">Смотреть →</Link>
+                <p className="mt-1 text-sm text-muted-foreground">Активных рисков</p>
+                <Button variant="outline" size="icon" className="mt-3 h-8 w-8" asChild>
+                  <Link href="/risks" aria-label="Открыть список рисков">
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
                 </Button>
               </div>
             </CardContent>
@@ -181,19 +242,13 @@ export function PanelDashboard() {
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600">
                 <CheckCircle2 className="h-5 w-5" aria-hidden />
               </div>
-              <div className="min-w-0">
+              <div className="ml-auto mt-auto flex flex-col items-end text-right">
                 <p className="text-2xl font-bold leading-none">{closedCount}</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Закрытых рисков
-                </p>
-              </div>
-              <div className="mt-auto flex justify-end">
-                <Button
-                  variant="link"
-                  className="h-auto shrink-0 p-0 text-primary"
-                  asChild
-                >
-                  <Link href="/risks">Смотреть →</Link>
+                <p className="mt-1 text-sm text-muted-foreground">Закрытых рисков</p>
+                <Button variant="outline" size="icon" className="mt-3 h-8 w-8" asChild>
+                  <Link href="/risks" aria-label="Открыть список рисков">
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
                 </Button>
               </div>
             </CardContent>
@@ -203,19 +258,13 @@ export function PanelDashboard() {
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-red-500/10 text-red-600">
                 <Flame className="h-5 w-5" aria-hidden />
               </div>
-              <div className="min-w-0">
+              <div className="ml-auto mt-auto flex flex-col items-end text-right">
                 <p className="text-2xl font-bold leading-none">{criticalCount}</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Критические риски
-                </p>
-              </div>
-              <div className="mt-auto flex justify-end">
-                <Button
-                  variant="link"
-                  className="h-auto shrink-0 p-0 text-primary"
-                  asChild
-                >
-                  <Link href="/risks">Смотреть →</Link>
+                <p className="mt-1 text-sm text-muted-foreground">Критические риски</p>
+                <Button variant="outline" size="icon" className="mt-3 h-8 w-8" asChild>
+                  <Link href="/risks" aria-label="Открыть список рисков">
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
                 </Button>
               </div>
             </CardContent>
@@ -255,8 +304,11 @@ export function PanelDashboard() {
             <CardTitle className="text-base font-semibold">
               Последние добавленные риски
             </CardTitle>
-            <Button variant="link" className="h-auto shrink-0 p-0 text-primary" asChild>
-              <Link href="/risks">Все риски →</Link>
+            <Button variant="outline" size="sm" className="gap-1.5" asChild>
+              <Link href="/risks">
+                Все риски
+                <ArrowRight className="h-4 w-4" />
+              </Link>
             </Button>
           </CardHeader>
           <CardContent className="pt-0">
@@ -288,12 +340,14 @@ export function PanelDashboard() {
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
             <CardTitle className="text-base font-semibold">Уведомления</CardTitle>
             <Button
-              variant="link"
-              className="h-auto shrink-0 p-0 text-primary"
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
               type="button"
               onClick={openNotifications}
             >
-              Все уведомления →
+              Все уведомления
+              <ArrowRight className="h-4 w-4" />
             </Button>
           </CardHeader>
           <CardContent className="pt-0">
@@ -361,6 +415,14 @@ export function PanelDashboard() {
                   onClick={() => {
                     setStatusFilter([])
                     setCatFilter([])
+                    setProbabilityFilter([])
+                    setImpactFilter([])
+                    setProjectFilter('')
+                    setAuthorFilter('')
+                    setCreatedFrom('')
+                    setCreatedTo('')
+                    setUpdatedFrom('')
+                    setUpdatedTo('')
                     toast.message('Фильтры сброшены')
                   }}
                 >
@@ -391,14 +453,38 @@ export function PanelDashboard() {
         </CardHeader>
         <CardContent className="p-0">
           <div className="flex flex-col gap-2 border-b px-4 pb-3 pt-2 sm:flex-row sm:items-center sm:justify-between md:px-6">
-            <h2 className="text-base font-semibold">Список рисков</h2>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                className="gap-2"
+                disabled={!selectedIds.length}
+                onClick={() => setBulkAction('close')}
+              >
+                <Check className="h-4 w-4" />
+                Закрыть выбранные
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                className="gap-2"
+                disabled={!selectedIds.length}
+                onClick={() => setBulkAction('delete')}
+              >
+                <Trash2 className="h-4 w-4" />
+                Удалить выбранные
+              </Button>
+            </div>
             <Button
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => setBulkOpen(true)}
+              onClick={() => setFilterOpen(true)}
             >
-              Массовые действия
+              <Filter className="mr-2 h-4 w-4" />
+              Фильтры
             </Button>
           </div>
 
@@ -430,7 +516,7 @@ export function PanelDashboard() {
                   <TableHead className="whitespace-nowrap">Автор</TableHead>
                   <TableHead className="whitespace-nowrap">Создан</TableHead>
                   <TableHead className="whitespace-nowrap">Обновлён</TableHead>
-                  <TableHead className="whitespace-nowrap text-right">
+                  <TableHead className="whitespace-nowrap text-left">
                     Действия
                   </TableHead>
                 </TableRow>
@@ -497,8 +583,8 @@ export function PanelDashboard() {
                     <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
                       {formatDisplayDate(row.updated)}
                     </TableCell>
-                    <TableCell className="whitespace-nowrap text-right">
-                      <div className="flex justify-end gap-1">
+                    <TableCell className="whitespace-nowrap text-left">
+                      <div className="flex justify-start gap-1">
                         <Button
                           size="icon"
                           variant="ghost"
@@ -532,6 +618,10 @@ export function PanelDashboard() {
                 ))}
               </TableBody>
             </Table>
+          </div>
+          <div className="px-4 py-2 text-sm md:px-6">
+            <span className="text-muted-foreground">Всего записей: </span>
+            <span className="text-foreground">{filtered.length}</span>
           </div>
         </CardContent>
       </Card>
@@ -580,11 +670,104 @@ export function PanelDashboard() {
                 ))}
               </div>
             </div>
+            <div>
+              <p className="mb-2 text-sm font-medium">Вероятность</p>
+              <div className="flex flex-col gap-2">
+                {probabilities.map((p) => (
+                  <label key={p} className="flex items-center gap-2 text-sm">
+                    <Checkbox
+                      checked={probabilityFilter.includes(p)}
+                      onCheckedChange={(v) => {
+                        setProbabilityFilter((prev) =>
+                          v ? [...prev, p] : prev.filter((x) => x !== p)
+                        )
+                      }}
+                    />
+                    {p}
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div>
+              <p className="mb-2 text-sm font-medium">Воздействие</p>
+              <div className="flex flex-col gap-2">
+                {impacts.map((i) => (
+                  <label key={i} className="flex items-center gap-2 text-sm">
+                    <Checkbox
+                      checked={impactFilter.includes(i)}
+                      onCheckedChange={(v) => {
+                        setImpactFilter((prev) =>
+                          v ? [...prev, i] : prev.filter((x) => x !== i)
+                        )
+                      }}
+                    />
+                    {i}
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="project-filter" className="mb-2 block text-sm font-medium">
+                Проект
+              </Label>
+              <Input
+                id="project-filter"
+                placeholder="Поиск по проекту..."
+                value={projectFilter}
+                onChange={(e) => setProjectFilter(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="author-filter" className="mb-2 block text-sm font-medium">
+                Автор
+              </Label>
+              <Input
+                id="author-filter"
+                placeholder="Поиск по автору..."
+                value={authorFilter}
+                onChange={(e) => setAuthorFilter(e.target.value)}
+              />
+            </div>
+            <div>
+              <p className="mb-2 text-sm font-medium">Создан</p>
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  type="date"
+                  value={createdFrom}
+                  onChange={(e) => setCreatedFrom(e.target.value)}
+                  className="accent-primary"
+                  aria-label="Создан с"
+                />
+                <Input
+                  type="date"
+                  value={createdTo}
+                  onChange={(e) => setCreatedTo(e.target.value)}
+                  className="accent-primary"
+                  aria-label="Создан по"
+                />
+              </div>
+            </div>
+            <div>
+              <p className="mb-2 text-sm font-medium">Обновлен</p>
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  type="date"
+                  value={updatedFrom}
+                  onChange={(e) => setUpdatedFrom(e.target.value)}
+                  className="accent-primary"
+                  aria-label="Обновлен с"
+                />
+                <Input
+                  type="date"
+                  value={updatedTo}
+                  onChange={(e) => setUpdatedTo(e.target.value)}
+                  className="accent-primary"
+                  aria-label="Обновлен по"
+                />
+              </div>
+            </div>
           </div>
-          <DialogFooter>
-            <Button type="button" variant="secondary" onClick={() => setFilterOpen(false)}>
-              Закрыть
-            </Button>
+          <div className="flex justify-end">
             <Button
               type="button"
               onClick={() => {
@@ -594,46 +777,30 @@ export function PanelDashboard() {
             >
               Применить
             </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={bulkOpen} onOpenChange={setBulkOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Массовые действия</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            Выбрано записей: {selectedIds.length}. Демо: можно отметить как
-            закрытые или удалить.
-          </p>
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button type="button" variant="outline" onClick={() => setBulkOpen(false)}>
-              Отмена
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => {
-                setBulkOpen(false)
-                toast.success('Выбранные риски отмечены как закрытые (демо)')
-              }}
-            >
-              Закрыть выбранные
-            </Button>
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={() => {
-                setBulkOpen(false)
-                toast.message('Удаление нескольких записей отключено в демо')
-              }}
-            >
-              Удалить выбранные
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <AlertDialog open={!!bulkAction} onOpenChange={() => setBulkAction(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {bulkAction === 'close'
+                ? 'Закрыть выбранные риски?'
+                : 'Удалить выбранные риски?'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Выбрано записей: {selectedIds.length}. Подтвердите выполнение действия.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Отмена</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkConfirm}>
+              Подтвердить
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent>

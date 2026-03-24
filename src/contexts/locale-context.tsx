@@ -15,12 +15,12 @@ const LOCALE_KEY = 'riskhub_locale'
 
 const messages = {
   ru: {
-    navPanel: 'Панель',
+    navPanel: 'Главная',
     navRisks: 'Список рисков',
     navAnalytics: 'Аналитика',
     navSettings: 'Настройки',
     navHelp: 'Помощь',
-    crumbPanel: 'Панель',
+    crumbPanel: 'Главная',
     crumbRisks: 'Список рисков',
     crumbNewRisk: 'Новый риск',
     crumbEditRisk: 'Редактирование риска',
@@ -32,12 +32,12 @@ const messages = {
     crumbSection: 'Раздел'
   },
   en: {
-    navPanel: 'Dashboard',
+    navPanel: 'Home',
     navRisks: 'Risk list',
     navAnalytics: 'Analytics',
     navSettings: 'Settings',
     navHelp: 'Help',
-    crumbPanel: 'Dashboard',
+    crumbPanel: 'Home',
     crumbRisks: 'Risk list',
     crumbNewRisk: 'New risk',
     crumbEditRisk: 'Edit risk',

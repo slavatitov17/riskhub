@@ -9,7 +9,7 @@ const inter = Inter({ subsets: ['latin', 'cyrillic'], variable: '--font-sans' })
 
 export const metadata: Metadata = {
   title: 'RiskHub | База знаний по рискам',
-  description: 'Панель управления рисками ИТ-проектов',
+  description: 'Главная и реестр рисков ИТ-проектов',
   icons: {
     icon: '/favicon.svg'
   }

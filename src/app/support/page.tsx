@@ -1,55 +1,17 @@
 'use client'
 
-import { useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { ChevronDown } from 'lucide-react'
+import { Mail, MessageCircle } from 'lucide-react'
+import { toast } from 'sonner'
 
+import { SupportHelpSections } from '@/components/help/support-help-sections'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-
-const faq = [
-  {
-    q: 'Как создать новый риск?',
-    a: 'После входа откройте раздел «Список рисков», нажмите «Новый риск», заполните форму и сохраните запись.'
-  },
-  {
-    q: 'Как работает фильтрация?',
-    a: 'Нажмите кнопку «Фильтры», выберите нужные статусы и категории. Выбранные фильтры отображаются рядом.'
-  },
-  {
-    q: 'Есть ли мобильная версия?',
-    a: 'Да, интерфейс адаптирован под телефоны и планшеты. Основное меню открывается через кнопку в шапке.'
-  },
-  {
-    q: 'Почему не приходят письма подтверждения?',
-    a: 'Текущая версия работает в демонстрационном режиме и не отправляет почтовые сообщения.'
-  },
-  {
-    q: 'Как формируется уровень риска?',
-    a: 'Уровень определяется комбинацией вероятности и воздействия, а также текущим статусом контроля.'
-  },
-  {
-    q: 'Что делать при ошибке интерфейса?',
-    a: 'Обновите страницу, проверьте браузер и очистите кэш. Если проблема повторяется, опишите шаги в поддержку.'
-  },
-  {
-    q: 'Где посмотреть уведомления?',
-    a: 'Уведомления доступны по иконке колокольчика в шапке и через блок на панели.'
-  },
-  {
-    q: 'Как изменить язык интерфейса?',
-    a: 'Переключение языка доступно в настройках профиля внутри основного приложения.'
-  },
-  {
-    q: 'Где найти юридическую информацию?',
-    a: 'На странице входа доступны ссылки «Условия» и «Политика конфиденциальности» с подробными пояснениями.'
-  }
-]
+import { Card, CardContent } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 
 export default function SupportPage() {
-  const [openId, setOpenId] = useState('0')
-
   return (
     <div className="min-h-dvh bg-gradient-to-b from-primary/10 via-background to-background px-4 py-10 md:py-16">
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
@@ -67,61 +29,24 @@ export default function SupportPage() {
           </p>
         </motion.div>
 
-        <Card className="border bg-card/95 shadow-lg backdrop-blur">
-          <CardHeader>
-            <CardTitle className="text-xl">Как мы можем помочь</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm text-muted-foreground">
-            <section className="rounded-lg border p-4">
-              <h2 className="mb-2 text-base font-semibold text-foreground">Поддержка пользователей</h2>
-              <p>
-                В этом разделе собраны практические рекомендации по входу, работе
-                с рисками, уведомлениями и настройками интерфейса.
-              </p>
-            </section>
-            <section className="rounded-lg border p-4">
-              <h2 className="mb-2 text-base font-semibold text-foreground">Формат помощи</h2>
-              <p>
-                Ниже расположен расширенный FAQ в формате аккордеона: откройте
-                нужный вопрос, чтобы быстро получить ответ.
-              </p>
-            </section>
-          </CardContent>
-        </Card>
+        <SupportHelpSections />
 
         <Card className="border bg-card/95 shadow-lg backdrop-blur">
-          <CardHeader>
-            <CardTitle className="text-xl">Частые вопросы</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {faq.map((item, i) => (
-              <motion.div
-                key={item.q}
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.05 }}
-              >
-                <Card className="overflow-hidden border bg-card/95 shadow-sm">
-                  <button
-                    type="button"
-                    className="flex w-full items-center justify-between gap-3 px-5 py-4 text-left"
-                    onClick={() =>
-                      setOpenId((prev) => (prev === String(i) ? '' : String(i)))
-                    }
-                  >
-                    <span className="font-medium">{item.q}</span>
-                    <ChevronDown
-                      className={`h-5 w-5 shrink-0 transition-transform ${openId === String(i) ? 'rotate-180' : ''}`}
-                    />
-                  </button>
-                  {openId === String(i) && (
-                    <CardContent className="border-t pb-4 pt-4 text-sm text-muted-foreground">
-                      {item.a}
-                    </CardContent>
-                  )}
-                </Card>
-              </motion.div>
-            ))}
+          <CardContent className="space-y-3 p-4">
+            <div className="flex items-center gap-2 font-medium">
+              <MessageCircle className="h-4 w-4" aria-hidden />
+              Написать в поддержку
+            </div>
+            <Input placeholder="Тема обращения" id="support-subject" />
+            <Textarea placeholder="Опишите проблему..." rows={4} id="support-body" />
+            <Button
+              type="button"
+              className="gap-2"
+              onClick={() => toast.success('Обращение отправлено (демо)')}
+            >
+              <Mail className="h-4 w-4" />
+              Отправить
+            </Button>
           </CardContent>
         </Card>
       </div>

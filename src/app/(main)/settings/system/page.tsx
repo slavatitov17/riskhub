@@ -1,5 +1,5 @@
-import { SystemSettingsView } from '@/components/settings/system-settings-view'
+import { redirect } from 'next/navigation'
 
-export default function SystemSettingsPage() {
-  return <SystemSettingsView />
+export default function LegacySystemSettingsPage() {
+  redirect('/settings')
 }

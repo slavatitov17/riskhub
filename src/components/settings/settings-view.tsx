@@ -64,10 +64,10 @@ export function SettingsView() {
     >
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
-          Настройки
+          Профиль
         </h1>
         <Button variant="outline" asChild>
-          <Link href="/settings/system">Системные настройки</Link>
+          <Link href="/settings">Системные настройки</Link>
         </Button>
       </div>
 

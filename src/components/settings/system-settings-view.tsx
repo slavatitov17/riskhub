@@ -1,11 +1,9 @@
 'use client'
 
-import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { useTheme } from 'next-themes'
 import { toast } from 'sonner'
 
-import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import {
@@ -27,11 +25,6 @@ export function SystemSettingsView() {
       animate={{ opacity: 1, y: 0 }}
       className="mx-auto max-w-xl space-y-6"
     >
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" asChild>
-          <Link href="/settings">← Назад</Link>
-        </Button>
-      </div>
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Системные настройки</h1>
         <p className="text-sm text-muted-foreground">

@@ -70,12 +70,7 @@ export function AppHeader({ crumbs }: AppHeaderProps) {
   }
 
   const handleProfile = () => {
-    router.push('/settings')
-    toast.message(
-      locale === 'en'
-        ? 'Open profile in Settings'
-        : 'Профиль открыт в разделе «Настройки»'
-    )
+    router.push('/settings/profile')
   }
 
   return (
@@ -124,7 +119,7 @@ export function AppHeader({ crumbs }: AppHeaderProps) {
                 {locale === 'en' ? 'Profile' : 'Профиль'}
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link href="/settings/system">
+                <Link href="/settings">
                   {locale === 'en' ? 'System settings' : 'Системные настройки'}
                 </Link>
               </DropdownMenuItem>

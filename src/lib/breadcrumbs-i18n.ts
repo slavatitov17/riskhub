@@ -7,26 +7,32 @@ export interface Crumb {
 
 const L = {
   ru: {
-    panel: 'Панель',
+    panel: 'Главная',
     risks: 'Список рисков',
     newRisk: 'Новый риск',
     editRisk: 'Редактирование риска',
     riskCard: 'Карточка риска',
     analytics: 'Аналитика',
     settings: 'Настройки',
-    system: 'Системные настройки',
+    profile: 'Профиль',
+    about: 'О системе',
+    terms: 'Условия использования',
+    privacy: 'Политика конфиденциальности',
     help: 'Помощь',
     section: 'Раздел'
   },
   en: {
-    panel: 'Dashboard',
+    panel: 'Home',
     risks: 'Risk list',
     newRisk: 'New risk',
     editRisk: 'Edit risk',
     riskCard: 'Risk details',
     analytics: 'Analytics',
     settings: 'Settings',
-    system: 'System settings',
+    profile: 'Profile',
+    about: 'About',
+    terms: 'Terms of use',
+    privacy: 'Privacy policy',
     help: 'Help',
     section: 'Section'
   }
@@ -50,10 +56,16 @@ export function getBreadcrumbs(
 
   if (path === '/settings') return [{ label: m.settings }]
 
-  if (path === '/settings/system')
-    return [{ label: m.settings, href: '/settings' }, { label: m.system }]
+  if (path === '/settings/profile')
+    return [{ label: m.settings, href: '/settings' }, { label: m.profile }]
 
   if (path === '/help') return [{ label: m.help }]
+
+  if (path === '/legal/about') return [{ label: m.about }]
+
+  if (path === '/legal/terms') return [{ label: m.terms }]
+
+  if (path === '/legal/privacy') return [{ label: m.privacy }]
 
   const editMatch = path.match(/^\/risks\/([^/]+)\/edit$/)
   if (editMatch) {

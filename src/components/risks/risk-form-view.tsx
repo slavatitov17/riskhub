@@ -27,6 +27,7 @@ import {
 } from '@/components/ui/select'
 import { Slider } from '@/components/ui/slider'
 import { Textarea } from '@/components/ui/textarea'
+import { useProjects } from '@/contexts/projects-context'
 import { useRisks } from '@/contexts/risks-context'
 import {
   IMPACTS,
@@ -56,7 +57,7 @@ function SearchableProjectSelect({
 }: {
   value: string
   onChange: (v: string) => void
-  options: readonly string[]
+  options: readonly { value: string; label: string }[]
   placeholder: string
   searchPlaceholder: string
 }) {
@@ -65,7 +66,7 @@ function SearchableProjectSelect({
   const [query, setQuery] = useState('')
   const q = query.trim().toLowerCase()
   const filteredOptions = useMemo(
-    () => options.filter((o) => o.toLowerCase().includes(q)),
+    () => options.filter((o) => o.label.toLowerCase().includes(q)),
     [options, q]
   )
 
@@ -93,7 +94,7 @@ function SearchableProjectSelect({
             className="h-10 w-full justify-between px-3 font-normal"
           >
             <span className={value ? 'truncate' : 'truncate text-muted-foreground'}>
-              {value || placeholder}
+              {options.find((o) => o.value === value)?.label || placeholder}
             </span>
             <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
           </Button>
@@ -123,8 +124,8 @@ function SearchableProjectSelect({
               }}
             >
               {filteredOptions.map((opt) => (
-                <DropdownMenuRadioItem key={opt} value={opt}>
-                  {opt}
+                <DropdownMenuRadioItem key={opt.value} value={opt.value}>
+                  {opt.label}
                 </DropdownMenuRadioItem>
               ))}
             </DropdownMenuRadioGroup>
@@ -143,11 +144,12 @@ function SearchableProjectSelect({
 export function RiskFormView({ mode, initial }: RiskFormViewProps) {
   const router = useRouter()
   const { addRisk, updateRisk } = useRisks()
+  const { myProjects, ready: projectsReady } = useProjects()
 
   const [name, setName] = useState(initial?.name ?? '')
   const [description, setDescription] = useState(initial?.description ?? '')
   const [category, setCategory] = useState(initial?.category ?? '')
-  const [project, setProject] = useState(initial?.project ?? '')
+  const [projectId, setProjectId] = useState(initial?.projectId ?? '')
   const [probIdx, setProbIdx] = useState(
     initial ? levelToIndex(initial.probability) : 1
   )
@@ -161,10 +163,20 @@ export function RiskFormView({ mode, initial }: RiskFormViewProps) {
   const probability = LEVELS[probIdx] ?? 'Средняя'
   const impact = IMPACTS[impactIdx] ?? 'Среднее'
 
-  const projects = useMemo(
-    () => ['Проект X', 'Проект Y', 'Проект Z', 'Проект А', 'Проект Б'],
-    []
+  const projectOptions = useMemo(
+    () => myProjects.map((p) => ({ value: p.id, label: p.name })),
+    [myProjects]
   )
+
+  useEffect(() => {
+    if (mode !== 'edit' || !initial) return
+    if (initial.projectId) {
+      setProjectId(initial.projectId)
+      return
+    }
+    const match = myProjects.find((p) => p.name === initial.project)
+    setProjectId(match?.id ?? '')
+  }, [mode, initial, myProjects])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -176,8 +188,13 @@ export function RiskFormView({ mode, initial }: RiskFormViewProps) {
       toast.error('Выберите категорию')
       return
     }
-    if (!project) {
+    if (!projectId) {
       toast.error('Выберите проект')
+      return
+    }
+    const proj = myProjects.find((p) => p.id === projectId)
+    if (!proj) {
+      toast.error('Проект недоступен или удалён')
       return
     }
     if (mode === 'new') {
@@ -188,7 +205,8 @@ export function RiskFormView({ mode, initial }: RiskFormViewProps) {
         probability,
         impact,
         status,
-        project,
+        projectId,
+        project: proj.name,
         author: getCurrentUserDisplayName()
       })
       toast.success('Риск сохранён')
@@ -203,7 +221,8 @@ export function RiskFormView({ mode, initial }: RiskFormViewProps) {
         probability,
         impact,
         status,
-        project
+        projectId,
+        project: proj.name
       })
       toast.success('Изменения сохранены')
       router.push(`/risks/${initial.id}`)
@@ -264,12 +283,21 @@ export function RiskFormView({ mode, initial }: RiskFormViewProps) {
                 </Select>
               </div>
               <SearchableProjectSelect
-                value={project}
-                onChange={setProject}
-                options={projects}
+                value={projectId}
+                onChange={setProjectId}
+                options={projectOptions}
                 placeholder="Выберите проект"
                 searchPlaceholder="Поиск по проекту…"
               />
+              {projectsReady && myProjects.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  У вас нет проектов.{' '}
+                  <Link href="/projects/new" className="text-primary underline">
+                    Создайте проект
+                  </Link>
+                  , чтобы добавлять риски.
+                </p>
+              ) : null}
             </div>
             <div className="grid gap-6 sm:grid-cols-2">
               <div className="space-y-3">

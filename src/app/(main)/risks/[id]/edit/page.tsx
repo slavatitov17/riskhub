@@ -5,12 +5,14 @@ import { useParams } from 'next/navigation'
 
 import { RiskFormView } from '@/components/risks/risk-form-view'
 import { Button } from '@/components/ui/button'
+import { useProjects } from '@/contexts/projects-context'
 import { useRisks } from '@/contexts/risks-context'
 
 export default function EditRiskPage() {
   const params = useParams()
   const id = params?.id as string
   const { getById } = useRisks()
+  const { accessibleProjectIds, ready } = useProjects()
   const risk = getById(id)
 
   if (!risk) {
@@ -18,7 +20,25 @@ export default function EditRiskPage() {
       <div className="mx-auto max-w-lg space-y-4 text-center">
         <h1 className="text-xl font-semibold">Риск не найден</h1>
         <Button asChild>
-          <Link href="/risks">К списку</Link>
+          <Link href="/risks">К рискам</Link>
+        </Button>
+      </div>
+    )
+  }
+
+  if (
+    ready &&
+    risk.projectId &&
+    !accessibleProjectIds.has(risk.projectId)
+  ) {
+    return (
+      <div className="mx-auto max-w-lg space-y-4 text-center">
+        <h1 className="text-xl font-semibold">Нет доступа</h1>
+        <p className="text-sm text-muted-foreground">
+          Редактирование недоступно: нет доступа к проекту этого риска.
+        </p>
+        <Button asChild>
+          <Link href="/risks">К рискам</Link>
         </Button>
       </div>
     )

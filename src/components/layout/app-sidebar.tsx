@@ -4,6 +4,7 @@ import Link from 'next/link'
 import {
   BarChart3,
   CircleHelp,
+  FolderKanban,
   LayoutDashboard,
   ListChecks,
   Settings,
@@ -23,6 +24,7 @@ export function AppSidebar({ pathname, onNavigate }: AppSidebarProps) {
 
   const navItems = [
     { href: '/panel', label: t('navPanel'), icon: LayoutDashboard },
+    { href: '/projects', label: t('navProjects'), icon: FolderKanban },
     { href: '/risks', label: t('navRisks'), icon: ListChecks },
     { href: '/analytics', label: t('navAnalytics'), icon: BarChart3 },
     { href: '/settings', label: t('navSettings'), icon: Settings }

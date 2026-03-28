@@ -38,6 +38,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
 import { Textarea } from '@/components/ui/textarea'
+import { useProjects } from '@/contexts/projects-context'
 import { useRisks } from '@/contexts/risks-context'
 import {
   impactBadgeClass,
@@ -80,6 +81,7 @@ function metaOutlineTag(children: React.ReactNode) {
 export function RiskDetailView({ risk }: RiskDetailViewProps) {
   const router = useRouter()
   const { removeRisk, updateRisk } = useRisks()
+  const { getProjectDisplayName } = useProjects()
   const [draft, setDraft] = useState('')
   const [pendingAttachment, setPendingAttachment] = useState<{
     name: string
@@ -232,7 +234,12 @@ export function RiskDetailView({ risk }: RiskDetailViewProps) {
               <CardTitle className="text-2xl">{risk.name}</CardTitle>
               <div className="flex flex-wrap gap-2">
                 {metaOutlineTag(<>Категория: {risk.category}</>)}
-                {metaOutlineTag(<>Проект: {risk.project}</>)}
+                {metaOutlineTag(
+                  <>
+                    Проект:{' '}
+                    {getProjectDisplayName(risk.projectId, risk.project)}
+                  </>
+                )}
               </div>
             </CardHeader>
             <CardContent className="space-y-4">

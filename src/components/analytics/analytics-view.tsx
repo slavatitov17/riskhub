@@ -38,7 +38,9 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select'
+import { useProjects } from '@/contexts/projects-context'
 import { useRisks } from '@/contexts/risks-context'
+import { useVisibleRisks } from '@/hooks/use-visible-risks'
 import type { RiskRecord } from '@/lib/risk-types'
 import { riskDateKey } from '@/lib/risks-storage'
 import {
@@ -141,7 +143,11 @@ function defaultReportFilters(): ReportFilters {
   }
 }
 
-function matchesReportFilters(r: RiskRecord, f: ReportFilters) {
+function matchesReportFilters(
+  r: RiskRecord,
+  f: ReportFilters,
+  projectLabel: string
+) {
   const createdDay = riskDateKey(r.created)
   if (f.periodFrom && createdDay < f.periodFrom) return false
   if (f.periodTo && createdDay > f.periodTo) return false
@@ -151,7 +157,7 @@ function matchesReportFilters(r: RiskRecord, f: ReportFilters) {
   if (f.status.length && !f.status.includes(r.status)) return false
   if (f.riskId.length && !f.riskId.includes(r.code)) return false
   if (f.category.length && !f.category.includes(r.category)) return false
-  if (f.project.length && !f.project.includes(r.project)) return false
+  if (f.project.length && !f.project.includes(projectLabel)) return false
   if (f.keywords.trim()) {
     const q = f.keywords.toLowerCase().trim()
     if (
@@ -366,7 +372,9 @@ function formatRuDateTime(d: Date) {
 }
 
 export function AnalyticsView() {
-  const { risks, refresh } = useRisks()
+  const { refresh } = useRisks()
+  const risks = useVisibleRisks()
+  const { getProjectDisplayName } = useProjects()
   const [period, setPeriod] = useState('month')
   const [lastUpdated, setLastUpdated] = useState(() => new Date())
   const [draft, setDraft] = useState<ReportFilters>(() => defaultReportFilters())
@@ -377,13 +385,25 @@ export function AnalyticsView() {
     [risks]
   )
   const projects = useMemo(
-    () => Array.from(new Set(risks.map((r) => r.project))).sort(),
-    [risks]
+    () =>
+      Array.from(
+        new Set(
+          risks.map((r) => getProjectDisplayName(r.projectId, r.project))
+        )
+      ).sort(),
+    [risks, getProjectDisplayName]
   )
 
   const filteredRisks = useMemo(
-    () => risks.filter((r) => matchesReportFilters(r, applied)),
-    [risks, applied]
+    () =>
+      risks.filter((r) =>
+        matchesReportFilters(
+          r,
+          applied,
+          getProjectDisplayName(r.projectId, r.project)
+        )
+      ),
+    [risks, applied, getProjectDisplayName]
   )
 
   const byCategory = useMemo(() => {

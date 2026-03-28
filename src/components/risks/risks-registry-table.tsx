@@ -35,7 +35,9 @@ import {
   TableHeader,
   TableRow
 } from '@/components/ui/table'
+import { useProjects } from '@/contexts/projects-context'
 import { useRisks } from '@/contexts/risks-context'
+import { useVisibleRisks } from '@/hooks/use-visible-risks'
 import {
   impactBadgeClass,
   probabilityBadgeClass,
@@ -53,7 +55,9 @@ function filterPlural(count: number) {
 
 export function RisksRegistryTable() {
   const router = useRouter()
-  const { risks, removeRisk, updateRisk } = useRisks()
+  const { removeRisk, updateRisk } = useRisks()
+  const risks = useVisibleRisks()
+  const { getProjectDisplayName } = useProjects()
   const [filterOpen, setFilterOpen] = useState(false)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string[]>([])
@@ -87,8 +91,13 @@ export function RisksRegistryTable() {
     [risks]
   )
   const projects = useMemo(
-    () => Array.from(new Set(risks.map((r) => r.project))),
-    [risks]
+    () =>
+      Array.from(
+        new Set(
+          risks.map((r) => getProjectDisplayName(r.projectId, r.project))
+        )
+      ),
+    [risks, getProjectDisplayName]
   )
   const authors = useMemo(
     () => Array.from(new Set(risks.map((r) => r.author))),
@@ -102,7 +111,10 @@ export function RisksRegistryTable() {
       if (probabilityFilter.length && !probabilityFilter.includes(r.probability))
         return false
       if (impactFilter.length && !impactFilter.includes(r.impact)) return false
-      if (projectFilter.length && !projectFilter.includes(r.project))
+      if (
+        projectFilter.length &&
+        !projectFilter.includes(getProjectDisplayName(r.projectId, r.project))
+      )
         return false
       if (authorFilter.length && !authorFilter.includes(r.author))
         return false
@@ -127,6 +139,7 @@ export function RisksRegistryTable() {
     probabilityFilter,
     impactFilter,
     projectFilter,
+    getProjectDisplayName,
     authorFilter,
     createdFrom,
     createdTo,
@@ -184,7 +197,7 @@ export function RisksRegistryTable() {
     <>
       <Card className="shadow-sm">
         <CardHeader className="flex flex-col gap-3 border-b pb-4">
-          <CardTitle className="text-base font-semibold">Список рисков</CardTitle>
+          <CardTitle className="text-base font-semibold">Риски</CardTitle>
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
               <Button
@@ -358,7 +371,9 @@ export function RisksRegistryTable() {
                         {row.status}
                       </span>
                     </TableCell>
-                    <TableCell className="whitespace-nowrap">{row.project}</TableCell>
+                    <TableCell className="whitespace-nowrap">
+                      {getProjectDisplayName(row.projectId, row.project)}
+                    </TableCell>
                     <TableCell className="whitespace-nowrap">
                       <div className="flex items-center gap-2">
                         <Avatar className="h-7 w-7">

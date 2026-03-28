@@ -47,8 +47,13 @@ function activityEntriesFromPatch(
     push(`Вероятность изменена на «${patch.probability}»`)
   if (patch.impact !== undefined && patch.impact !== prev.impact)
     push(`Воздействие изменено на «${patch.impact}»`)
-  if (patch.project !== undefined && patch.project !== prev.project)
-    push(`Проект изменён на «${patch.project}»`)
+  if (
+    (patch.projectId !== undefined && patch.projectId !== prev.projectId) ||
+    (patch.project !== undefined && patch.project !== prev.project)
+  ) {
+    const label = patch.project ?? prev.project
+    push(`Проект изменён на «${label}»`)
+  }
   if (patch.author !== undefined && patch.author !== prev.author)
     push(`Автор изменён на «${patch.author}»`)
   if (
@@ -79,6 +84,13 @@ export function RisksProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     refresh()
+  }, [refresh])
+
+  useEffect(() => {
+    const handleProjectsReady = () => refresh()
+    window.addEventListener('riskhub-projects-ready', handleProjectsReady)
+    return () =>
+      window.removeEventListener('riskhub-projects-ready', handleProjectsReady)
   }, [refresh])
 
   const persist = useCallback((next: RiskRecord[]) => {

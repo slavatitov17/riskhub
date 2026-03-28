@@ -8,7 +8,9 @@ export interface Crumb {
 const L = {
   ru: {
     panel: 'Главная',
-    risks: 'Список рисков',
+    projects: 'Проекты',
+    newProject: 'Новый проект',
+    risks: 'Риски',
     newRisk: 'Новый риск',
     editRisk: 'Редактирование риска',
     riskCard: 'Карточка риска',
@@ -23,7 +25,9 @@ const L = {
   },
   en: {
     panel: 'Home',
-    risks: 'Risk list',
+    projects: 'Projects',
+    newProject: 'New project',
+    risks: 'Risks',
     newRisk: 'New risk',
     editRisk: 'Edit risk',
     riskCard: 'Risk details',
@@ -46,6 +50,11 @@ export function getBreadcrumbs(
   const path = pathname.replace(/\/$/, '') || '/'
 
   if (path === '/panel') return [{ label: m.panel }]
+
+  if (path === '/projects') return [{ label: m.projects }]
+
+  if (path === '/projects/new')
+    return [{ label: m.projects, href: '/projects' }, { label: m.newProject }]
 
   if (path === '/risks') return [{ label: m.risks }]
 

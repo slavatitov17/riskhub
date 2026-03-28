@@ -88,6 +88,7 @@ export function loginUser(input: {
 export function setSession(payload: SessionPayload) {
   if (typeof window === 'undefined') return
   localStorage.setItem(SESSION_KEY, JSON.stringify(payload))
+  window.dispatchEvent(new CustomEvent('riskhub-session-changed'))
 }
 
 export function getSession(): SessionPayload | null {
@@ -98,6 +99,7 @@ export function getSession(): SessionPayload | null {
 export function clearSession() {
   if (typeof window === 'undefined') return
   localStorage.removeItem(SESSION_KEY)
+  window.dispatchEvent(new CustomEvent('riskhub-session-changed'))
 }
 
 export function updateSessionName(name: string) {

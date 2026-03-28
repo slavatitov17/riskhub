@@ -33,6 +33,8 @@ export interface RiskRecord {
   probability: string
   impact: string
   status: string
+  /** Идентификатор проекта в IndexedDB */
+  projectId?: string
   project: string
   author: string
   /** ISO date (YYYY-MM-DD) or full ISO datetime */
@@ -53,7 +55,7 @@ export type RiskCreateInput = Omit<
   | 'comments'
   | 'responseMeasures'
   | 'activityLog'
->
+> & { projectId: string }
 
 export const RISK_CATEGORIES = [
   'Технологический',

@@ -23,8 +23,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
-import { useNotifications } from '@/contexts/notifications-context'
 import { useLocale } from '@/contexts/locale-context'
+import { useNotifications } from '@/contexts/notifications-context'
+import { useProjects } from '@/contexts/projects-context'
 import type { Crumb } from '@/lib/breadcrumbs-i18n'
 import { clearSession, getSession } from '@/lib/auth-storage'
 import { getProfileForUser } from '@/lib/user-profile-storage'
@@ -66,8 +67,10 @@ export function AppHeader({ crumbs }: AppHeaderProps) {
     openNotifications,
     closeNotifications,
     markAllRead,
-    markRead
+    markRead,
+    refreshInvitations
   } = useNotifications()
+  const { acceptInvitation, declineInvitation } = useProjects()
 
   const initials = userName
     .split(/\s+/)
@@ -189,23 +192,75 @@ export function AppHeader({ crumbs }: AppHeaderProps) {
                             {n.title}
                           </p>
                           <p className="mt-1 text-muted-foreground">{n.body}</p>
-                          <Button
-                            variant="link"
-                            className="mt-2 h-auto p-0 text-primary"
-                            type="button"
-                            onClick={() => {
-                              markRead(n.id)
-                              closeNotifications()
-                              router.push(n.riskRoute)
-                              toast.success(
-                                locale === 'en'
-                                  ? 'Opening risk list'
-                                  : 'Переход к списку рисков'
-                              )
-                            }}
-                          >
-                            {locale === 'en' ? 'Risk list →' : 'К списку рисков →'}
-                          </Button>
+                          {n.kind === 'project_invite' && n.invitationId ? (
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              <Button
+                                type="button"
+                                size="sm"
+                                onClick={async () => {
+                                  const res = await acceptInvitation(
+                                    n.invitationId!
+                                  )
+                                  if (!res.ok) {
+                                    toast.error(res.error)
+                                    return
+                                  }
+                                  markRead(n.id)
+                                  refreshInvitations()
+                                  closeNotifications()
+                                  toast.success(
+                                    locale === 'en'
+                                      ? 'You joined the project'
+                                      : 'Вы вступили в проект'
+                                  )
+                                  router.push('/projects')
+                                }}
+                              >
+                                {locale === 'en' ? 'Accept' : 'Принять'}
+                              </Button>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={async () => {
+                                  const res = await declineInvitation(
+                                    n.invitationId!
+                                  )
+                                  if (!res.ok) {
+                                    toast.error(res.error)
+                                    return
+                                  }
+                                  markRead(n.id)
+                                  refreshInvitations()
+                                  toast.success(
+                                    locale === 'en'
+                                      ? 'Invitation declined'
+                                      : 'Приглашение отклонено'
+                                  )
+                                }}
+                              >
+                                {locale === 'en' ? 'Decline' : 'Отклонить'}
+                              </Button>
+                            </div>
+                          ) : (
+                            <Button
+                              variant="link"
+                              className="mt-2 h-auto p-0 text-primary"
+                              type="button"
+                              onClick={() => {
+                                markRead(n.id)
+                                closeNotifications()
+                                router.push(n.actionHref)
+                                toast.success(
+                                  locale === 'en'
+                                    ? 'Opening'
+                                    : 'Переход'
+                                )
+                              }}
+                            >
+                              {locale === 'en' ? 'Open →' : 'Перейти →'}
+                            </Button>
+                          )}
                         </li>
                       ))}
                     </ul>
@@ -235,15 +290,15 @@ export function AppHeader({ crumbs }: AppHeaderProps) {
                             type="button"
                             onClick={() => {
                               closeNotifications()
-                              router.push(n.riskRoute)
+                              router.push(n.actionHref)
                               toast.success(
                                 locale === 'en'
-                                  ? 'Opening risk list'
-                                  : 'Переход к списку рисков'
+                                  ? 'Opening'
+                                  : 'Переход'
                               )
                             }}
                           >
-                            {locale === 'en' ? 'Risk list →' : 'К списку рисков →'}
+                            {locale === 'en' ? 'Open →' : 'Перейти →'}
                           </Button>
                         </li>
                       ))}

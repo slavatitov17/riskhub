@@ -18,12 +18,12 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { RisksRegistryTable } from '@/components/risks/risks-registry-table'
 import { useNotifications } from '@/contexts/notifications-context'
-import { useRisks } from '@/contexts/risks-context'
+import { useVisibleRisks } from '@/hooks/use-visible-risks'
 import { formatDisplayDate } from '@/lib/risks-storage'
 
 export function PanelDashboard() {
   const router = useRouter()
-  const { risks } = useRisks()
+  const risks = useVisibleRisks()
   const { openNotifications, notifications } = useNotifications()
 
   const activeCount = risks.filter((r) => r.status === 'Активный').length

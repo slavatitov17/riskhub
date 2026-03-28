@@ -9,14 +9,20 @@ import {
   useState
 } from 'react'
 
-import { getSession } from '@/lib/auth-storage'
-import type { ProjectInvitationRecord, ProjectRecord } from '@/lib/project-types'
+import { getSession, type SessionPayload } from '@/lib/auth-storage'
+import type {
+  ProjectInvitationRecord,
+  ProjectMemberRecord,
+  ProjectRecord,
+  ProjectStatus
+} from '@/lib/project-types'
 import { migrateLegacyRisksToProjects } from '@/lib/projects-migration'
 import {
   dbGetAllInvitations,
   dbGetAllProjects,
   dbGetInvitation,
   dbGetMembersForProject,
+  dbGetProject,
   dbPutInvitation,
   dbPutMember,
   dbPutProject
@@ -32,8 +38,18 @@ interface ProjectsContextValue {
   getProjectDisplayName: (projectId: string | undefined, fallbackName: string) => string
   createProject: (input: {
     name: string
-    inviteEmail?: string
+    description?: string
+    inviteEmails?: string[]
   }) => Promise<{ ok: true } | { ok: false; error: string }>
+  updateProject: (
+    projectId: string,
+    patch: Partial<Pick<ProjectRecord, 'status' | 'description' | 'name'>>
+  ) => Promise<{ ok: true } | { ok: false; error: string }>
+  inviteToProject: (
+    projectId: string,
+    emails: string[]
+  ) => Promise<{ ok: true; sent: number } | { ok: false; error: string }>
+  listProjectMembers: (projectId: string) => Promise<ProjectMemberRecord[]>
   acceptInvitation: (
     invitationId: string
   ) => Promise<{ ok: true } | { ok: false; error: string }>
@@ -52,6 +68,50 @@ function normalizeEmail(email: string) {
 function isValidEmailLoose(email: string) {
   const t = email.trim()
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t)
+}
+
+async function createPendingInvitations(
+  projectId: string,
+  projectName: string,
+  rawEmails: string[],
+  s: SessionPayload
+): Promise<number> {
+  const self = normalizeEmail(s.email)
+  const allInv = await dbGetAllInvitations()
+  let sent = 0
+  const seen = new Set<string>()
+  for (const raw of rawEmails) {
+    const t = raw.trim()
+    if (!t) continue
+    if (!isValidEmailLoose(t)) continue
+    const inviteEmail = normalizeEmail(t)
+    if (inviteEmail === self) continue
+    if (seen.has(inviteEmail)) continue
+    seen.add(inviteEmail)
+    const dup = allInv.some(
+      (i) =>
+        i.projectId === projectId &&
+        normalizeEmail(i.inviteeEmail) === inviteEmail &&
+        i.status === 'pending'
+    )
+    if (dup) continue
+    const inv: ProjectInvitationRecord = {
+      id: `inv_${crypto.randomUUID()}`,
+      projectId,
+      projectName,
+      inviterUserId: s.userId,
+      inviterName: s.name,
+      inviteeEmail: inviteEmail,
+      status: 'pending',
+      createdAt: new Date().toISOString()
+    }
+    await dbPutInvitation(inv)
+    sent += 1
+    allInv.push(inv)
+  }
+  if (sent > 0)
+    window.dispatchEvent(new CustomEvent('riskhub-invitations-changed'))
+  return sent
 }
 
 async function buildAccessibleSet(
@@ -142,15 +202,24 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
   )
 
   const createProject = useCallback(
-    async (input: { name: string; inviteEmail?: string }) => {
+    async (input: {
+      name: string
+      description?: string
+      inviteEmails?: string[]
+    }) => {
       const s = getSession()
       if (!s) return { ok: false as const, error: 'Войдите в систему' }
       const name = input.name.trim()
       if (!name) return { ok: false as const, error: 'Укажите название проекта' }
 
-      const inviteRaw = input.inviteEmail?.trim()
-      if (inviteRaw && !isValidEmailLoose(inviteRaw))
-        return { ok: false as const, error: 'Некорректный email приглашения' }
+      const emails = input.inviteEmails ?? []
+      for (const raw of emails) {
+        if (raw.trim() && !isValidEmailLoose(raw))
+          return {
+            ok: false as const,
+            error: 'Некорректный email в списке приглашений'
+          }
+      }
 
       const id = `proj_${crypto.randomUUID()}`
       const now = new Date().toISOString()
@@ -159,7 +228,9 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
         name,
         ownerUserId: s.userId,
         createdAt: now,
-        isPublicLegacy: false
+        isPublicLegacy: false,
+        status: 'Активен',
+        description: (input.description ?? '').trim()
       }
       await dbPutProject(row)
       await dbPutMember({
@@ -170,39 +241,89 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
         joinedAt: now
       })
 
-      const inviteEmail = inviteRaw ? normalizeEmail(inviteRaw) : ''
-      if (inviteEmail) {
-        if (inviteEmail === normalizeEmail(s.email))
-          return { ok: false as const, error: 'Нельзя пригласить самого себя' }
-
-        const allInv = await dbGetAllInvitations()
-        const dup = allInv.some(
-          (i) =>
-            i.projectId === id &&
-            normalizeEmail(i.inviteeEmail) === inviteEmail &&
-            i.status === 'pending'
-        )
-        if (!dup) {
-          const inv: ProjectInvitationRecord = {
-            id: `inv_${crypto.randomUUID()}`,
-            projectId: id,
-            projectName: name,
-            inviterUserId: s.userId,
-            inviterName: s.name,
-            inviteeEmail: inviteEmail,
-            status: 'pending',
-            createdAt: now
-          }
-          await dbPutInvitation(inv)
-          window.dispatchEvent(new CustomEvent('riskhub-invitations-changed'))
-        }
-      }
-
+      await createPendingInvitations(id, name, emails, s)
       await refresh()
       return { ok: true as const }
     },
     [refresh]
   )
+
+  const updateProject = useCallback(
+    async (
+      projectId: string,
+      patch: Partial<Pick<ProjectRecord, 'status' | 'description' | 'name'>>
+    ) => {
+      const s = getSession()
+      if (!s) return { ok: false as const, error: 'Войдите в систему' }
+      const prev = await dbGetProject(projectId)
+      if (!prev) return { ok: false as const, error: 'Проект не найден' }
+      if (prev.isPublicLegacy)
+        return { ok: false as const, error: 'Демо-проект нельзя изменять' }
+      if (prev.ownerUserId !== s.userId)
+        return { ok: false as const, error: 'Только владелец может менять проект' }
+
+      const nextName = patch.name !== undefined ? patch.name.trim() : prev.name
+      if (patch.name !== undefined && !nextName)
+        return { ok: false as const, error: 'Название не может быть пустым' }
+
+      let status: ProjectStatus = prev.status
+      if (patch.status !== undefined) {
+        if (patch.status !== 'Активен' && patch.status !== 'Завершен')
+          return { ok: false as const, error: 'Некорректный статус' }
+        status = patch.status
+      }
+
+      const description =
+        patch.description !== undefined ? patch.description : prev.description
+
+      await dbPutProject({
+        ...prev,
+        name: nextName,
+        status,
+        description
+      })
+      await refresh()
+      return { ok: true as const }
+    },
+    [refresh]
+  )
+
+  const inviteToProject = useCallback(
+    async (projectId: string, emails: string[]) => {
+      const s = getSession()
+      if (!s) return { ok: false as const, error: 'Войдите в систему' }
+      const proj = await dbGetProject(projectId)
+      if (!proj) return { ok: false as const, error: 'Проект не найден' }
+      if (proj.isPublicLegacy)
+        return { ok: false as const, error: 'Для демо-проекта приглашения недоступны' }
+
+      const members = await dbGetMembersForProject(projectId)
+      const canInvite =
+        proj.ownerUserId === s.userId ||
+        members.some((m) => m.userId === s.userId)
+      if (!canInvite)
+        return { ok: false as const, error: 'Нет прав приглашать в этот проект' }
+
+      for (const raw of emails) {
+        if (raw.trim() && !isValidEmailLoose(raw))
+          return { ok: false as const, error: 'Некорректный email' }
+      }
+
+      const sent = await createPendingInvitations(
+        projectId,
+        proj.name,
+        emails,
+        s
+      )
+      await refresh()
+      return { ok: true as const, sent }
+    },
+    [refresh]
+  )
+
+  const listProjectMembers = useCallback(async (projectId: string) => {
+    return dbGetMembersForProject(projectId)
+  }, [])
 
   const acceptInvitation = useCallback(
     async (invitationId: string) => {
@@ -263,6 +384,9 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
       getProjectById,
       getProjectDisplayName,
       createProject,
+      updateProject,
+      inviteToProject,
+      listProjectMembers,
       acceptInvitation,
       declineInvitation,
       memberCount
@@ -276,6 +400,9 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
       getProjectById,
       getProjectDisplayName,
       createProject,
+      updateProject,
+      inviteToProject,
+      listProjectMembers,
       acceptInvitation,
       declineInvitation,
       memberCount

@@ -1,9 +1,10 @@
 import { getSession, getUsers } from '@/lib/auth-storage'
-import type { ProjectRecord } from '@/lib/project-types'
+import { normalizeProjectRecord, type ProjectRecord } from '@/lib/project-types'
 import {
   dbGetAllProjects,
   dbPutMember,
-  dbPutProject
+  dbPutProject,
+  dbUpgradeProjectShapesIfNeeded
 } from '@/lib/projects-db'
 import type { RiskRecord } from '@/lib/risk-types'
 import { loadRisks, normalizeRiskRecord, saveRisks } from '@/lib/risks-storage'
@@ -19,6 +20,7 @@ export function stableLegacyProjectId(projectName: string): string {
  * Создаёт записи проектов из имён в рисках и проставляет projectId у рисков.
  */
 export async function migrateLegacyRisksToProjects(): Promise<void> {
+  await dbUpgradeProjectShapesIfNeeded()
   const existing = await dbGetAllProjects()
   const byName = new Map(existing.map((p) => [p.name, p]))
   const risks = loadRisks()
@@ -34,13 +36,15 @@ export async function migrateLegacyRisksToProjects(): Promise<void> {
   for (const name of names) {
     if (byName.has(name)) continue
     const id = stableLegacyProjectId(name)
-    const row: ProjectRecord = {
+    const row = normalizeProjectRecord({
       id,
       name,
       ownerUserId: ownerFallback,
       createdAt: now,
-      isPublicLegacy: true
-    }
+      isPublicLegacy: true,
+      status: 'Активен',
+      description: ''
+    })
     await dbPutProject(row)
     byName.set(name, row)
   }

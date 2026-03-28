@@ -2,12 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { Plus, RefreshCw } from 'lucide-react'
 
-import { formatDisplayDate } from '@/lib/risks-storage'
-
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -19,6 +17,12 @@ import {
   TableRow
 } from '@/components/ui/table'
 import { useProjects } from '@/contexts/projects-context'
+import {
+  projectStatusBadgeClass,
+  riskTableChipBase
+} from '@/lib/risk-badge-styles'
+import { formatDisplayDate } from '@/lib/risks-storage'
+import { cn } from '@/lib/utils'
 
 function formatRuDateTime(d: Date) {
   return d.toLocaleString('ru-RU', {
@@ -32,6 +36,7 @@ function formatRuDateTime(d: Date) {
 }
 
 export function ProjectsListView() {
+  const router = useRouter()
   const { myProjects, refresh, memberCount, ready } = useProjects()
   const [lastUpdated, setLastUpdated] = useState(() => new Date())
   const [counts, setCounts] = useState<Record<string, number>>({})
@@ -49,6 +54,10 @@ export function ProjectsListView() {
       alive = false
     }
   }, [myProjects, memberCount])
+
+  const openProject = (id: string) => {
+    router.push(`/projects/${id}`)
+  }
 
   return (
     <motion.div
@@ -97,8 +106,8 @@ export function ProjectsListView() {
                 <TableRow>
                   <TableHead>Название</TableHead>
                   <TableHead className="whitespace-nowrap">Создан</TableHead>
+                  <TableHead className="whitespace-nowrap">Статус</TableHead>
                   <TableHead className="whitespace-nowrap">Участники</TableHead>
-                  <TableHead className="whitespace-nowrap">Тип</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -117,20 +126,35 @@ export function ProjectsListView() {
                   </TableRow>
                 ) : (
                   myProjects.map((p) => (
-                    <TableRow key={p.id}>
+                    <TableRow
+                      key={p.id}
+                      role="button"
+                      tabIndex={0}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => openProject(p.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          openProject(p.id)
+                        }
+                      }}
+                    >
                       <TableCell className="font-medium">{p.name}</TableCell>
                       <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
                         {formatDisplayDate(p.createdAt)}
                       </TableCell>
                       <TableCell className="whitespace-nowrap">
-                        {counts[p.id] ?? '—'}
+                        <span
+                          className={cn(
+                            riskTableChipBase,
+                            projectStatusBadgeClass(p.status)
+                          )}
+                        >
+                          {p.status}
+                        </span>
                       </TableCell>
-                      <TableCell>
-                        {p.isPublicLegacy ? (
-                          <Badge variant="secondary">Демо</Badge>
-                        ) : (
-                          <Badge variant="outline">Команда</Badge>
-                        )}
+                      <TableCell className="whitespace-nowrap">
+                        {counts[p.id] ?? '—'}
                       </TableCell>
                     </TableRow>
                   ))

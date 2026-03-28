@@ -1,7 +1,9 @@
-import type {
-  ProjectInvitationRecord,
-  ProjectMemberRecord,
-  ProjectRecord
+import {
+  normalizeProjectRecord,
+  type ProjectInvitationRecord,
+  type ProjectMemberRecord,
+  type ProjectRecord,
+  type ProjectRecordInput
 } from '@/lib/project-types'
 
 const DB_NAME = 'riskhub_projects'
@@ -42,12 +44,30 @@ function txDone(tx: IDBTransaction): Promise<void> {
   })
 }
 
+export async function dbUpgradeProjectShapesIfNeeded(): Promise<void> {
+  const db = await openDb()
+  const rows = await new Promise<ProjectRecordInput[]>((resolve, reject) => {
+    const tx = db.transaction(STORES.projects, 'readonly')
+    const req = tx.objectStore(STORES.projects).getAll()
+    req.onsuccess = () => resolve((req.result as ProjectRecordInput[]) ?? [])
+    req.onerror = () => reject(req.error)
+  })
+  for (const row of rows) {
+    const r = row as Partial<ProjectRecord>
+    if (r.status !== undefined && typeof r.description === 'string') continue
+    await dbPutProject(normalizeProjectRecord(row))
+  }
+}
+
 export async function dbGetAllProjects(): Promise<ProjectRecord[]> {
   const db = await openDb()
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORES.projects, 'readonly')
     const req = tx.objectStore(STORES.projects).getAll()
-    req.onsuccess = () => resolve((req.result as ProjectRecord[]) ?? [])
+    req.onsuccess = () =>
+      resolve(
+        ((req.result as ProjectRecordInput[]) ?? []).map(normalizeProjectRecord)
+      )
     req.onerror = () => reject(req.error)
   })
 }
@@ -64,7 +84,10 @@ export async function dbGetProject(id: string): Promise<ProjectRecord | undefine
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORES.projects, 'readonly')
     const req = tx.objectStore(STORES.projects).get(id)
-    req.onsuccess = () => resolve(req.result as ProjectRecord | undefined)
+    req.onsuccess = () => {
+      const r = req.result as ProjectRecordInput | undefined
+      resolve(r ? normalizeProjectRecord(r) : undefined)
+    }
     req.onerror = () => reject(req.error)
   })
 }

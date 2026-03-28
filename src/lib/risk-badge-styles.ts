@@ -19,6 +19,12 @@ export function impactBadgeClass(value: string) {
   return 'border-emerald-200 bg-emerald-100 text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-100'
 }
 
+export function projectStatusBadgeClass(status: string) {
+  if (status === 'Завершен')
+    return 'border-muted-foreground/30 bg-muted text-muted-foreground dark:border-muted-foreground/40 dark:bg-muted/80'
+  return 'border-emerald-200 bg-emerald-100 text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-100'
+}
+
 export function statusBadgeClass(status: string) {
   if (status === 'Активный')
     return 'border-red-200 bg-red-100 text-red-900 dark:border-red-800 dark:bg-red-950/50 dark:text-red-100'

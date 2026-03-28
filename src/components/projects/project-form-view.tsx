@@ -4,11 +4,11 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { Save, X } from 'lucide-react'
+import { Plus, X } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useProjects } from '@/contexts/projects-context'
@@ -17,7 +17,7 @@ export function ProjectFormView() {
   const router = useRouter()
   const { createProject } = useProjects()
   const [name, setName] = useState('')
-  const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteRows, setInviteRows] = useState<string[]>([''])
   const [submitting, setSubmitting] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -27,7 +27,7 @@ export function ProjectFormView() {
     try {
       const res = await createProject({
         name,
-        inviteEmail: inviteEmail.trim() || undefined
+        inviteEmails: inviteRows
       })
       if (!res.ok) {
         toast.error(res.error)
@@ -47,10 +47,7 @@ export function ProjectFormView() {
       className="mx-auto max-w-3xl"
     >
       <Card>
-        <CardHeader>
-          <CardTitle>Новый проект</CardTitle>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="pt-6">
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="project-name">Название проекта</Label>
@@ -63,20 +60,54 @@ export function ProjectFormView() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="invite-email">Email приглашённого (необязательно)</Label>
+              <Label htmlFor="invite-0">Email для приглашения</Label>
               <Input
-                id="invite-email"
+                id="invite-0"
                 type="email"
-                value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
+                value={inviteRows[0] ?? ''}
+                onChange={(e) =>
+                  setInviteRows((rows) => {
+                    const next = [...rows]
+                    next[0] = e.target.value
+                    return next
+                  })
+                }
                 placeholder="colleague@example.com"
                 autoComplete="email"
               />
-              <p className="text-sm text-muted-foreground">
-                Приглашение сохраняется локально в IndexedDB: уведомление увидит
-                пользователь с таким email после входа в эту же установку RiskHub.
-              </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-1"
+                onClick={() => setInviteRows((r) => [...r, ''])}
+              >
+                <Plus className="h-4 w-4" />
+                Добавить
+              </Button>
             </div>
+            {inviteRows.slice(1).map((row, idx) => (
+              <div key={idx + 1} className="space-y-2">
+                <Label htmlFor={`invite-${idx + 1}`}>Email для приглашения</Label>
+                <Input
+                  id={`invite-${idx + 1}`}
+                  type="email"
+                  value={row}
+                  onChange={(e) =>
+                    setInviteRows((rows) => {
+                      const next = [...rows]
+                      next[idx + 1] = e.target.value
+                      return next
+                    })
+                  }
+                  placeholder="colleague@example.com"
+                  autoComplete="email"
+                />
+              </div>
+            ))}
+            <p className="text-sm text-muted-foreground">
+              Пользователь увидит приглашение после входа в систему RiskHub.
+            </p>
             <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <Button type="button" variant="outline" asChild>
                 <Link href="/projects">
@@ -84,9 +115,9 @@ export function ProjectFormView() {
                   Отмена
                 </Link>
               </Button>
-              <Button type="submit" disabled={submitting}>
-                <Save className="mr-2 h-4 w-4" />
-                Сохранить
+              <Button type="submit" disabled={submitting} className="gap-2">
+                <Plus className="h-4 w-4" />
+                Создать
               </Button>
             </div>
           </form>

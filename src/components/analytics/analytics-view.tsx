@@ -17,11 +17,17 @@ import {
   XAxis,
   YAxis
 } from 'recharts'
-import { CalendarDays, Download, RefreshCw } from 'lucide-react'
+import { CalendarDays, ChevronDown, Download, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -65,17 +71,15 @@ const PIE_COLORS = [
   'hsl(330 81% 60%)'
 ]
 
-const ALL = '__all__'
-
 export type ReportFilters = {
   periodFrom: string
   periodTo: string
-  probability: string
-  impact: string
-  status: string
-  riskId: string
-  category: string
-  project: string
+  probability: string[]
+  impact: string[]
+  status: string[]
+  riskId: string[]
+  category: string[]
+  project: string[]
   keywords: string
 }
 
@@ -83,12 +87,12 @@ function defaultReportFilters(): ReportFilters {
   return {
     periodFrom: '',
     periodTo: '',
-    probability: ALL,
-    impact: ALL,
-    status: ALL,
-    riskId: ALL,
-    category: ALL,
-    project: ALL,
+    probability: [],
+    impact: [],
+    status: [],
+    riskId: [],
+    category: [],
+    project: [],
     keywords: ''
   }
 }
@@ -96,12 +100,13 @@ function defaultReportFilters(): ReportFilters {
 function matchesReportFilters(r: RiskRecord, f: ReportFilters) {
   if (f.periodFrom && r.created < f.periodFrom) return false
   if (f.periodTo && r.created > f.periodTo) return false
-  if (f.probability !== ALL && r.probability !== f.probability) return false
-  if (f.impact !== ALL && r.impact !== f.impact) return false
-  if (f.status !== ALL && r.status !== f.status) return false
-  if (f.riskId !== ALL && r.code !== f.riskId) return false
-  if (f.category !== ALL && r.category !== f.category) return false
-  if (f.project !== ALL && r.project !== f.project) return false
+  if (f.probability.length && !f.probability.includes(r.probability))
+    return false
+  if (f.impact.length && !f.impact.includes(r.impact)) return false
+  if (f.status.length && !f.status.includes(r.status)) return false
+  if (f.riskId.length && !f.riskId.includes(r.code)) return false
+  if (f.category.length && !f.category.includes(r.category)) return false
+  if (f.project.length && !f.project.includes(r.project)) return false
   if (f.keywords.trim()) {
     const q = f.keywords.toLowerCase().trim()
     if (
@@ -111,6 +116,75 @@ function matchesReportFilters(r: RiskRecord, f: ReportFilters) {
       return false
   }
   return true
+}
+
+function ReportFilterMultiSelect({
+  label,
+  allLabel,
+  options,
+  selected,
+  onChange
+}: {
+  label: string
+  allLabel: string
+  options: readonly string[]
+  selected: string[]
+  onChange: (next: string[]) => void
+}) {
+  const isAll = selected.length === 0
+  const summary = isAll ? allLabel : `Выбрано: ${selected.length}`
+
+  return (
+    <div className="space-y-2">
+      <Label>{label}</Label>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            className="h-10 w-full justify-between px-3 font-normal"
+          >
+            <span className="truncate">{summary}</span>
+            <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          className="max-h-64 w-[var(--radix-dropdown-menu-trigger-width)] overflow-y-auto"
+          align="start"
+        >
+          <DropdownMenuCheckboxItem
+            checked={isAll}
+            onCheckedChange={(c) => {
+              if (c) onChange([])
+            }}
+            onSelect={(e) => e.preventDefault()}
+          >
+            {allLabel}
+          </DropdownMenuCheckboxItem>
+          {options.map((opt) => (
+            <DropdownMenuCheckboxItem
+              key={opt}
+              checked={!isAll && selected.includes(opt)}
+              onCheckedChange={(c) => {
+                if (c) {
+                  onChange(
+                    selected.length === 0
+                      ? [opt]
+                      : Array.from(new Set([...selected, opt]))
+                  )
+                } else {
+                  onChange(selected.filter((x) => x !== opt))
+                }
+              }}
+              onSelect={(e) => e.preventDefault()}
+            >
+              {opt}
+            </DropdownMenuCheckboxItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  )
 }
 
 function last6MonthBuckets() {
@@ -276,125 +350,53 @@ export function AnalyticsView() {
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label>Вероятность риска</Label>
-            <Select
-              value={draft.probability}
-              onValueChange={(v) => setDraft((d) => ({ ...d, probability: v }))}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Все" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ALL}>Все</SelectItem>
-                {LEVELS.map((p) => (
-                  <SelectItem key={p} value={p}>
-                    {p}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <ReportFilterMultiSelect
+            label="Вероятность риска"
+            allLabel="Все"
+            options={LEVELS}
+            selected={draft.probability}
+            onChange={(probability) => setDraft((d) => ({ ...d, probability }))}
+          />
 
-          <div className="space-y-2">
-            <Label>Воздействие риска</Label>
-            <Select
-              value={draft.impact}
-              onValueChange={(v) => setDraft((d) => ({ ...d, impact: v }))}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Все" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ALL}>Все</SelectItem>
-                {IMPACTS.map((i) => (
-                  <SelectItem key={i} value={i}>
-                    {i}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <ReportFilterMultiSelect
+            label="Воздействие риска"
+            allLabel="Все"
+            options={IMPACTS}
+            selected={draft.impact}
+            onChange={(impact) => setDraft((d) => ({ ...d, impact }))}
+          />
 
-          <div className="space-y-2">
-            <Label>Статус риска</Label>
-            <Select
-              value={draft.status}
-              onValueChange={(v) => setDraft((d) => ({ ...d, status: v }))}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Все" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ALL}>Все</SelectItem>
-                {RISK_STATUSES.map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {s}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <ReportFilterMultiSelect
+            label="Статус риска"
+            allLabel="Все"
+            options={RISK_STATUSES}
+            selected={draft.status}
+            onChange={(status) => setDraft((d) => ({ ...d, status }))}
+          />
 
-          <div className="space-y-2">
-            <Label>ID</Label>
-            <Select
-              value={draft.riskId}
-              onValueChange={(v) => setDraft((d) => ({ ...d, riskId: v }))}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Все идентификаторы" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ALL}>Все</SelectItem>
-                {riskCodes.map((code) => (
-                  <SelectItem key={code} value={code}>
-                    {code}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <ReportFilterMultiSelect
+            label="ID"
+            allLabel="Все"
+            options={riskCodes}
+            selected={draft.riskId}
+            onChange={(riskId) => setDraft((d) => ({ ...d, riskId }))}
+          />
 
-          <div className="space-y-2">
-            <Label>Категория риска</Label>
-            <Select
-              value={draft.category}
-              onValueChange={(v) => setDraft((d) => ({ ...d, category: v }))}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Все категории" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ALL}>Все категории</SelectItem>
-                {RISK_CATEGORIES.map((c) => (
-                  <SelectItem key={c} value={c}>
-                    {c}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <ReportFilterMultiSelect
+            label="Категория риска"
+            allLabel="Все категории"
+            options={RISK_CATEGORIES}
+            selected={draft.category}
+            onChange={(category) => setDraft((d) => ({ ...d, category }))}
+          />
 
-          <div className="space-y-2">
-            <Label>Проект</Label>
-            <Select
-              value={draft.project}
-              onValueChange={(v) => setDraft((d) => ({ ...d, project: v }))}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Все проекты" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ALL}>Все проекты</SelectItem>
-                {projects.map((p) => (
-                  <SelectItem key={p} value={p}>
-                    {p}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <ReportFilterMultiSelect
+            label="Проект"
+            allLabel="Все проекты"
+            options={projects}
+            selected={draft.project}
+            onChange={(project) => setDraft((d) => ({ ...d, project }))}
+          />
 
           <div className="space-y-2 md:col-span-2 lg:col-span-2">
             <Label>Ключевые слова</Label>

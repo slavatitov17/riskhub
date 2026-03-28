@@ -2,16 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import {
-  Check,
-  Eye,
-  Filter,
-  FolderKanban,
-  Pencil,
-  Search,
-  Trash2,
-  UserCircle2
-} from 'lucide-react'
+import { Check, Eye, Filter, Pencil, Search, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 import {
@@ -36,14 +27,6 @@ import {
   DialogTitle
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@/components/ui/select'
 import {
   Table,
   TableBody,
@@ -93,8 +76,8 @@ export function RisksRegistryTable() {
   const [catFilter, setCatFilter] = useState<string[]>([])
   const [probabilityFilter, setProbabilityFilter] = useState<string[]>([])
   const [impactFilter, setImpactFilter] = useState<string[]>([])
-  const [projectFilter, setProjectFilter] = useState('')
-  const [authorFilter, setAuthorFilter] = useState('')
+  const [projectFilter, setProjectFilter] = useState<string[]>([])
+  const [authorFilter, setAuthorFilter] = useState<string[]>([])
   const [createdFrom, setCreatedFrom] = useState('')
   const [createdTo, setCreatedTo] = useState('')
   const [updatedFrom, setUpdatedFrom] = useState('')
@@ -135,15 +118,9 @@ export function RisksRegistryTable() {
       if (probabilityFilter.length && !probabilityFilter.includes(r.probability))
         return false
       if (impactFilter.length && !impactFilter.includes(r.impact)) return false
-      if (
-        projectFilter.trim() &&
-        !r.project.toLowerCase().includes(projectFilter.toLowerCase())
-      )
+      if (projectFilter.length && !projectFilter.includes(r.project))
         return false
-      if (
-        authorFilter.trim() &&
-        !r.author.toLowerCase().includes(authorFilter.toLowerCase())
-      )
+      if (authorFilter.length && !authorFilter.includes(r.author))
         return false
       if (createdFrom && r.created < createdFrom) return false
       if (createdTo && r.created > createdTo) return false
@@ -179,8 +156,8 @@ export function RisksRegistryTable() {
     catFilter.length +
     probabilityFilter.length +
     impactFilter.length +
-    (projectFilter.trim() ? 1 : 0) +
-    (authorFilter.trim() ? 1 : 0) +
+    projectFilter.length +
+    authorFilter.length +
     (createdFrom ? 1 : 0) +
     (createdTo ? 1 : 0) +
     (updatedFrom ? 1 : 0) +
@@ -250,8 +227,8 @@ export function RisksRegistryTable() {
                     setCatFilter([])
                     setProbabilityFilter([])
                     setImpactFilter([])
-                    setProjectFilter('')
-                    setAuthorFilter('')
+                    setProjectFilter([])
+                    setAuthorFilter([])
                     setCreatedFrom('')
                     setCreatedTo('')
                     setUpdatedFrom('')
@@ -529,64 +506,80 @@ export function RisksRegistryTable() {
               </div>
             </div>
             <div>
-              <Label htmlFor="project-filter" className="mb-2 block text-sm font-medium">
-                Проект
-              </Label>
-              <Select
-                value={projectFilter || '__all__'}
-                onValueChange={(value) =>
-                  setProjectFilter(value === '__all__' ? '' : value)
-                }
-              >
-                <SelectTrigger id="project-filter" className="w-full">
-                  <SelectValue placeholder="Выберите проект" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__all__">Все проекты</SelectItem>
-                  {projects.map((project) => (
-                    <SelectItem
-                      key={project}
-                      value={project}
-                      className="rounded-md py-2.5"
-                    >
-                      <span className="flex w-full items-center gap-2">
-                        <FolderKanban className="h-4 w-4 text-primary" />
-                        <span>{project}</span>
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <p className="mb-2 text-sm font-medium">Проект</p>
+              <div className="flex flex-col gap-2">
+                <label className="flex cursor-pointer items-center gap-2 text-sm">
+                  <Checkbox
+                    checked={projectFilter.length === 0}
+                    onCheckedChange={(v) => {
+                      if (v) setProjectFilter([])
+                    }}
+                  />
+                  Все проекты
+                </label>
+                {projects.map((project) => (
+                  <label
+                    key={project}
+                    className="flex cursor-pointer items-center gap-2 text-sm"
+                  >
+                    <Checkbox
+                      checked={
+                        projectFilter.length > 0 && projectFilter.includes(project)
+                      }
+                      onCheckedChange={(v) => {
+                        if (v) {
+                          setProjectFilter((prev) =>
+                            prev.length === 0
+                              ? [project]
+                              : Array.from(new Set([...prev, project]))
+                          )
+                        } else {
+                          setProjectFilter((prev) => prev.filter((x) => x !== project))
+                        }
+                      }}
+                    />
+                    {project}
+                  </label>
+                ))}
+              </div>
             </div>
             <div>
-              <Label htmlFor="author-filter" className="mb-2 block text-sm font-medium">
-                Автор
-              </Label>
-              <Select
-                value={authorFilter || '__all__'}
-                onValueChange={(value) =>
-                  setAuthorFilter(value === '__all__' ? '' : value)
-                }
-              >
-                <SelectTrigger id="author-filter" className="w-full">
-                  <SelectValue placeholder="Выберите автора" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__all__">Все авторы</SelectItem>
-                  {authors.map((author) => (
-                    <SelectItem
-                      key={author}
-                      value={author}
-                      className="rounded-md py-2.5"
-                    >
-                      <span className="flex w-full items-center gap-2">
-                        <UserCircle2 className="h-4 w-4 text-primary" />
-                        <span>{author}</span>
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <p className="mb-2 text-sm font-medium">Автор</p>
+              <div className="flex flex-col gap-2">
+                <label className="flex cursor-pointer items-center gap-2 text-sm">
+                  <Checkbox
+                    checked={authorFilter.length === 0}
+                    onCheckedChange={(v) => {
+                      if (v) setAuthorFilter([])
+                    }}
+                  />
+                  Все авторы
+                </label>
+                {authors.map((author) => (
+                  <label
+                    key={author}
+                    className="flex cursor-pointer items-center gap-2 text-sm"
+                  >
+                    <Checkbox
+                      checked={
+                        authorFilter.length > 0 && authorFilter.includes(author)
+                      }
+                      onCheckedChange={(v) => {
+                        if (v) {
+                          setAuthorFilter((prev) =>
+                            prev.length === 0
+                              ? [author]
+                              : Array.from(new Set([...prev, author]))
+                          )
+                        } else {
+                          setAuthorFilter((prev) => prev.filter((x) => x !== author))
+                        }
+                      }}
+                    />
+                    {author}
+                  </label>
+                ))}
+              </div>
             </div>
             <div>
               <p className="mb-2 text-sm font-medium">Создан</p>

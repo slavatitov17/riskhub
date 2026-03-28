@@ -1,12 +1,9 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 
 export function AboutContent() {
   return (
     <Card className="border bg-card/95 shadow-lg backdrop-blur">
-      <CardHeader>
-        <CardTitle className="text-3xl font-bold tracking-tight">О системе</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4 text-sm text-muted-foreground">
+      <CardContent className="space-y-4 p-6 text-sm text-muted-foreground">
         <section className="space-y-2 rounded-lg border p-4">
           <h2 className="text-base font-semibold text-foreground">Что такое RiskHub</h2>
           <p>

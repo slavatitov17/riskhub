@@ -1,12 +1,9 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader } from '@/components/ui/card'
 
 export function TermsContent() {
   return (
     <Card className="border bg-card/95 shadow-lg backdrop-blur">
       <CardHeader>
-        <CardTitle className="text-3xl font-bold tracking-tight">
-          Условия использования
-        </CardTitle>
         <p className="text-sm text-muted-foreground">Последнее обновление: 24.03.2026</p>
       </CardHeader>
       <CardContent className="space-y-4 text-sm text-muted-foreground">

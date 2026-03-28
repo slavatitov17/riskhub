@@ -2,14 +2,9 @@
 
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { Mail, MessageCircle } from 'lucide-react'
-import { toast } from 'sonner'
-
+import { SupportContactCard } from '@/components/help/support-contact-card'
 import { SupportHelpSections } from '@/components/help/support-help-sections'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
 
 export default function SupportPage() {
   return (
@@ -31,24 +26,10 @@ export default function SupportPage() {
 
         <SupportHelpSections />
 
-        <Card className="border bg-card/95 shadow-lg backdrop-blur">
-          <CardContent className="space-y-3 p-4">
-            <div className="flex items-center gap-2 font-medium">
-              <MessageCircle className="h-4 w-4" aria-hidden />
-              Написать в поддержку
-            </div>
-            <Input placeholder="Тема обращения" id="support-subject" />
-            <Textarea placeholder="Опишите проблему..." rows={4} id="support-body" />
-            <Button
-              type="button"
-              className="gap-2"
-              onClick={() => toast.success('Обращение отправлено (демо)')}
-            >
-              <Mail className="h-4 w-4" />
-              Отправить
-            </Button>
-          </CardContent>
-        </Card>
+        <SupportContactCard
+          idsPrefix="support"
+          cardClassName="border bg-card/95 shadow-lg backdrop-blur"
+        />
       </div>
     </div>
   )

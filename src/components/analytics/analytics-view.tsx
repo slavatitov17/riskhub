@@ -1,6 +1,6 @@
 'use client'
 
-import { useId, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import {
   Bar,
@@ -15,7 +15,8 @@ import {
   ResponsiveContainer,
   Tooltip,
   XAxis,
-  YAxis
+  YAxis,
+  type TooltipProps
 } from 'recharts'
 import { CalendarDays, ChevronDown, Download, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
@@ -71,22 +72,46 @@ const PIE_COLORS = [
   'hsl(330 81% 60%)'
 ]
 
-const PIE_GRAD_TOP = [
-  'hsl(217 91% 74%)',
-  'hsl(142 76% 52%)',
-  'hsl(38 92% 62%)',
-  'hsl(280 65% 72%)',
-  'hsl(0 84% 68%)',
-  'hsl(199 89% 58%)',
-  'hsl(330 81% 68%)'
-]
+function probabilityBarColor(name: string) {
+  if (name === 'Высокая') return 'hsl(350 82% 48%)'
+  if (name === 'Средняя') return 'hsl(38 85% 45%)'
+  return 'hsl(142 76% 38%)'
+}
 
-function probabilityGradientStops(name: string): readonly [string, string] {
-  if (name === 'Высокая')
-    return ['hsl(350 82% 62%)', 'hsl(350 82% 40%)'] as const
-  if (name === 'Средняя')
-    return ['hsl(38 92% 58%)', 'hsl(38 85% 38%)'] as const
-  return ['hsl(142 76% 52%)', 'hsl(142 76% 34%)'] as const
+function AnalyticsTooltip({
+  active,
+  payload,
+  label
+}: TooltipProps<number, string>) {
+  if (!active || !payload?.length) return null
+  return (
+    <div className="rounded-md border border-border bg-card px-3 py-2 text-sm shadow-md">
+      {label != null && String(label) !== '' ? (
+        <p className="mb-1 font-medium text-foreground">{label}</p>
+      ) : null}
+      <div className="space-y-0.5">
+        {payload.map((entry, i) => {
+          const rawName = entry.name
+          const isValueSeries =
+            entry.dataKey === 'value' ||
+            (typeof rawName === 'string' && rawName.toLowerCase() === 'value')
+          const nameStr = isValueSeries ? 'значений' : String(rawName ?? '')
+          const key = `${String(entry.dataKey ?? '')}-${i}`
+          return (
+            <p key={key} className="text-foreground">
+              <span
+                className="mr-1.5 inline-block size-2 rounded-full align-middle"
+                style={{ backgroundColor: entry.color }}
+                aria-hidden
+              />
+              {nameStr}:{' '}
+              <span className="font-medium tabular-nums">{entry.value}</span>
+            </p>
+          )
+        })}
+      </div>
+    </div>
+  )
 }
 
 export type ReportFilters = {
@@ -220,6 +245,7 @@ function ReportFilterSearchableMultiSelect({
   onChange: (next: string[]) => void
   searchPlaceholder: string
 }) {
+  const searchRef = useRef<HTMLInputElement>(null)
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const isAll = selected.length === 0
@@ -230,10 +256,17 @@ function ReportFilterSearchableMultiSelect({
     [options, q]
   )
 
+  useEffect(() => {
+    if (!open) return
+    const id = window.requestAnimationFrame(() => searchRef.current?.focus())
+    return () => window.cancelAnimationFrame(id)
+  }, [open])
+
   return (
     <div className="space-y-2">
       <Label>{label}</Label>
       <DropdownMenu
+        modal={false}
         open={open}
         onOpenChange={(next) => {
           setOpen(next)
@@ -255,11 +288,9 @@ function ReportFilterSearchableMultiSelect({
           align="start"
           onCloseAutoFocus={(e) => e.preventDefault()}
         >
-          <div
-            className="border-b border-border p-2"
-            onPointerDown={(e) => e.preventDefault()}
-          >
+          <div className="border-b border-border p-2">
             <Input
+              ref={searchRef}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={searchPlaceholder}
@@ -298,11 +329,11 @@ function ReportFilterSearchableMultiSelect({
                 {opt}
               </DropdownMenuCheckboxItem>
             ))}
-            {filteredOptions.length === 0 && (
+            {filteredOptions.length === 0 ? (
               <p className="px-2 py-3 text-center text-sm text-muted-foreground">
-                Ничего не найдено
+                Не найдено
               </p>
-            )}
+            ) : null}
           </div>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -333,7 +364,6 @@ function formatRuDateTime(d: Date) {
 }
 
 export function AnalyticsView() {
-  const cuid = useId().replace(/:/g, '')
   const { risks, refresh } = useRisks()
   const [period, setPeriod] = useState('month')
   const [lastUpdated, setLastUpdated] = useState(() => new Date())
@@ -557,27 +587,6 @@ export function AnalyticsView() {
                 data={byCategory}
                 margin={{ top: 8, right: 8, left: -8, bottom: 4 }}
               >
-                <defs>
-                  <linearGradient id={`barCat-${cuid}`} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="hsl(217 91% 70%)" />
-                    <stop offset="50%" stopColor="hsl(217 91% 55%)" />
-                    <stop offset="100%" stopColor="hsl(217 91% 40%)" />
-                  </linearGradient>
-                  <filter
-                    id={`barDrop-${cuid}`}
-                    x="-15%"
-                    y="-15%"
-                    width="130%"
-                    height="135%"
-                  >
-                    <feDropShadow
-                      dx="2"
-                      dy="3"
-                      stdDeviation="2.5"
-                      floodOpacity="0.28"
-                    />
-                  </filter>
-                </defs>
                 <CartesianGrid
                   strokeDasharray="3 3"
                   stroke="hsl(var(--border))"
@@ -592,17 +601,13 @@ export function AnalyticsView() {
                 <YAxis allowDecimals={false} width={36} tick={{ fontSize: 11 }} />
                 <Tooltip
                   cursor={{ fill: 'hsl(var(--muted) / 0.35)' }}
-                  contentStyle={{
-                    borderRadius: 8,
-                    border: '1px solid hsl(var(--border))'
-                  }}
+                  content={<AnalyticsTooltip />}
                 />
                 <Bar
                   dataKey="value"
-                  fill={`url(#barCat-${cuid})`}
-                  radius={[8, 8, 3, 3]}
+                  fill="hsl(217 91% 60%)"
+                  radius={[4, 4, 0, 0]}
                   maxBarSize={52}
-                  style={{ filter: `url(#barDrop-${cuid})` }}
                   isAnimationActive
                 />
                 <Legend
@@ -635,20 +640,10 @@ export function AnalyticsView() {
           <CardContent className="h-[280px]">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={timeline} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
-                <defs>
-                  <filter id={`lineSh-${cuid}`}>
-                    <feDropShadow dx="1" dy="2" stdDeviation="1.5" floodOpacity="0.22" />
-                  </filter>
-                </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                 <YAxis allowDecimals={false} width={36} tick={{ fontSize: 11 }} />
-                <Tooltip
-                  contentStyle={{
-                    borderRadius: 8,
-                    border: '1px solid hsl(var(--border))'
-                  }}
-                />
+                <Tooltip content={<AnalyticsTooltip />} />
                 <Legend
                   verticalAlign="bottom"
                   align="center"
@@ -660,20 +655,18 @@ export function AnalyticsView() {
                   type="monotone"
                   dataKey="Активные"
                   stroke="hsl(217 91% 52%)"
-                  strokeWidth={3}
-                  dot={{ r: 4, strokeWidth: 2, fill: 'hsl(217 91% 98%)' }}
-                  activeDot={{ r: 6 }}
-                  style={{ filter: `url(#lineSh-${cuid})` }}
+                  strokeWidth={2}
+                  dot={{ r: 3, strokeWidth: 1, fill: 'hsl(var(--card))' }}
+                  activeDot={{ r: 5 }}
                   isAnimationActive
                 />
                 <Line
                   type="monotone"
                   dataKey="Закрытые"
                   stroke="hsl(142 76% 34%)"
-                  strokeWidth={3}
-                  dot={{ r: 4, strokeWidth: 2, fill: 'hsl(142 76% 98%)' }}
-                  activeDot={{ r: 6 }}
-                  style={{ filter: `url(#lineSh-${cuid})` }}
+                  strokeWidth={2}
+                  dot={{ r: 3, strokeWidth: 1, fill: 'hsl(var(--card))' }}
+                  activeDot={{ r: 5 }}
                   isAnimationActive
                 />
               </LineChart>
@@ -688,30 +681,6 @@ export function AnalyticsView() {
           <CardContent className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart margin={{ top: 0, right: 4, bottom: 4, left: 4 }}>
-                <defs>
-                  {byCategory.map((_, i) => (
-                    <linearGradient
-                      key={`pc-${i}`}
-                      id={`pieCat-${cuid}-${i}`}
-                      x1="0"
-                      y1="0"
-                      x2="1"
-                      y2="1"
-                    >
-                      <stop
-                        offset="0%"
-                        stopColor={PIE_GRAD_TOP[i % PIE_GRAD_TOP.length]}
-                      />
-                      <stop
-                        offset="100%"
-                        stopColor={PIE_COLORS[i % PIE_COLORS.length]}
-                      />
-                    </linearGradient>
-                  ))}
-                  <filter id={`pieSh-${cuid}`}>
-                    <feDropShadow dx="2" dy="4" stdDeviation="3" floodOpacity="0.2" />
-                  </filter>
-                </defs>
                 <Pie
                   data={byCategory}
                   dataKey="value"
@@ -719,26 +688,20 @@ export function AnalyticsView() {
                   cx="50%"
                   cy="44%"
                   outerRadius={82}
-                  paddingAngle={2.5}
+                  paddingAngle={2}
                   label={false}
-                  style={{ filter: `url(#pieSh-${cuid})` }}
                   isAnimationActive
                 >
                   {byCategory.map((_, i) => (
                     <Cell
                       key={`c-${i}`}
-                      fill={`url(#pieCat-${cuid}-${i})`}
+                      fill={PIE_COLORS[i % PIE_COLORS.length]}
                       stroke="hsl(var(--background))"
-                      strokeWidth={2}
+                      strokeWidth={1}
                     />
                   ))}
                 </Pie>
-                <Tooltip
-                  contentStyle={{
-                    borderRadius: 8,
-                    border: '1px solid hsl(var(--border))'
-                  }}
-                />
+                <Tooltip content={<AnalyticsTooltip />} />
                 <Legend
                   verticalAlign="bottom"
                   layout="horizontal"
@@ -758,30 +721,6 @@ export function AnalyticsView() {
           <CardContent className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart margin={{ top: 0, right: 4, bottom: 4, left: 4 }}>
-                <defs>
-                  {byStatus.map((_, i) => (
-                    <linearGradient
-                      key={`ps-${i}`}
-                      id={`pieSt-${cuid}-${i}`}
-                      x1="0"
-                      y1="0"
-                      x2="1"
-                      y2="1"
-                    >
-                      <stop
-                        offset="0%"
-                        stopColor={PIE_GRAD_TOP[i % PIE_GRAD_TOP.length]}
-                      />
-                      <stop
-                        offset="100%"
-                        stopColor={PIE_COLORS[i % PIE_COLORS.length]}
-                      />
-                    </linearGradient>
-                  ))}
-                  <filter id={`pieDonutSh-${cuid}`}>
-                    <feDropShadow dx="2" dy="4" stdDeviation="3" floodOpacity="0.2" />
-                  </filter>
-                </defs>
                 <Pie
                   data={byStatus}
                   dataKey="value"
@@ -790,26 +729,20 @@ export function AnalyticsView() {
                   cy="44%"
                   innerRadius={52}
                   outerRadius={82}
-                  paddingAngle={2.5}
+                  paddingAngle={2}
                   label={false}
-                  style={{ filter: `url(#pieDonutSh-${cuid})` }}
                   isAnimationActive
                 >
                   {byStatus.map((_, i) => (
                     <Cell
                       key={`s-${i}`}
-                      fill={`url(#pieSt-${cuid}-${i})`}
+                      fill={PIE_COLORS[i % PIE_COLORS.length]}
                       stroke="hsl(var(--background))"
-                      strokeWidth={2}
+                      strokeWidth={1}
                     />
                   ))}
                 </Pie>
-                <Tooltip
-                  contentStyle={{
-                    borderRadius: 8,
-                    border: '1px solid hsl(var(--border))'
-                  }}
-                />
+                <Tooltip content={<AnalyticsTooltip />} />
                 <Legend
                   verticalAlign="bottom"
                   layout="horizontal"
@@ -833,38 +766,6 @@ export function AnalyticsView() {
                 layout="vertical"
                 margin={{ top: 8, right: 16, left: 4, bottom: 4 }}
               >
-                <defs>
-                  {byProbability.map((row, i) => {
-                    const [from, to] = probabilityGradientStops(row.name)
-                    return (
-                      <linearGradient
-                        key={row.name}
-                        id={`probBar-${cuid}-${i}`}
-                        x1="0"
-                        y1="0"
-                        x2="1"
-                        y2="0"
-                      >
-                        <stop offset="0%" stopColor={from} />
-                        <stop offset="100%" stopColor={to} />
-                      </linearGradient>
-                    )
-                  })}
-                  <filter
-                    id={`probDrop-${cuid}`}
-                    x="-10%"
-                    y="-10%"
-                    width="125%"
-                    height="130%"
-                  >
-                    <feDropShadow
-                      dx="2"
-                      dy="2"
-                      stdDeviation="2"
-                      floodOpacity="0.25"
-                    />
-                  </filter>
-                </defs>
                 <CartesianGrid
                   strokeDasharray="3 3"
                   stroke="hsl(var(--border))"
@@ -879,20 +780,19 @@ export function AnalyticsView() {
                 />
                 <Tooltip
                   cursor={{ fill: 'hsl(var(--muted) / 0.25)' }}
-                  contentStyle={{
-                    borderRadius: 8,
-                    border: '1px solid hsl(var(--border))'
-                  }}
+                  content={<AnalyticsTooltip />}
                 />
                 <Bar
                   dataKey="value"
-                  radius={[0, 10, 10, 0]}
+                  radius={[0, 4, 4, 0]}
                   maxBarSize={28}
-                  style={{ filter: `url(#probDrop-${cuid})` }}
                   isAnimationActive
                 >
-                  {byProbability.map((row, i) => (
-                    <Cell key={row.name} fill={`url(#probBar-${cuid}-${i})`} />
+                  {byProbability.map((row) => (
+                    <Cell
+                      key={row.name}
+                      fill={probabilityBarColor(row.name)}
+                    />
                   ))}
                 </Bar>
                 <Legend
@@ -900,22 +800,18 @@ export function AnalyticsView() {
                   align="center"
                   content={() => (
                     <ul className="flex flex-wrap justify-center gap-x-5 gap-y-2 pt-2 text-xs text-muted-foreground">
-                      {byProbability.map((row) => {
-                        const [from, to] = probabilityGradientStops(row.name)
-                        return (
-                          <li key={row.name} className="flex items-center gap-2">
-                            <span
-                              className="h-2.5 w-7 rounded-sm shadow-md"
-                              style={{
-                                background: `linear-gradient(90deg, ${from}, ${to})`,
-                                boxShadow: '2px 2px 4px hsl(220 15% 10% / 0.18)'
-                              }}
-                              aria-hidden
-                            />
-                            <span className="text-foreground">{row.name}</span>
-                          </li>
-                        )
-                      })}
+                      {byProbability.map((row) => (
+                        <li key={row.name} className="flex items-center gap-2">
+                          <span
+                            className="h-2.5 w-7 rounded-sm"
+                            style={{
+                              backgroundColor: probabilityBarColor(row.name)
+                            }}
+                            aria-hidden
+                          />
+                          <span className="text-foreground">{row.name}</span>
+                        </li>
+                      ))}
                     </ul>
                   )}
                 />

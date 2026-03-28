@@ -55,14 +55,50 @@ export async function dbUpgradeProjectShapesIfNeeded(): Promise<void> {
   for (const row of rows) {
     const r = row as Partial<ProjectRecord>
     const hasLog = Array.isArray(r.activityLog) && r.activityLog.length > 0
+    const codeOk =
+      typeof r.code === 'string' && /^P-\d{3}$/.test(r.code.trim())
     if (
       r.status !== undefined &&
       typeof r.description === 'string' &&
       typeof r.updatedAt === 'string' &&
-      hasLog
+      hasLog &&
+      codeOk
     )
       continue
     await dbPutProject(normalizeProjectRecord(row))
+  }
+}
+
+export async function dbEnsureAllProjectCodes(): Promise<void> {
+  const db = await openDb()
+  const rawRows = await new Promise<ProjectRecordInput[]>((resolve, reject) => {
+    const tx = db.transaction(STORES.projects, 'readonly')
+    const req = tx.objectStore(STORES.projects).getAll()
+    req.onsuccess = () => resolve((req.result as ProjectRecordInput[]) ?? [])
+    req.onerror = () => reject(req.error)
+  })
+  const normalized = rawRows.map((r) =>
+    normalizeProjectRecord(r as ProjectRecordInput)
+  )
+  if (!normalized.some((p) => !p.code || !/^P-\d{3}$/.test(p.code))) return
+
+  const sorted = [...normalized].sort((a, b) =>
+    a.createdAt.localeCompare(b.createdAt)
+  )
+  const used = new Set<string>()
+  for (const p of sorted) {
+    if (p.code && /^P-\d{3}$/.test(p.code)) used.add(p.code)
+  }
+  for (const p of sorted) {
+    if (p.code && /^P-\d{3}$/.test(p.code)) continue
+    let num = 1
+    let code = `P-${String(num).padStart(3, '0')}`
+    while (used.has(code)) {
+      num += 1
+      code = `P-${String(num).padStart(3, '0')}`
+    }
+    used.add(code)
+    await dbPutProject({ ...p, code })
   }
 }
 

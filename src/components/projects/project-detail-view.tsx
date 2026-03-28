@@ -194,7 +194,11 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
             <DropdownMenuContent align="end">
               <DropdownMenuItem
                 onClick={() => {
-                  navigator.clipboard?.writeText(project.id)
+                  const id =
+                    project.code && /^P-\d{3}$/.test(project.code)
+                      ? project.code
+                      : project.id
+                  navigator.clipboard?.writeText(id)
                   toast.success('ID скопирован')
                 }}
               >
@@ -219,10 +223,10 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
           <Card>
             <CardHeader className="space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <span
-                  className={cn('font-mono text-foreground', listUiTextClass)}
-                >
-                  {project.id}
+                <span className={cn('text-foreground', listUiTextClass)}>
+                  {project.code && /^P-\d{3}$/.test(project.code)
+                    ? project.code
+                    : project.id}
                 </span>
                 <span
                   className={cn(
@@ -264,8 +268,14 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
           </Card>
 
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0">
               <CardTitle className="text-base">Риски по проекту</CardTitle>
+              <Button variant="link" className="h-auto gap-1 p-0" asChild>
+                <Link href={`/risks/new?projectId=${encodeURIComponent(project.id)}`}>
+                  <Plus className="h-4 w-4" />
+                  Добавить
+                </Link>
+              </Button>
             </CardHeader>
             <CardContent className="p-0">
               <div className="w-full overflow-x-auto">

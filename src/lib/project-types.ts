@@ -5,6 +5,8 @@ export type ProjectStatus = (typeof PROJECT_STATUSES)[number]
 
 export interface ProjectRecord {
   id: string
+  /** Человекочитаемый код, например P-001 */
+  code: string
   name: string
   ownerUserId: string
   createdAt: string
@@ -18,11 +20,16 @@ export interface ProjectRecord {
 
 export type ProjectRecordInput = Omit<
   ProjectRecord,
-  'status' | 'description' | 'updatedAt' | 'activityLog'
+  'status' | 'description' | 'updatedAt' | 'activityLog' | 'code'
 > &
   Partial<
-    Pick<ProjectRecord, 'status' | 'description' | 'updatedAt' | 'activityLog'>
+    Pick<
+      ProjectRecord,
+      'status' | 'description' | 'updatedAt' | 'activityLog' | 'code'
+    >
   >
+
+const PROJECT_CODE_RE = /^P-\d{3}$/
 
 export function normalizeProjectRecord(raw: ProjectRecordInput): ProjectRecord {
   const created = raw.createdAt
@@ -33,8 +40,10 @@ export function normalizeProjectRecord(raw: ProjectRecordInput): ProjectRecord {
       message: 'Проект создан'
     }
   ]
+  const codeRaw = typeof raw.code === 'string' ? raw.code.trim() : ''
   return {
     ...raw,
+    code: PROJECT_CODE_RE.test(codeRaw) ? codeRaw : '',
     status: raw.status === 'Завершен' ? 'Завершен' : 'Активен',
     description: typeof raw.description === 'string' ? raw.description : '',
     updatedAt: raw.updatedAt ?? created,
@@ -43,6 +52,17 @@ export function normalizeProjectRecord(raw: ProjectRecordInput): ProjectRecord {
         ? raw.activityLog
         : defaultLog
   }
+}
+
+export function nextProjectCode(projects: readonly ProjectRecord[]): string {
+  const nums = projects
+    .map((p) => {
+      const m = p.code.match(/^P-(\d{3})$/)
+      return m ? parseInt(m[1]!, 10) : NaN
+    })
+    .filter((n) => !Number.isNaN(n))
+  const max = nums.length ? Math.max(...nums) : 0
+  return `P-${String(max + 1).padStart(3, '0')}`
 }
 
 export interface ProjectMemberRecord {

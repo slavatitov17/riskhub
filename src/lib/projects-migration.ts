@@ -1,6 +1,7 @@
 import { getSession, getUsers } from '@/lib/auth-storage'
 import { normalizeProjectRecord, type ProjectRecord } from '@/lib/project-types'
 import {
+  dbEnsureAllProjectCodes,
   dbGetAllProjects,
   dbPutMember,
   dbPutProject,
@@ -85,4 +86,6 @@ export async function migrateLegacyRisksToProjects(): Promise<void> {
       })
     }
   }
+
+  await dbEnsureAllProjectCodes()
 }

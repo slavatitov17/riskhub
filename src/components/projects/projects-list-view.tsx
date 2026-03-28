@@ -1,28 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { Plus, RefreshCw } from 'lucide-react'
 
+import { ProjectsRegistryTable } from '@/components/projects/projects-registry-table'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
-} from '@/components/ui/table'
 import { useProjects } from '@/contexts/projects-context'
-import {
-  projectStatusBadgeClass,
-  riskTableChipBase
-} from '@/lib/risk-badge-styles'
-import { formatDisplayDate } from '@/lib/risks-storage'
-import { cn } from '@/lib/utils'
 
 function formatRuDateTime(d: Date) {
   return d.toLocaleString('ru-RU', {
@@ -36,28 +21,8 @@ function formatRuDateTime(d: Date) {
 }
 
 export function ProjectsListView() {
-  const router = useRouter()
-  const { myProjects, refresh, memberCount, ready } = useProjects()
+  const { refresh } = useProjects()
   const [lastUpdated, setLastUpdated] = useState(() => new Date())
-  const [counts, setCounts] = useState<Record<string, number>>({})
-
-  useEffect(() => {
-    let alive = true
-    ;(async () => {
-      const next: Record<string, number> = {}
-      for (const p of myProjects) {
-        next[p.id] = await memberCount(p.id)
-      }
-      if (alive) setCounts(next)
-    })()
-    return () => {
-      alive = false
-    }
-  }, [myProjects, memberCount])
-
-  const openProject = (id: string) => {
-    router.push(`/projects/${id}`)
-  }
 
   return (
     <motion.div
@@ -95,81 +60,7 @@ export function ProjectsListView() {
         </Button>
       </div>
 
-      <Card className="shadow-sm">
-        <CardHeader className="border-b pb-4">
-          <CardTitle className="text-base font-semibold">Проекты</CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          <div className="w-full overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Название</TableHead>
-                  <TableHead className="whitespace-nowrap">Создан</TableHead>
-                  <TableHead className="whitespace-nowrap">Статус</TableHead>
-                  <TableHead className="whitespace-nowrap">Участники</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {!ready ? (
-                  <TableRow>
-                    <TableCell colSpan={4} className="text-muted-foreground">
-                      Загрузка…
-                    </TableCell>
-                  </TableRow>
-                ) : myProjects.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={4} className="text-muted-foreground">
-                      Нет проектов. Создайте первый проект, чтобы вести риски в его
-                      рамках.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  myProjects.map((p) => (
-                    <TableRow
-                      key={p.id}
-                      role="button"
-                      tabIndex={0}
-                      className="cursor-pointer hover:bg-muted/50"
-                      onClick={() => openProject(p.id)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault()
-                          openProject(p.id)
-                        }
-                      }}
-                    >
-                      <TableCell className="font-medium">{p.name}</TableCell>
-                      <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
-                        {formatDisplayDate(p.createdAt)}
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap">
-                        <span
-                          className={cn(
-                            riskTableChipBase,
-                            projectStatusBadgeClass(p.status)
-                          )}
-                        >
-                          {p.status}
-                        </span>
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap">
-                        {counts[p.id] ?? '—'}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-          {ready && (
-            <div className="px-4 py-4 text-sm md:px-6">
-              <span className="text-muted-foreground">Всего: </span>
-              <span className="text-foreground">{myProjects.length}</span>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <ProjectsRegistryTable />
     </motion.div>
   )
 }

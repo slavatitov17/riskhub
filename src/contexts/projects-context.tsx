@@ -10,11 +10,12 @@ import {
 } from 'react'
 
 import { getSession, type SessionPayload } from '@/lib/auth-storage'
-import type {
-  ProjectInvitationRecord,
-  ProjectMemberRecord,
-  ProjectRecord,
-  ProjectStatus
+import {
+  nextProjectCode,
+  type ProjectInvitationRecord,
+  type ProjectMemberRecord,
+  type ProjectRecord,
+  type ProjectStatus
 } from '@/lib/project-types'
 import { migrateLegacyRisksToProjects } from '@/lib/projects-migration'
 import type { RiskActivityLogEntry } from '@/lib/risk-types'
@@ -250,8 +251,11 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
 
       const id = `proj_${crypto.randomUUID()}`
       const now = new Date().toISOString()
+      const existing = await dbGetAllProjects()
+      const code = nextProjectCode(existing)
       const row: ProjectRecord = {
         id,
+        code,
         name,
         ownerUserId: s.userId,
         createdAt: now,

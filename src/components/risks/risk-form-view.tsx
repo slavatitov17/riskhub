@@ -46,6 +46,8 @@ const impactToIndex = (v: string) =>
 interface RiskFormViewProps {
   mode: 'new' | 'edit'
   initial?: RiskRecord
+  /** При создании риска с карточки проекта: фиксирует проект */
+  presetProjectId?: string
 }
 
 function SearchableProjectSelect({
@@ -53,13 +55,15 @@ function SearchableProjectSelect({
   onChange,
   options,
   placeholder,
-  searchPlaceholder
+  searchPlaceholder,
+  disabled
 }: {
   value: string
   onChange: (v: string) => void
   options: readonly { value: string; label: string }[]
   placeholder: string
   searchPlaceholder: string
+  disabled?: boolean
 }) {
   const searchRef = useRef<HTMLInputElement>(null)
   const [open, setOpen] = useState(false)
@@ -75,6 +79,17 @@ function SearchableProjectSelect({
     const id = window.requestAnimationFrame(() => searchRef.current?.focus())
     return () => window.cancelAnimationFrame(id)
   }, [open])
+
+  if (disabled) {
+    return (
+      <div className="space-y-2">
+        <Label>Проект</Label>
+        <p className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+          {options.find((o) => o.value === value)?.label || '—'}
+        </p>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-2">
@@ -141,7 +156,11 @@ function SearchableProjectSelect({
   )
 }
 
-export function RiskFormView({ mode, initial }: RiskFormViewProps) {
+export function RiskFormView({
+  mode,
+  initial,
+  presetProjectId
+}: RiskFormViewProps) {
   const router = useRouter()
   const { addRisk, updateRisk } = useRisks()
   const { myProjects, ready: projectsReady } = useProjects()
@@ -177,6 +196,18 @@ export function RiskFormView({ mode, initial }: RiskFormViewProps) {
     const match = myProjects.find((p) => p.name === initial.project)
     setProjectId(match?.id ?? '')
   }, [mode, initial, myProjects])
+
+  useEffect(() => {
+    if (mode !== 'new' || !presetProjectId || !projectsReady) return
+    if (!myProjects.some((p) => p.id === presetProjectId)) return
+    setProjectId(presetProjectId)
+  }, [mode, presetProjectId, projectsReady, myProjects])
+
+  const projectSelectLocked =
+    mode === 'new' &&
+    Boolean(presetProjectId) &&
+    projectsReady &&
+    myProjects.some((p) => p.id === presetProjectId)
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -288,6 +319,7 @@ export function RiskFormView({ mode, initial }: RiskFormViewProps) {
                 options={projectOptions}
                 placeholder="Выберите проект"
                 searchPlaceholder="Поиск по проекту…"
+                disabled={projectSelectLocked}
               />
               {projectsReady && myProjects.length === 0 ? (
                 <p className="text-sm text-muted-foreground">

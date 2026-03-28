@@ -16,6 +16,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { ProjectsRegistryTable } from '@/components/projects/projects-registry-table'
 import { RisksRegistryTable } from '@/components/risks/risks-registry-table'
 import { useNotifications } from '@/contexts/notifications-context'
 import { useVisibleRisks } from '@/hooks/use-visible-risks'
@@ -199,6 +200,7 @@ export function PanelDashboard() {
         </Card>
       </section>
 
+      <ProjectsRegistryTable />
       <RisksRegistryTable />
     </motion.div>
   )

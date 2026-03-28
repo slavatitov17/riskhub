@@ -6,7 +6,7 @@ import {
   BarChart3,
   CircleHelp,
   Folder,
-  LayoutDashboard,
+  Home,
   Settings,
   Shield
 } from 'lucide-react'
@@ -23,7 +23,7 @@ export function AppSidebar({ pathname, onNavigate }: AppSidebarProps) {
   const { t } = useLocale()
 
   const navItems = [
-    { href: '/panel', label: t('navPanel'), icon: LayoutDashboard },
+    { href: '/panel', label: t('navPanel'), icon: Home },
     { href: '/projects', label: t('navProjects'), icon: Folder },
     { href: '/risks', label: t('navRisks'), icon: AlertTriangle },
     { href: '/analytics', label: t('navAnalytics'), icon: BarChart3 },

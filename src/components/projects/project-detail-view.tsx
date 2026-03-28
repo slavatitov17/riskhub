@@ -4,9 +4,27 @@ import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { ArrowLeft, Eye, Plus, Send } from 'lucide-react'
+import {
+  ArrowLeft,
+  Eye,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  Send,
+  Trash2
+} from 'lucide-react'
 import { toast } from 'sonner'
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -17,16 +35,15 @@ import {
   DialogHeader,
   DialogTitle
 } from '@/components/ui/dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@/components/ui/select'
-import { Textarea } from '@/components/ui/textarea'
+import { Separator } from '@/components/ui/separator'
 import {
   Table,
   TableBody,
@@ -38,23 +55,40 @@ import {
 import { useProjects } from '@/contexts/projects-context'
 import { useRisks } from '@/contexts/risks-context'
 import { getSession, getUsers } from '@/lib/auth-storage'
-import type { ProjectMemberRecord, ProjectRecord, ProjectStatus } from '@/lib/project-types'
+import type { ProjectMemberRecord, ProjectRecord } from '@/lib/project-types'
 import {
   projectStatusBadgeClass,
   riskTableChipBase,
   statusBadgeClass
 } from '@/lib/risk-badge-styles'
 import type { RiskRecord } from '@/lib/risk-types'
-import { formatDisplayDate } from '@/lib/risks-storage'
+import { formatDisplayDate, formatRuDateTime } from '@/lib/risks-storage'
 import { cn } from '@/lib/utils'
 
 const listUiTextClass = 'text-sm font-normal'
+
+function metaOutlineTag(children: React.ReactNode) {
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center rounded-md border border-border bg-background px-2.5 py-1 text-foreground',
+        listUiTextClass
+      )}
+    >
+      {children}
+    </span>
+  )
+}
 
 function displayNameForMemberEmail(email: string) {
   const u = getUsers().find(
     (x) => x.email.toLowerCase() === email.trim().toLowerCase()
   )
   return u?.name ?? '—'
+}
+
+function ownerDisplayName(ownerUserId: string) {
+  return getUsers().find((u) => u.id === ownerUserId)?.name ?? '—'
 }
 
 interface ProjectDetailViewProps {
@@ -65,18 +99,18 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
   const router = useRouter()
   const { risks } = useRisks()
   const {
-    updateProject,
     inviteToProject,
     listProjectMembers,
     refresh,
-    accessibleProjectIds
+    accessibleProjectIds,
+    deleteProject
   } = useProjects()
 
   const [members, setMembers] = useState<ProjectMemberRecord[]>([])
-  const [descDraft, setDescDraft] = useState(project.description)
   const [inviteOpen, setInviteOpen] = useState(false)
   const [inviteRows, setInviteRows] = useState<string[]>([''])
   const [inviteSending, setInviteSending] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
 
   const session = getSession()
   const canEdit =
@@ -84,6 +118,9 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
     session?.userId === project.ownerUserId
 
   const projectRisks = risks.filter((r) => r.projectId === project.id)
+  const activityLog = [...project.activityLog].sort(
+    (a, b) => Date.parse(a.at) - Date.parse(b.at)
+  )
 
   const loadMembers = useCallback(async () => {
     setMembers(await listProjectMembers(project.id))
@@ -92,32 +129,6 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
   useEffect(() => {
     void loadMembers()
   }, [loadMembers])
-
-  useEffect(() => {
-    setDescDraft(project.description)
-  }, [project.description])
-
-  const handleSaveDescription = async () => {
-    if (!canEdit) return
-    const res = await updateProject(project.id, { description: descDraft })
-    if (!res.ok) {
-      toast.error(res.error)
-      return
-    }
-    toast.success('Описание сохранено')
-    void refresh()
-  }
-
-  const handleStatusChange = async (status: ProjectStatus) => {
-    if (!canEdit) return
-    const res = await updateProject(project.id, { status })
-    if (!res.ok) {
-      toast.error(res.error)
-      return
-    }
-    toast.success('Статус обновлён')
-    void refresh()
-  }
 
   const handleAddInviteRow = () => setInviteRows((r) => [...r, ''])
 
@@ -135,6 +146,7 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
       setInviteOpen(false)
       setInviteRows([''])
       void loadMembers()
+      void refresh()
     } finally {
       setInviteSending(false)
     }
@@ -164,6 +176,42 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
             Назад
           </Link>
         </Button>
+        <div className="ml-auto flex flex-wrap gap-2">
+          {canEdit ? (
+            <Button variant="outline" className="gap-2" asChild>
+              <Link href={`/projects/${project.id}/edit`}>
+                <Pencil className="h-4 w-4" />
+                Редактировать
+              </Link>
+            </Button>
+          ) : null}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="icon" variant="outline" aria-label="Ещё">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onClick={() => {
+                  navigator.clipboard?.writeText(project.id)
+                  toast.success('ID скопирован')
+                }}
+              >
+                Копировать ID
+              </DropdownMenuItem>
+              {canEdit ? (
+                <DropdownMenuItem
+                  className="text-destructive"
+                  onClick={() => setDeleteOpen(true)}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Удалить
+                </DropdownMenuItem>
+              ) : null}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-[1fr_320px]">
@@ -171,7 +219,9 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
           <Card>
             <CardHeader className="space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className={cn('font-mono text-foreground', listUiTextClass)}>
+                <span
+                  className={cn('font-mono text-foreground', listUiTextClass)}
+                >
                   {project.id}
                 </span>
                 <span
@@ -190,53 +240,24 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
                   <Badge variant="secondary">Демо</Badge>
                 </div>
               ) : null}
-              {canEdit ? (
-                <div className="max-w-xs space-y-2">
-                  <Label className="text-xs text-muted-foreground">
-                    Изменить статус
-                  </Label>
-                  <Select
-                    value={project.status}
-                    onValueChange={(v) =>
-                      void handleStatusChange(v as ProjectStatus)
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Активен">Активен</SelectItem>
-                      <SelectItem value="Завершен">Завершен</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              ) : null}
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
                 <p className="mb-2 text-sm font-medium text-foreground">
                   Описание проекта
                 </p>
-                {canEdit ? (
-                  <div className="space-y-2">
-                    <Textarea
-                      value={descDraft}
-                      onChange={(e) => setDescDraft(e.target.value)}
-                      rows={4}
-                      placeholder="Кратко опишите цели и контекст проекта…"
-                    />
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={() => void handleSaveDescription()}
-                    >
-                      Сохранить описание
-                    </Button>
-                  </div>
-                ) : (
-                  <p className="text-sm leading-relaxed text-muted-foreground">
-                    {project.description?.trim() || '—'}
-                  </p>
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  {project.description?.trim() || '—'}
+                </p>
+              </div>
+              <Separator />
+              <div className="flex flex-wrap gap-2">
+                {metaOutlineTag(
+                  <>Владелец: {ownerDisplayName(project.ownerUserId)}</>
+                )}
+                {metaOutlineTag(<>Создан {formatDisplayDate(project.createdAt)}</>)}
+                {metaOutlineTag(
+                  <>Обновлён {formatDisplayDate(project.updatedAt)}</>
                 )}
               </div>
             </CardContent>
@@ -244,7 +265,7 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Риски по проекту</CardTitle>
+              <CardTitle className="text-base">Риски по проекту</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               <div className="w-full overflow-x-auto">
@@ -253,7 +274,9 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
                     <TableRow>
                       <TableHead className="whitespace-nowrap">ID</TableHead>
                       <TableHead>Название</TableHead>
-                      <TableHead className="whitespace-nowrap">Категория</TableHead>
+                      <TableHead className="whitespace-nowrap">
+                        Категория
+                      </TableHead>
                       <TableHead className="whitespace-nowrap">Статус</TableHead>
                       <TableHead className="w-12" />
                     </TableRow>
@@ -278,17 +301,15 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
               </div>
             </CardContent>
           </Card>
-        </div>
 
-        <div className="space-y-4">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-lg">Участники</CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0">
+              <CardTitle className="text-base">Участники</CardTitle>
               {!project.isPublicLegacy ? (
                 <Button
                   type="button"
-                  size="sm"
-                  className="gap-1"
+                  variant="link"
+                  className="h-auto gap-1 p-0"
                   onClick={() => setInviteOpen(true)}
                 >
                   <Plus className="h-4 w-4" />
@@ -297,34 +318,57 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
               ) : null}
             </CardHeader>
             <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Имя</TableHead>
-                    <TableHead>Email</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {members.length === 0 ? (
+              <div className="w-full overflow-x-auto">
+                <Table>
+                  <TableHeader>
                     <TableRow>
-                      <TableCell colSpan={2} className="text-muted-foreground">
-                        Нет участников
-                      </TableCell>
+                      <TableHead>Имя</TableHead>
+                      <TableHead>Email</TableHead>
                     </TableRow>
-                  ) : (
-                    members.map((m) => (
-                      <TableRow key={m.id}>
-                        <TableCell className="text-sm">
-                          {displayNameForMemberEmail(m.email)}
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {m.email}
+                  </TableHeader>
+                  <TableBody>
+                    {members.length === 0 ? (
+                      <TableRow>
+                        <TableCell
+                          colSpan={2}
+                          className="text-muted-foreground"
+                        >
+                          Нет участников
                         </TableCell>
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+                    ) : (
+                      members.map((m) => (
+                        <TableRow key={m.id}>
+                          <TableCell className="text-sm">
+                            {displayNameForMemberEmail(m.email)}
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {m.email}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Лента изменений</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {activityLog.map((e) => (
+                <div key={e.id} className="space-y-1 text-sm">
+                  <p className="text-foreground">• {e.message}</p>
+                  <p className="text-left text-xs tabular-nums text-muted-foreground">
+                    {formatRuDateTime(e.at)}
+                  </p>
+                </div>
+              ))}
             </CardContent>
           </Card>
         </div>
@@ -335,7 +379,7 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
           <DialogHeader>
             <DialogTitle>Пригласить в проект</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+          <div className="space-y-3 py-2">
             <div className="space-y-2">
               <Label htmlFor="invite-0">Email для приглашения</Label>
               <Input
@@ -352,36 +396,34 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
                 placeholder="colleague@example.com"
                 autoComplete="email"
               />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="gap-1"
-                onClick={handleAddInviteRow}
-              >
-                <Plus className="h-4 w-4" />
-                Добавить
-              </Button>
             </div>
             {inviteRows.slice(1).map((row, idx) => (
-              <div key={idx + 1} className="space-y-2">
-                <Label htmlFor={`invite-${idx + 1}`}>Email для приглашения</Label>
-                <Input
-                  id={`invite-${idx + 1}`}
-                  type="email"
-                  value={row}
-                  onChange={(e) =>
-                    setInviteRows((rows) => {
-                      const next = [...rows]
-                      next[idx + 1] = e.target.value
-                      return next
-                    })
-                  }
-                  placeholder="colleague@example.com"
-                  autoComplete="email"
-                />
-              </div>
+              <Input
+                key={idx + 1}
+                type="email"
+                value={row}
+                onChange={(e) =>
+                  setInviteRows((rows) => {
+                    const next = [...rows]
+                    next[idx + 1] = e.target.value
+                    return next
+                  })
+                }
+                placeholder="colleague@example.com"
+                autoComplete="email"
+                aria-label={`Email приглашения ${idx + 2}`}
+              />
             ))}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-1"
+              onClick={handleAddInviteRow}
+            >
+              <Plus className="h-4 w-4" />
+              Указать еще
+            </Button>
             <p className="text-sm text-muted-foreground">
               Пользователь увидит приглашение после входа в систему RiskHub.
             </p>
@@ -406,6 +448,35 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Удалить проект?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Проект, участники и приглашения будут удалены из локального
+              хранилища. Риски, привязанные к проекту, останутся в реестре.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Отмена</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={async () => {
+                const res = await deleteProject(project.id)
+                if (!res.ok) {
+                  toast.error(res.error)
+                  return
+                }
+                toast.success('Проект удалён')
+                router.push('/projects')
+              }}
+            >
+              Удалить
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </motion.div>
   )
 }
@@ -426,10 +497,7 @@ function ProjectRiskRow({
       </TableCell>
       <TableCell>
         <span
-          className={cn(
-            riskTableChipBase,
-            statusBadgeClass(risk.status)
-          )}
+          className={cn(riskTableChipBase, statusBadgeClass(risk.status))}
         >
           {risk.status}
         </span>

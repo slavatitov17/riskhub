@@ -1,3 +1,5 @@
+import type { RiskActivityLogEntry } from '@/lib/risk-types'
+
 export const PROJECT_STATUSES = ['Активен', 'Завершен'] as const
 export type ProjectStatus = (typeof PROJECT_STATUSES)[number]
 
@@ -6,20 +8,40 @@ export interface ProjectRecord {
   name: string
   ownerUserId: string
   createdAt: string
+  updatedAt: string
   /** Демо-проекты из начальных данных: доступны любому вошедшему пользователю */
   isPublicLegacy: boolean
   status: ProjectStatus
   description: string
+  activityLog: RiskActivityLogEntry[]
 }
 
-export type ProjectRecordInput = Omit<ProjectRecord, 'status' | 'description'> &
-  Partial<Pick<ProjectRecord, 'status' | 'description'>>
+export type ProjectRecordInput = Omit<
+  ProjectRecord,
+  'status' | 'description' | 'updatedAt' | 'activityLog'
+> &
+  Partial<
+    Pick<ProjectRecord, 'status' | 'description' | 'updatedAt' | 'activityLog'>
+  >
 
 export function normalizeProjectRecord(raw: ProjectRecordInput): ProjectRecord {
+  const created = raw.createdAt
+  const defaultLog: RiskActivityLogEntry[] = [
+    {
+      id: `${raw.id}-created`,
+      at: created,
+      message: 'Проект создан'
+    }
+  ]
   return {
     ...raw,
     status: raw.status === 'Завершен' ? 'Завершен' : 'Активен',
-    description: typeof raw.description === 'string' ? raw.description : ''
+    description: typeof raw.description === 'string' ? raw.description : '',
+    updatedAt: raw.updatedAt ?? created,
+    activityLog:
+      raw.activityLog && raw.activityLog.length > 0
+        ? raw.activityLog
+        : defaultLog
   }
 }
 

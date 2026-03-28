@@ -54,9 +54,34 @@ export async function dbUpgradeProjectShapesIfNeeded(): Promise<void> {
   })
   for (const row of rows) {
     const r = row as Partial<ProjectRecord>
-    if (r.status !== undefined && typeof r.description === 'string') continue
+    const hasLog = Array.isArray(r.activityLog) && r.activityLog.length > 0
+    if (
+      r.status !== undefined &&
+      typeof r.description === 'string' &&
+      typeof r.updatedAt === 'string' &&
+      hasLog
+    )
+      continue
     await dbPutProject(normalizeProjectRecord(row))
   }
+}
+
+export async function dbDeleteProjectCascade(projectId: string): Promise<void> {
+  const members = await dbGetMembersForProject(projectId)
+  const allInv = await dbGetAllInvitations()
+  const invToDel = allInv.filter((i) => i.projectId === projectId)
+  const db = await openDb()
+  const tx = db.transaction(
+    [STORES.members, STORES.invitations, STORES.projects],
+    'readwrite'
+  )
+  const mStore = tx.objectStore(STORES.members)
+  const iStore = tx.objectStore(STORES.invitations)
+  const pStore = tx.objectStore(STORES.projects)
+  for (const m of members) mStore.delete(m.id)
+  for (const i of invToDel) iStore.delete(i.id)
+  pStore.delete(projectId)
+  await txDone(tx)
 }
 
 export async function dbGetAllProjects(): Promise<ProjectRecord[]> {

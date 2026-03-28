@@ -17,7 +17,9 @@ import type {
   ProjectStatus
 } from '@/lib/project-types'
 import { migrateLegacyRisksToProjects } from '@/lib/projects-migration'
+import type { RiskActivityLogEntry } from '@/lib/risk-types'
 import {
+  dbDeleteProjectCascade,
   dbGetAllInvitations,
   dbGetAllProjects,
   dbGetInvitation,
@@ -50,6 +52,9 @@ interface ProjectsContextValue {
     emails: string[]
   ) => Promise<{ ok: true; sent: number } | { ok: false; error: string }>
   listProjectMembers: (projectId: string) => Promise<ProjectMemberRecord[]>
+  deleteProject: (
+    projectId: string
+  ) => Promise<{ ok: true } | { ok: false; error: string }>
   acceptInvitation: (
     invitationId: string
   ) => Promise<{ ok: true } | { ok: false; error: string }>
@@ -112,6 +117,28 @@ async function createPendingInvitations(
   if (sent > 0)
     window.dispatchEvent(new CustomEvent('riskhub-invitations-changed'))
   return sent
+}
+
+function projectActivityFromPatch(
+  prev: ProjectRecord,
+  patch: Partial<Pick<ProjectRecord, 'status' | 'description' | 'name'>>,
+  at: string
+): RiskActivityLogEntry[] {
+  const out: RiskActivityLogEntry[] = []
+  const push = (message: string) =>
+    out.push({ id: crypto.randomUUID(), at, message })
+
+  if (patch.name !== undefined && patch.name !== prev.name)
+    push(`Название изменено на «${patch.name}»`)
+  if (patch.status !== undefined && patch.status !== prev.status)
+    push(`Статус изменён на «${patch.status}»`)
+  if (
+    patch.description !== undefined &&
+    patch.description !== prev.description
+  )
+    push('Описание проекта обновлено')
+
+  return out
 }
 
 async function buildAccessibleSet(
@@ -228,9 +255,13 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
         name,
         ownerUserId: s.userId,
         createdAt: now,
+        updatedAt: now,
         isPublicLegacy: false,
         status: 'Активен',
-        description: (input.description ?? '').trim()
+        description: (input.description ?? '').trim(),
+        activityLog: [
+          { id: `${id}-created`, at: now, message: 'Проект создан' }
+        ]
       }
       await dbPutProject(row)
       await dbPutMember({
@@ -241,7 +272,25 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
         joinedAt: now
       })
 
-      await createPendingInvitations(id, name, emails, s)
+      const sent = await createPendingInvitations(id, name, emails, s)
+      if (sent > 0) {
+        const p = await dbGetProject(id)
+        if (p) {
+          const at = new Date().toISOString()
+          await dbPutProject({
+            ...p,
+            updatedAt: at,
+            activityLog: [
+              ...p.activityLog,
+              {
+                id: crypto.randomUUID(),
+                at,
+                message: `Отправлено приглашений: ${sent}`
+              }
+            ]
+          })
+        }
+      }
       await refresh()
       return { ok: true as const }
     },
@@ -276,11 +325,16 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
       const description =
         patch.description !== undefined ? patch.description : prev.description
 
+      const now = new Date().toISOString()
+      const extraLog = projectActivityFromPatch(prev, patch, now)
+
       await dbPutProject({
         ...prev,
         name: nextName,
         status,
-        description
+        description,
+        updatedAt: now,
+        activityLog: [...prev.activityLog, ...extraLog]
       })
       await refresh()
       return { ok: true as const }
@@ -315,8 +369,43 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
         emails,
         s
       )
+      if (sent > 0) {
+        const at = new Date().toISOString()
+        const next = await dbGetProject(projectId)
+        if (next)
+          await dbPutProject({
+            ...next,
+            updatedAt: at,
+            activityLog: [
+              ...next.activityLog,
+              {
+                id: crypto.randomUUID(),
+                at,
+                message: `Отправлено приглашений: ${sent}`
+              }
+            ]
+          })
+      }
       await refresh()
       return { ok: true as const, sent }
+    },
+    [refresh]
+  )
+
+  const deleteProject = useCallback(
+    async (projectId: string) => {
+      const s = getSession()
+      if (!s) return { ok: false as const, error: 'Войдите в систему' }
+      const prev = await dbGetProject(projectId)
+      if (!prev) return { ok: false as const, error: 'Проект не найден' }
+      if (prev.isPublicLegacy)
+        return { ok: false as const, error: 'Демо-проект нельзя удалить' }
+      if (prev.ownerUserId !== s.userId)
+        return { ok: false as const, error: 'Только владелец может удалить проект' }
+      await dbDeleteProjectCascade(projectId)
+      await refresh()
+      window.dispatchEvent(new CustomEvent('riskhub-invitations-changed'))
+      return { ok: true as const }
     },
     [refresh]
   )
@@ -387,6 +476,7 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
       updateProject,
       inviteToProject,
       listProjectMembers,
+      deleteProject,
       acceptInvitation,
       declineInvitation,
       memberCount
@@ -403,6 +493,7 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
       updateProject,
       inviteToProject,
       listProjectMembers,
+      deleteProject,
       acceptInvitation,
       declineInvitation,
       memberCount

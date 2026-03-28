@@ -41,9 +41,17 @@ export async function migrateLegacyRisksToProjects(): Promise<void> {
       name,
       ownerUserId: ownerFallback,
       createdAt: now,
+      updatedAt: now,
       isPublicLegacy: true,
       status: 'Активен',
-      description: ''
+      description: '',
+      activityLog: [
+        {
+          id: `${id}-created`,
+          at: now,
+          message: 'Проект создан'
+        }
+      ]
     })
     await dbPutProject(row)
     byName.set(name, row)

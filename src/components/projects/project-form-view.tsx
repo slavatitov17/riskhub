@@ -75,22 +75,9 @@ export function ProjectFormView() {
                 placeholder="colleague@example.com"
                 autoComplete="email"
               />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="gap-1"
-                onClick={() => setInviteRows((r) => [...r, ''])}
-              >
-                <Plus className="h-4 w-4" />
-                Добавить
-              </Button>
-            </div>
-            {inviteRows.slice(1).map((row, idx) => (
-              <div key={idx + 1} className="space-y-2">
-                <Label htmlFor={`invite-${idx + 1}`}>Email для приглашения</Label>
+              {inviteRows.slice(1).map((row, idx) => (
                 <Input
-                  id={`invite-${idx + 1}`}
+                  key={idx + 1}
                   type="email"
                   value={row}
                   onChange={(e) =>
@@ -102,9 +89,20 @@ export function ProjectFormView() {
                   }
                   placeholder="colleague@example.com"
                   autoComplete="email"
+                  aria-label={`Email приглашения ${idx + 2}`}
                 />
-              </div>
-            ))}
+              ))}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-1"
+                onClick={() => setInviteRows((r) => [...r, ''])}
+              >
+                <Plus className="h-4 w-4" />
+                Указать еще
+              </Button>
+            </div>
             <p className="text-sm text-muted-foreground">
               Пользователь увидит приглашение после входа в систему RiskHub.
             </p>

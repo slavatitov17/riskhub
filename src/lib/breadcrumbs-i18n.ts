@@ -15,6 +15,7 @@ const L = {
     editRisk: 'Редактирование риска',
     riskCard: 'Карточка риска',
     projectCard: 'Карточка проекта',
+    editProject: 'Редактирование проекта',
     analytics: 'Аналитика',
     settings: 'Настройки',
     profile: 'Профиль',
@@ -33,6 +34,7 @@ const L = {
     editRisk: 'Edit risk',
     riskCard: 'Risk details',
     projectCard: 'Project details',
+    editProject: 'Edit project',
     analytics: 'Analytics',
     settings: 'Settings',
     profile: 'Profile',
@@ -57,6 +59,16 @@ export function getBreadcrumbs(
 
   if (path === '/projects/new')
     return [{ label: m.projects, href: '/projects' }, { label: m.newProject }]
+
+  const projectEditMatch = path.match(/^\/projects\/([^/]+)\/edit$/)
+  if (projectEditMatch && projectEditMatch[1] !== 'new') {
+    const pid = projectEditMatch[1]
+    return [
+      { label: m.projects, href: '/projects' },
+      { label: m.projectCard, href: `/projects/${pid}` },
+      { label: m.editProject }
+    ]
+  }
 
   const projectDetailMatch = path.match(/^\/projects\/([^/]+)$/)
   if (projectDetailMatch && projectDetailMatch[1] !== 'new') {

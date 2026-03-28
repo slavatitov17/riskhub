@@ -1,14 +1,21 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { Save, X } from 'lucide-react'
+import { ChevronDown, Save, X } from 'lucide-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -37,6 +44,99 @@ const impactToIndex = (v: string) =>
 interface RiskFormViewProps {
   mode: 'new' | 'edit'
   initial?: RiskRecord
+}
+
+function SearchableProjectSelect({
+  value,
+  onChange,
+  options,
+  placeholder,
+  searchPlaceholder
+}: {
+  value: string
+  onChange: (v: string) => void
+  options: readonly string[]
+  placeholder: string
+  searchPlaceholder: string
+}) {
+  const searchRef = useRef<HTMLInputElement>(null)
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const q = query.trim().toLowerCase()
+  const filteredOptions = useMemo(
+    () => options.filter((o) => o.toLowerCase().includes(q)),
+    [options, q]
+  )
+
+  useEffect(() => {
+    if (!open) return
+    const id = window.requestAnimationFrame(() => searchRef.current?.focus())
+    return () => window.cancelAnimationFrame(id)
+  }, [open])
+
+  return (
+    <div className="space-y-2">
+      <Label>Проект</Label>
+      <DropdownMenu
+        modal={false}
+        open={open}
+        onOpenChange={(next) => {
+          setOpen(next)
+          if (!next) setQuery('')
+        }}
+      >
+        <DropdownMenuTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            className="h-10 w-full justify-between px-3 font-normal"
+          >
+            <span className={value ? 'truncate' : 'truncate text-muted-foreground'}>
+              {value || placeholder}
+            </span>
+            <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          className="w-[var(--radix-dropdown-menu-trigger-width)] p-0"
+          align="start"
+          onCloseAutoFocus={(e) => e.preventDefault()}
+        >
+          <div className="border-b border-border p-2">
+            <Input
+              ref={searchRef}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={searchPlaceholder}
+              className="h-9"
+              onKeyDown={(e) => e.stopPropagation()}
+              aria-label={`Поиск: Проект`}
+            />
+          </div>
+          <div className="max-h-52 overflow-y-auto p-1">
+            <DropdownMenuRadioGroup
+              value={value || undefined}
+              onValueChange={(v) => {
+                onChange(v)
+                setOpen(false)
+              }}
+            >
+              {filteredOptions.map((opt) => (
+                <DropdownMenuRadioItem key={opt} value={opt}>
+                  {opt}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+            {filteredOptions.length === 0 ? (
+              <p className="px-2 py-3 text-center text-sm text-muted-foreground">
+                Не найдено
+              </p>
+            ) : null}
+          </div>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  )
 }
 
 export function RiskFormView({ mode, initial }: RiskFormViewProps) {
@@ -164,33 +264,17 @@ export function RiskFormView({ mode, initial }: RiskFormViewProps) {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <Label>Проект</Label>
-                <Select
-                  value={project || undefined}
-                  onValueChange={setProject}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Выберите проект" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {projects.map((p) => (
-                      <SelectItem key={p} value={p}>
-                        {p}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <SearchableProjectSelect
+                value={project}
+                onChange={setProject}
+                options={projects}
+                placeholder="Выберите проект"
+                searchPlaceholder="Поиск по проекту…"
+              />
             </div>
             <div className="grid gap-6 sm:grid-cols-2">
               <div className="space-y-3">
-                <div className="flex justify-between gap-2">
-                  <Label>Вероятность</Label>
-                  <span className="text-sm text-muted-foreground">
-                    {probability}
-                  </span>
-                </div>
+                <Label>Вероятность</Label>
                 <Slider
                   value={[probIdx]}
                   min={0}
@@ -200,10 +284,7 @@ export function RiskFormView({ mode, initial }: RiskFormViewProps) {
                 />
               </div>
               <div className="space-y-3">
-                <div className="flex justify-between gap-2">
-                  <Label>Воздействие</Label>
-                  <span className="text-sm text-muted-foreground">{impact}</span>
-                </div>
+                <Label>Воздействие</Label>
                 <Slider
                   value={[impactIdx]}
                   min={0}

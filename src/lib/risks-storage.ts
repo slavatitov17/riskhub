@@ -1,4 +1,4 @@
-import type { RiskRecord } from '@/lib/risk-types'
+import type { RiskActivityLogEntry, RiskRecord } from '@/lib/risk-types'
 
 const RISKS_KEY = 'riskhub_risks'
 
@@ -85,19 +85,40 @@ export const SEED_RISKS: RiskRecord[] = [
   }
 ]
 
+function defaultActivityLog(r: RiskRecord): RiskActivityLogEntry[] {
+  const at =
+    r.created.length > 10 ? r.created : `${r.created}T12:00:00.000Z`
+  return [
+    {
+      id: `${r.id}-created`,
+      at,
+      message: 'Риск создан'
+    }
+  ]
+}
+
+export function normalizeRiskRecord(r: RiskRecord): RiskRecord {
+  return {
+    ...r,
+    comments: r.comments ?? [],
+    responseMeasures: r.responseMeasures ?? [],
+    activityLog: r.activityLog?.length ? r.activityLog : defaultActivityLog(r)
+  }
+}
+
 export function loadRisks(): RiskRecord[] {
-  if (typeof window === 'undefined') return SEED_RISKS
+  if (typeof window === 'undefined') return SEED_RISKS.map(normalizeRiskRecord)
   const raw = localStorage.getItem(RISKS_KEY)
   if (!raw) {
     localStorage.setItem(RISKS_KEY, JSON.stringify(SEED_RISKS))
-    return SEED_RISKS
+    return SEED_RISKS.map(normalizeRiskRecord)
   }
   const parsed = safeParse<RiskRecord[] | null>(raw, null)
   if (!parsed?.length) {
     localStorage.setItem(RISKS_KEY, JSON.stringify(SEED_RISKS))
-    return SEED_RISKS
+    return SEED_RISKS.map(normalizeRiskRecord)
   }
-  return parsed
+  return parsed.map(normalizeRiskRecord)
 }
 
 export function saveRisks(risks: RiskRecord[]) {
@@ -105,7 +126,24 @@ export function saveRisks(risks: RiskRecord[]) {
 }
 
 export function formatDisplayDate(iso: string) {
-  const [y, m, d] = iso.split('-')
+  const datePart = iso.slice(0, 10)
+  const [y, m, d] = datePart.split('-')
   if (!y || !m || !d) return iso
   return `${d}.${m}.${y}`
+}
+
+export function formatRuDateTime(iso: string) {
+  const t = Date.parse(iso)
+  if (Number.isNaN(t)) return iso
+  return new Date(t).toLocaleString('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
+export function riskDateKey(iso: string) {
+  return iso.slice(0, 10)
 }

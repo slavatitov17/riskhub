@@ -40,6 +40,7 @@ import {
 } from '@/components/ui/select'
 import { useRisks } from '@/contexts/risks-context'
 import type { RiskRecord } from '@/lib/risk-types'
+import { riskDateKey } from '@/lib/risks-storage'
 import {
   IMPACTS,
   LEVELS,
@@ -141,8 +142,9 @@ function defaultReportFilters(): ReportFilters {
 }
 
 function matchesReportFilters(r: RiskRecord, f: ReportFilters) {
-  if (f.periodFrom && r.created < f.periodFrom) return false
-  if (f.periodTo && r.created > f.periodTo) return false
+  const createdDay = riskDateKey(r.created)
+  if (f.periodFrom && createdDay < f.periodFrom) return false
+  if (f.periodTo && createdDay > f.periodTo) return false
   if (f.probability.length && !f.probability.includes(r.probability))
     return false
   if (f.impact.length && !f.impact.includes(r.impact)) return false

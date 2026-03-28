@@ -9,16 +9,55 @@ import {
   useState
 } from 'react'
 
-import type { RiskRecord } from '@/lib/risk-types'
+import type {
+  RiskActivityLogEntry,
+  RiskCreateInput,
+  RiskRecord
+} from '@/lib/risk-types'
 import { loadRisks, saveRisks } from '@/lib/risks-storage'
 
 interface RisksContextValue {
   risks: RiskRecord[]
   refresh: () => void
-  addRisk: (risk: Omit<RiskRecord, 'id' | 'code' | 'created' | 'updated'>) => RiskRecord
+  addRisk: (risk: RiskCreateInput) => RiskRecord
   updateRisk: (id: string, patch: Partial<RiskRecord>) => void
   removeRisk: (id: string) => void
   getById: (id: string) => RiskRecord | undefined
+}
+
+function activityEntriesFromPatch(
+  prev: RiskRecord,
+  patch: Partial<RiskRecord>,
+  at: string
+): RiskActivityLogEntry[] {
+  const out: RiskActivityLogEntry[] = []
+  const push = (message: string) =>
+    out.push({ id: crypto.randomUUID(), at, message })
+
+  if (patch.name !== undefined && patch.name !== prev.name)
+    push(`Название изменено на «${patch.name}»`)
+  if (patch.category !== undefined && patch.category !== prev.category)
+    push(`Категория изменена на «${patch.category}»`)
+  if (patch.status !== undefined && patch.status !== prev.status)
+    push(`Статус изменён на «${patch.status}»`)
+  if (
+    patch.probability !== undefined &&
+    patch.probability !== prev.probability
+  )
+    push(`Вероятность изменена на «${patch.probability}»`)
+  if (patch.impact !== undefined && patch.impact !== prev.impact)
+    push(`Воздействие изменено на «${patch.impact}»`)
+  if (patch.project !== undefined && patch.project !== prev.project)
+    push(`Проект изменён на «${patch.project}»`)
+  if (patch.author !== undefined && patch.author !== prev.author)
+    push(`Автор изменён на «${patch.author}»`)
+  if (
+    patch.description !== undefined &&
+    patch.description !== prev.description
+  )
+    push('Описание риска обновлено')
+
+  return out
 }
 
 const RisksContext = createContext<RisksContextValue | null>(null)
@@ -48,17 +87,21 @@ export function RisksProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const addRisk = useCallback(
-    (
-      input: Omit<RiskRecord, 'id' | 'code' | 'created' | 'updated'>
-    ): RiskRecord => {
+    (input: RiskCreateInput): RiskRecord => {
       const list = loadRisks()
-      const today = new Date().toISOString().slice(0, 10)
+      const now = new Date().toISOString()
+      const id = `r_${crypto.randomUUID()}`
       const row: RiskRecord = {
         ...input,
-        id: `r_${crypto.randomUUID()}`,
+        id,
         code: nextCode(list),
-        created: today,
-        updated: today
+        created: now,
+        updated: now,
+        comments: [],
+        responseMeasures: [],
+        activityLog: [
+          { id: `${id}-created`, at: now, message: 'Риск создан' }
+        ]
       }
       persist([row, ...list])
       return row
@@ -69,12 +112,18 @@ export function RisksProvider({ children }: { children: React.ReactNode }) {
   const updateRisk = useCallback(
     (id: string, patch: Partial<RiskRecord>) => {
       const list = loadRisks()
-      const today = new Date().toISOString().slice(0, 10)
-      persist(
-        list.map((r) =>
-          r.id === id ? { ...r, ...patch, updated: today } : r
-        )
-      )
+      const prev = list.find((r) => r.id === id)
+      if (!prev) return
+      const now = new Date().toISOString()
+      const merged: RiskRecord = { ...prev, ...patch, updated: now }
+      const logPatch = { ...patch }
+      if ('updated' in logPatch) delete logPatch.updated
+      const extraLog = activityEntriesFromPatch(prev, logPatch, now)
+      const next: RiskRecord = {
+        ...merged,
+        activityLog: [...(prev.activityLog ?? []), ...extraLog]
+      }
+      persist(list.map((r) => (r.id === id ? next : r)))
     },
     [persist]
   )

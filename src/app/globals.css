@@ -58,6 +58,19 @@
   }
 }
 
+/* Одна зона прокрутки внутри main: без второго скролла у body на страницах с шеллом */
+@supports selector(:has(*)) {
+  body:has([data-dashboard-shell]) {
+    overflow: hidden;
+    height: 100dvh;
+    max-height: 100dvh;
+  }
+  html:has([data-dashboard-shell]) {
+    overflow: hidden;
+    height: 100%;
+  }
+}
+
 .risk-table-scroll {
   scrollbar-width: thin;
   scrollbar-color: hsl(var(--primary)) transparent;

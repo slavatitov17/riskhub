@@ -23,7 +23,10 @@ export function DashboardShell({ children }: DashboardShellProps) {
   const crumbs = getBreadcrumbs(pathname, locale)
 
   return (
-    <div className="flex h-dvh overflow-hidden bg-muted/40">
+    <div
+      data-dashboard-shell
+      className="flex h-dvh max-h-dvh overflow-hidden bg-muted/40"
+    >
       <aside className="hidden h-full w-60 shrink-0 border-r bg-card md:flex md:flex-col">
         <AppSidebar pathname={pathname} />
       </aside>
@@ -55,7 +58,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
         </div>
 
         <AppHeader crumbs={crumbs} />
-        <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6">
+        <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain p-4 md:p-6">
           {children}
         </main>
       </div>

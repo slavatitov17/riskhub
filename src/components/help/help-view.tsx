@@ -12,7 +12,7 @@ export function HelpView() {
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className="mx-auto flex max-w-3xl flex-col gap-6"
+      className="mx-auto flex min-h-0 max-w-3xl flex-col gap-6"
     >
       <SupportHelpSections />
 

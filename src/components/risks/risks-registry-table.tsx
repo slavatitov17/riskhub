@@ -18,7 +18,7 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
@@ -200,6 +200,7 @@ export function RisksRegistryTable() {
     <>
       <Card className="shadow-sm">
         <CardHeader className="flex flex-col gap-3 border-b pb-4">
+          <CardTitle className="text-base font-semibold">Список рисков</CardTitle>
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
               <Button

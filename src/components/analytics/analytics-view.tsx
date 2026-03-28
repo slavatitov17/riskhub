@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useId, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import {
   Bar,
@@ -70,6 +70,24 @@ const PIE_COLORS = [
   'hsl(199 89% 48%)',
   'hsl(330 81% 60%)'
 ]
+
+const PIE_GRAD_TOP = [
+  'hsl(217 91% 74%)',
+  'hsl(142 76% 52%)',
+  'hsl(38 92% 62%)',
+  'hsl(280 65% 72%)',
+  'hsl(0 84% 68%)',
+  'hsl(199 89% 58%)',
+  'hsl(330 81% 68%)'
+]
+
+function probabilityGradientStops(name: string): readonly [string, string] {
+  if (name === 'Высокая')
+    return ['hsl(350 82% 62%)', 'hsl(350 82% 40%)'] as const
+  if (name === 'Средняя')
+    return ['hsl(38 92% 58%)', 'hsl(38 85% 38%)'] as const
+  return ['hsl(142 76% 52%)', 'hsl(142 76% 34%)'] as const
+}
 
 export type ReportFilters = {
   periodFrom: string
@@ -187,6 +205,111 @@ function ReportFilterMultiSelect({
   )
 }
 
+function ReportFilterSearchableMultiSelect({
+  label,
+  allLabel,
+  options,
+  selected,
+  onChange,
+  searchPlaceholder
+}: {
+  label: string
+  allLabel: string
+  options: readonly string[]
+  selected: string[]
+  onChange: (next: string[]) => void
+  searchPlaceholder: string
+}) {
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const isAll = selected.length === 0
+  const summary = isAll ? allLabel : `Выбрано: ${selected.length}`
+  const q = query.trim().toLowerCase()
+  const filteredOptions = useMemo(
+    () => options.filter((o) => o.toLowerCase().includes(q)),
+    [options, q]
+  )
+
+  return (
+    <div className="space-y-2">
+      <Label>{label}</Label>
+      <DropdownMenu
+        open={open}
+        onOpenChange={(next) => {
+          setOpen(next)
+          if (!next) setQuery('')
+        }}
+      >
+        <DropdownMenuTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            className="h-10 w-full justify-between px-3 font-normal"
+          >
+            <span className="truncate">{summary}</span>
+            <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent
+          className="w-[var(--radix-dropdown-menu-trigger-width)] p-0"
+          align="start"
+          onCloseAutoFocus={(e) => e.preventDefault()}
+        >
+          <div
+            className="border-b border-border p-2"
+            onPointerDown={(e) => e.preventDefault()}
+          >
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={searchPlaceholder}
+              className="h-9"
+              onKeyDown={(e) => e.stopPropagation()}
+              aria-label={`Поиск: ${label}`}
+            />
+          </div>
+          <div className="max-h-52 overflow-y-auto p-1">
+            <DropdownMenuCheckboxItem
+              checked={isAll}
+              onCheckedChange={(c) => {
+                if (c) onChange([])
+              }}
+              onSelect={(e) => e.preventDefault()}
+            >
+              {allLabel}
+            </DropdownMenuCheckboxItem>
+            {filteredOptions.map((opt) => (
+              <DropdownMenuCheckboxItem
+                key={opt}
+                checked={!isAll && selected.includes(opt)}
+                onCheckedChange={(c) => {
+                  if (c) {
+                    onChange(
+                      selected.length === 0
+                        ? [opt]
+                        : Array.from(new Set([...selected, opt]))
+                    )
+                  } else {
+                    onChange(selected.filter((x) => x !== opt))
+                  }
+                }}
+                onSelect={(e) => e.preventDefault()}
+              >
+                {opt}
+              </DropdownMenuCheckboxItem>
+            ))}
+            {filteredOptions.length === 0 && (
+              <p className="px-2 py-3 text-center text-sm text-muted-foreground">
+                Ничего не найдено
+              </p>
+            )}
+          </div>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  )
+}
+
 function last6MonthBuckets() {
   const out: { key: string; label: string }[] = []
   const now = new Date()
@@ -210,6 +333,7 @@ function formatRuDateTime(d: Date) {
 }
 
 export function AnalyticsView() {
+  const cuid = useId().replace(/:/g, '')
   const { risks, refresh } = useRisks()
   const [period, setPeriod] = useState('month')
   const [lastUpdated, setLastUpdated] = useState(() => new Date())
@@ -374,12 +498,13 @@ export function AnalyticsView() {
             onChange={(status) => setDraft((d) => ({ ...d, status }))}
           />
 
-          <ReportFilterMultiSelect
+          <ReportFilterSearchableMultiSelect
             label="ID"
             allLabel="Все"
             options={riskCodes}
             selected={draft.riskId}
             onChange={(riskId) => setDraft((d) => ({ ...d, riskId }))}
+            searchPlaceholder="Поиск по ID…"
           />
 
           <ReportFilterMultiSelect
@@ -390,12 +515,13 @@ export function AnalyticsView() {
             onChange={(category) => setDraft((d) => ({ ...d, category }))}
           />
 
-          <ReportFilterMultiSelect
+          <ReportFilterSearchableMultiSelect
             label="Проект"
             allLabel="Все проекты"
             options={projects}
             selected={draft.project}
             onChange={(project) => setDraft((d) => ({ ...d, project }))}
+            searchPlaceholder="Поиск по проекту…"
           />
 
           <div className="space-y-2 md:col-span-2 lg:col-span-2">
@@ -421,24 +547,78 @@ export function AnalyticsView() {
       </Card>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Card className="min-h-[320px]">
+        <Card className="min-h-[340px]">
           <CardHeader>
             <CardTitle className="text-base">Количество рисков по категориям</CardTitle>
           </CardHeader>
-          <CardContent className="h-[260px]">
+          <CardContent className="h-[280px]">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={byCategory}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-                <YAxis allowDecimals={false} />
-                <Tooltip />
-                <Bar dataKey="value" fill="hsl(217 91% 60%)" radius={[4, 4, 0, 0]} />
+              <BarChart
+                data={byCategory}
+                margin={{ top: 8, right: 8, left: -8, bottom: 4 }}
+              >
+                <defs>
+                  <linearGradient id={`barCat-${cuid}`} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="hsl(217 91% 70%)" />
+                    <stop offset="50%" stopColor="hsl(217 91% 55%)" />
+                    <stop offset="100%" stopColor="hsl(217 91% 40%)" />
+                  </linearGradient>
+                  <filter
+                    id={`barDrop-${cuid}`}
+                    x="-15%"
+                    y="-15%"
+                    width="130%"
+                    height="135%"
+                  >
+                    <feDropShadow
+                      dx="2"
+                      dy="3"
+                      stdDeviation="2.5"
+                      floodOpacity="0.28"
+                    />
+                  </filter>
+                </defs>
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="hsl(var(--border))"
+                  vertical={false}
+                />
+                <XAxis
+                  dataKey="name"
+                  tick={{ fontSize: 10 }}
+                  interval={0}
+                  height={52}
+                />
+                <YAxis allowDecimals={false} width={36} tick={{ fontSize: 11 }} />
+                <Tooltip
+                  cursor={{ fill: 'hsl(var(--muted) / 0.35)' }}
+                  contentStyle={{
+                    borderRadius: 8,
+                    border: '1px solid hsl(var(--border))'
+                  }}
+                />
+                <Bar
+                  dataKey="value"
+                  fill={`url(#barCat-${cuid})`}
+                  radius={[8, 8, 3, 3]}
+                  maxBarSize={52}
+                  style={{ filter: `url(#barDrop-${cuid})` }}
+                  isAnimationActive
+                />
+                <Legend
+                  verticalAlign="bottom"
+                  align="center"
+                  height={28}
+                  wrapperStyle={{ fontSize: 12, paddingTop: 6 }}
+                  formatter={() => 'Количество рисков'}
+                  iconType="square"
+                />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
 
-        <Card className="min-h-[320px]">
+        <Card className="min-h-[340px]">
           <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <CardTitle className="text-base">Динамика рисков по времени</CardTitle>
             <Select value={period} onValueChange={setPeriod}>
@@ -452,108 +632,293 @@ export function AnalyticsView() {
               </SelectContent>
             </Select>
           </CardHeader>
-          <CardContent className="h-[260px]">
+          <CardContent className="h-[280px]">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={timeline}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis dataKey="month" />
-                <YAxis allowDecimals={false} />
-                <Tooltip />
-                <Legend />
+              <LineChart data={timeline} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
+                <defs>
+                  <filter id={`lineSh-${cuid}`}>
+                    <feDropShadow dx="1" dy="2" stdDeviation="1.5" floodOpacity="0.22" />
+                  </filter>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                <YAxis allowDecimals={false} width={36} tick={{ fontSize: 11 }} />
+                <Tooltip
+                  contentStyle={{
+                    borderRadius: 8,
+                    border: '1px solid hsl(var(--border))'
+                  }}
+                />
+                <Legend
+                  verticalAlign="bottom"
+                  align="center"
+                  height={32}
+                  wrapperStyle={{ fontSize: 12, paddingTop: 8 }}
+                  iconType="circle"
+                />
                 <Line
                   type="monotone"
                   dataKey="Активные"
-                  stroke="hsl(217 91% 60%)"
-                  strokeWidth={2}
-                  dot
+                  stroke="hsl(217 91% 52%)"
+                  strokeWidth={3}
+                  dot={{ r: 4, strokeWidth: 2, fill: 'hsl(217 91% 98%)' }}
+                  activeDot={{ r: 6 }}
+                  style={{ filter: `url(#lineSh-${cuid})` }}
+                  isAnimationActive
                 />
                 <Line
                   type="monotone"
                   dataKey="Закрытые"
-                  stroke="hsl(142 76% 36%)"
-                  strokeWidth={2}
-                  dot
+                  stroke="hsl(142 76% 34%)"
+                  strokeWidth={3}
+                  dot={{ r: 4, strokeWidth: 2, fill: 'hsl(142 76% 98%)' }}
+                  activeDot={{ r: 6 }}
+                  style={{ filter: `url(#lineSh-${cuid})` }}
+                  isAnimationActive
                 />
               </LineChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
 
-        <Card className="min-h-[320px]">
+        <Card className="min-h-[340px]">
           <CardHeader>
             <CardTitle className="text-base">Доля рисков по категориям</CardTitle>
           </CardHeader>
-          <CardContent className="h-[280px]">
+          <CardContent className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
+              <PieChart margin={{ top: 0, right: 4, bottom: 4, left: 4 }}>
+                <defs>
+                  {byCategory.map((_, i) => (
+                    <linearGradient
+                      key={`pc-${i}`}
+                      id={`pieCat-${cuid}-${i}`}
+                      x1="0"
+                      y1="0"
+                      x2="1"
+                      y2="1"
+                    >
+                      <stop
+                        offset="0%"
+                        stopColor={PIE_GRAD_TOP[i % PIE_GRAD_TOP.length]}
+                      />
+                      <stop
+                        offset="100%"
+                        stopColor={PIE_COLORS[i % PIE_COLORS.length]}
+                      />
+                    </linearGradient>
+                  ))}
+                  <filter id={`pieSh-${cuid}`}>
+                    <feDropShadow dx="2" dy="4" stdDeviation="3" floodOpacity="0.2" />
+                  </filter>
+                </defs>
                 <Pie
                   data={byCategory}
                   dataKey="value"
                   nameKey="name"
                   cx="50%"
-                  cy="50%"
-                  outerRadius={90}
-                  label={({ name, percent }) =>
-                    `${name} ${((percent ?? 0) * 100).toFixed(0)}%`
-                  }
+                  cy="44%"
+                  outerRadius={82}
+                  paddingAngle={2.5}
+                  label={false}
+                  style={{ filter: `url(#pieSh-${cuid})` }}
+                  isAnimationActive
                 >
                   {byCategory.map((_, i) => (
                     <Cell
                       key={`c-${i}`}
-                      fill={PIE_COLORS[i % PIE_COLORS.length]}
+                      fill={`url(#pieCat-${cuid}-${i})`}
+                      stroke="hsl(var(--background))"
+                      strokeWidth={2}
                     />
                   ))}
                 </Pie>
-                <Tooltip />
-                <Legend />
+                <Tooltip
+                  contentStyle={{
+                    borderRadius: 8,
+                    border: '1px solid hsl(var(--border))'
+                  }}
+                />
+                <Legend
+                  verticalAlign="bottom"
+                  layout="horizontal"
+                  align="center"
+                  wrapperStyle={{ fontSize: 12, paddingTop: 4 }}
+                  iconType="circle"
+                />
               </PieChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
 
-        <Card className="min-h-[320px]">
+        <Card className="min-h-[340px]">
           <CardHeader>
             <CardTitle className="text-base">Распределение по статусам</CardTitle>
           </CardHeader>
-          <CardContent className="h-[280px]">
+          <CardContent className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
+              <PieChart margin={{ top: 0, right: 4, bottom: 4, left: 4 }}>
+                <defs>
+                  {byStatus.map((_, i) => (
+                    <linearGradient
+                      key={`ps-${i}`}
+                      id={`pieSt-${cuid}-${i}`}
+                      x1="0"
+                      y1="0"
+                      x2="1"
+                      y2="1"
+                    >
+                      <stop
+                        offset="0%"
+                        stopColor={PIE_GRAD_TOP[i % PIE_GRAD_TOP.length]}
+                      />
+                      <stop
+                        offset="100%"
+                        stopColor={PIE_COLORS[i % PIE_COLORS.length]}
+                      />
+                    </linearGradient>
+                  ))}
+                  <filter id={`pieDonutSh-${cuid}`}>
+                    <feDropShadow dx="2" dy="4" stdDeviation="3" floodOpacity="0.2" />
+                  </filter>
+                </defs>
                 <Pie
                   data={byStatus}
                   dataKey="value"
                   nameKey="name"
                   cx="50%"
-                  cy="50%"
-                  innerRadius={48}
-                  outerRadius={90}
-                  paddingAngle={2}
+                  cy="44%"
+                  innerRadius={52}
+                  outerRadius={82}
+                  paddingAngle={2.5}
+                  label={false}
+                  style={{ filter: `url(#pieDonutSh-${cuid})` }}
+                  isAnimationActive
                 >
                   {byStatus.map((_, i) => (
                     <Cell
                       key={`s-${i}`}
-                      fill={PIE_COLORS[i % PIE_COLORS.length]}
+                      fill={`url(#pieSt-${cuid}-${i})`}
+                      stroke="hsl(var(--background))"
+                      strokeWidth={2}
                     />
                   ))}
                 </Pie>
-                <Tooltip />
-                <Legend />
+                <Tooltip
+                  contentStyle={{
+                    borderRadius: 8,
+                    border: '1px solid hsl(var(--border))'
+                  }}
+                />
+                <Legend
+                  verticalAlign="bottom"
+                  layout="horizontal"
+                  align="center"
+                  wrapperStyle={{ fontSize: 12, paddingTop: 4 }}
+                  iconType="circle"
+                />
               </PieChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
 
-        <Card className="min-h-[300px] lg:col-span-2">
+        <Card className="min-h-[320px] lg:col-span-2">
           <CardHeader>
             <CardTitle className="text-base">Вероятность рисков (столбчатая)</CardTitle>
           </CardHeader>
-          <CardContent className="h-[240px]">
+          <CardContent className="h-[280px]">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={byProbability} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis type="number" allowDecimals={false} />
-                <YAxis dataKey="name" type="category" width={88} tick={{ fontSize: 11 }} />
-                <Tooltip />
-                <Bar dataKey="value" fill="hsl(199 89% 48%)" radius={[0, 4, 4, 0]} />
+              <BarChart
+                data={byProbability}
+                layout="vertical"
+                margin={{ top: 8, right: 16, left: 4, bottom: 4 }}
+              >
+                <defs>
+                  {byProbability.map((row, i) => {
+                    const [from, to] = probabilityGradientStops(row.name)
+                    return (
+                      <linearGradient
+                        key={row.name}
+                        id={`probBar-${cuid}-${i}`}
+                        x1="0"
+                        y1="0"
+                        x2="1"
+                        y2="0"
+                      >
+                        <stop offset="0%" stopColor={from} />
+                        <stop offset="100%" stopColor={to} />
+                      </linearGradient>
+                    )
+                  })}
+                  <filter
+                    id={`probDrop-${cuid}`}
+                    x="-10%"
+                    y="-10%"
+                    width="125%"
+                    height="130%"
+                  >
+                    <feDropShadow
+                      dx="2"
+                      dy="2"
+                      stdDeviation="2"
+                      floodOpacity="0.25"
+                    />
+                  </filter>
+                </defs>
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="hsl(var(--border))"
+                  horizontal={false}
+                />
+                <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
+                <YAxis
+                  dataKey="name"
+                  type="category"
+                  width={92}
+                  tick={{ fontSize: 11 }}
+                />
+                <Tooltip
+                  cursor={{ fill: 'hsl(var(--muted) / 0.25)' }}
+                  contentStyle={{
+                    borderRadius: 8,
+                    border: '1px solid hsl(var(--border))'
+                  }}
+                />
+                <Bar
+                  dataKey="value"
+                  radius={[0, 10, 10, 0]}
+                  maxBarSize={28}
+                  style={{ filter: `url(#probDrop-${cuid})` }}
+                  isAnimationActive
+                >
+                  {byProbability.map((row, i) => (
+                    <Cell key={row.name} fill={`url(#probBar-${cuid}-${i})`} />
+                  ))}
+                </Bar>
+                <Legend
+                  verticalAlign="bottom"
+                  align="center"
+                  content={() => (
+                    <ul className="flex flex-wrap justify-center gap-x-5 gap-y-2 pt-2 text-xs text-muted-foreground">
+                      {byProbability.map((row) => {
+                        const [from, to] = probabilityGradientStops(row.name)
+                        return (
+                          <li key={row.name} className="flex items-center gap-2">
+                            <span
+                              className="h-2.5 w-7 rounded-sm shadow-md"
+                              style={{
+                                background: `linear-gradient(90deg, ${from}, ${to})`,
+                                boxShadow: '2px 2px 4px hsl(220 15% 10% / 0.18)'
+                              }}
+                              aria-hidden
+                            />
+                            <span className="text-foreground">{row.name}</span>
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  )}
+                />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>

@@ -46,6 +46,7 @@ import {
 } from '@/lib/risk-badge-styles'
 import type { RiskComment, RiskRecord, RiskResponseMeasure } from '@/lib/risk-types'
 import { formatDisplayDate, formatRuDateTime } from '@/lib/risks-storage'
+import { getCurrentUserCommentAuthor } from '@/lib/user-display'
 import { cn } from '@/lib/utils'
 
 interface RiskDetailViewProps {
@@ -142,11 +143,12 @@ export function RiskDetailView({ risk }: RiskDetailViewProps) {
       toast.message('Введите текст или прикрепите файл')
       return
     }
-    const authorName = risk.author.trim() || 'Не указан'
+    const { name: authorName, avatarUrl } = getCurrentUserCommentAuthor()
     const entry: RiskComment = {
       id: crypto.randomUUID(),
       at: new Date().toISOString(),
       authorName,
+      authorAvatarUrl: avatarUrl ?? undefined,
       text: text || 'Вложение',
       attachment: pendingAttachment ?? undefined
     }
@@ -293,7 +295,10 @@ export function RiskDetailView({ risk }: RiskDetailViewProps) {
                       <div className="flex gap-3">
                         <Avatar className="size-9 shrink-0">
                           <AvatarImage
-                            src={`https://api.dicebear.com/7.x/notionists-neutral/svg?seed=${encodeURIComponent(c.authorName)}`}
+                            src={
+                              c.authorAvatarUrl ||
+                              `https://api.dicebear.com/7.x/notionists-neutral/svg?seed=${encodeURIComponent(c.authorName)}`
+                            }
                             alt=""
                           />
                           <AvatarFallback className="text-xs">

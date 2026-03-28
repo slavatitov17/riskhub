@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation'
 
 import { ProfilePhotoCropDialog } from '@/components/settings/profile-photo-crop-dialog'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -105,12 +104,9 @@ export function SettingsView() {
               <AvatarFallback className="text-lg">{displayInitials}</AvatarFallback>
             </Avatar>
             <div className="flex min-w-0 flex-1 flex-col gap-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <p className="font-medium">
-                  {[firstName, lastName].filter(Boolean).join(' ') || 'Пользователь'}
-                </p>
-                <Badge variant="secondary">Менеджер</Badge>
-              </div>
+              <p className="font-medium">
+                {[firstName, lastName].filter(Boolean).join(' ') || 'Пользователь'}
+              </p>
               <Button
                 type="button"
                 variant="outline"
@@ -157,7 +153,6 @@ export function SettingsView() {
               id="profile-workplace"
               value={workplace}
               onChange={(e) => setWorkplace(e.target.value)}
-              placeholder="Компания или организация"
             />
           </div>
 
@@ -185,7 +180,6 @@ export function SettingsView() {
               id="profile-about"
               value={about}
               onChange={(e) => setAbout(e.target.value)}
-              placeholder="Кратко о себе…"
               rows={4}
             />
           </div>

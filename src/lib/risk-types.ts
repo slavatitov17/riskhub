@@ -6,6 +6,8 @@ export interface RiskComment {
   id: string
   at: string
   authorName: string
+  /** Data URL of avatar at post time; optional for legacy comments */
+  authorAvatarUrl?: string | null
   text: string
   attachment?: RiskCommentAttachment
 }

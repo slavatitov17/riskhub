@@ -35,6 +35,7 @@ import {
   RISK_STATUSES,
   type RiskRecord
 } from '@/lib/risk-types'
+import { getCurrentUserDisplayName } from '@/lib/user-display'
 
 const levelToIndex = (v: string) =>
   Math.max(0, LEVELS.indexOf(v as (typeof LEVELS)[number]))
@@ -156,7 +157,6 @@ export function RiskFormView({ mode, initial }: RiskFormViewProps) {
   const [status, setStatus] = useState(
     initial?.status ?? RISK_STATUSES[0]
   )
-  const [author, setAuthor] = useState(initial?.author ?? '')
 
   const probability = LEVELS[probIdx] ?? 'Средняя'
   const impact = IMPACTS[impactIdx] ?? 'Среднее'
@@ -189,7 +189,7 @@ export function RiskFormView({ mode, initial }: RiskFormViewProps) {
         impact,
         status,
         project,
-        author: author.trim() || 'Не указан'
+        author: getCurrentUserDisplayName()
       })
       toast.success('Риск сохранён')
       router.push('/risks')
@@ -203,8 +203,7 @@ export function RiskFormView({ mode, initial }: RiskFormViewProps) {
         probability,
         impact,
         status,
-        project,
-        author: author.trim() || initial.author
+        project
       })
       toast.success('Изменения сохранены')
       router.push(`/risks/${initial.id}`)
@@ -311,13 +310,12 @@ export function RiskFormView({ mode, initial }: RiskFormViewProps) {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="author">Автор</Label>
-                <Input
-                  id="author"
-                  value={author}
-                  onChange={(e) => setAuthor(e.target.value)}
-                  placeholder="ФИО"
-                />
+                <Label>Автор</Label>
+                <p className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+                  {mode === 'new'
+                    ? getCurrentUserDisplayName()
+                    : (initial?.author ?? '—')}
+                </p>
               </div>
             </div>
             <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">

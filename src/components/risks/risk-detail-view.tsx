@@ -27,7 +27,6 @@ import {
   AlertDialogTitle
 } from '@/components/ui/alert-dialog'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -244,26 +243,24 @@ export function RiskDetailView({ risk }: RiskDetailViewProps) {
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
-                <Badge
-                  variant="outline"
+                <span
                   className={cn(
-                    'rounded-md font-normal',
+                    'inline-flex items-center rounded-md border px-2.5 py-1',
                     listUiTextClass,
                     probabilityBadgeClass(risk.probability)
                   )}
                 >
                   Вероятность: {risk.probability}
-                </Badge>
-                <Badge
-                  variant="outline"
+                </span>
+                <span
                   className={cn(
-                    'rounded-md font-normal',
+                    'inline-flex items-center rounded-md border px-2.5 py-1',
                     listUiTextClass,
                     impactBadgeClass(risk.impact)
                   )}
                 >
                   Воздействие: {risk.impact}
-                </Badge>
+                </span>
               </div>
               <Separator />
               <div className="flex flex-wrap gap-2">
@@ -473,16 +470,13 @@ export function RiskDetailView({ risk }: RiskDetailViewProps) {
             <CardHeader>
               <CardTitle className="text-base">Лента изменений</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2">
+            <CardContent className="space-y-3">
               {activityLog.map((e) => (
-                <div
-                  key={e.id}
-                  className="flex flex-wrap items-baseline justify-between gap-2 text-sm"
-                >
-                  <span className="min-w-0 text-foreground">• {e.message}</span>
-                  <span className="shrink-0 tabular-nums text-muted-foreground">
+                <div key={e.id} className="space-y-1 text-sm">
+                  <p className="text-foreground">• {e.message}</p>
+                  <p className="text-left text-xs tabular-nums text-muted-foreground">
                     {formatRuDateTime(e.at)}
-                  </span>
+                  </p>
                 </div>
               ))}
             </CardContent>

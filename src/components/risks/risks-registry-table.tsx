@@ -39,9 +39,11 @@ import { useRisks } from '@/contexts/risks-context'
 import {
   impactBadgeClass,
   probabilityBadgeClass,
+  riskTableChipBase,
   statusBadgeClass
 } from '@/lib/risk-badge-styles'
 import { formatDisplayDate } from '@/lib/risks-storage'
+import { cn } from '@/lib/utils'
 
 function filterPlural(count: number) {
   if (count === 1) return 'фильтр'
@@ -327,28 +329,34 @@ export function RisksRegistryTable() {
                       <Badge variant="secondary">{row.category}</Badge>
                     </TableCell>
                     <TableCell className="whitespace-nowrap">
-                      <Badge
-                        variant="outline"
-                        className={probabilityBadgeClass(row.probability)}
+                      <span
+                        className={cn(
+                          riskTableChipBase,
+                          probabilityBadgeClass(row.probability)
+                        )}
                       >
                         {row.probability}
-                      </Badge>
+                      </span>
                     </TableCell>
                     <TableCell className="whitespace-nowrap">
-                      <Badge
-                        variant="outline"
-                        className={impactBadgeClass(row.impact)}
+                      <span
+                        className={cn(
+                          riskTableChipBase,
+                          impactBadgeClass(row.impact)
+                        )}
                       >
                         {row.impact}
-                      </Badge>
+                      </span>
                     </TableCell>
                     <TableCell className="whitespace-nowrap">
-                      <Badge
-                        variant="outline"
-                        className={statusBadgeClass(row.status)}
+                      <span
+                        className={cn(
+                          riskTableChipBase,
+                          statusBadgeClass(row.status)
+                        )}
                       >
                         {row.status}
-                      </Badge>
+                      </span>
                     </TableCell>
                     <TableCell className="whitespace-nowrap">{row.project}</TableCell>
                     <TableCell className="whitespace-nowrap">

@@ -56,8 +56,7 @@ export function getBreadcrumbs(
 
   if (path === '/settings') return [{ label: m.settings }]
 
-  if (path === '/settings/profile')
-    return [{ label: m.settings, href: '/settings' }, { label: m.profile }]
+  if (path === '/settings/profile') return [{ label: m.profile }]
 
   if (path === '/help') return [{ label: m.help }]
 

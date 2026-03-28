@@ -1,227 +1,202 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
-import { toast } from 'sonner'
+import { useRouter } from 'next/navigation'
 
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { ProfilePhotoCropDialog } from '@/components/settings/profile-photo-crop-dialog'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Separator } from '@/components/ui/separator'
+import { Textarea } from '@/components/ui/textarea'
+import { getSession } from '@/lib/auth-storage'
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
-} from '@/components/ui/table'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import Link from 'next/link'
-import { getSession, updateSessionName } from '@/lib/auth-storage'
-
-const demoUsers = [
-  {
-    id: '1',
-    name: 'Мария Иванова',
-    email: 'maria@company.com',
-    role: 'Менеджер'
-  },
-  {
-    id: '2',
-    name: 'Пётр Смирнов',
-    email: 'petr@company.com',
-    role: 'Пользователь'
-  }
-]
+  getProfileForUser,
+  saveProfileForUser
+} from '@/lib/user-profile-storage'
 
 export function SettingsView() {
-  const [name, setName] = useState('')
+  const router = useRouter()
+  const [userId, setUserId] = useState<string | null>(null)
   const [email, setEmail] = useState('')
+  const [firstName, setFirstName] = useState('')
+  const [lastName, setLastName] = useState('')
+  const [workplace, setWorkplace] = useState('')
+  const [department, setDepartment] = useState('')
+  const [position, setPosition] = useState('')
+  const [about, setAbout] = useState('')
+  const [avatarDataUrl, setAvatarDataUrl] = useState<string | null>(null)
+  const [hydrated, setHydrated] = useState(false)
+  const [cropOpen, setCropOpen] = useState(false)
+  const skipSaveRef = useRef(true)
 
   useEffect(() => {
     const s = getSession()
-    if (s?.name) setName(s.name)
-    if (s?.email) setEmail(s.email)
-  }, [])
-  const [emailNotif, setEmailNotif] = useState(true)
-  const [inApp, setInApp] = useState(true)
+    if (!s) {
+      router.replace('/')
+      return
+    }
+    setUserId(s.userId)
+    setEmail(s.email)
+    const p = getProfileForUser(s.userId)
+    setFirstName(p.firstName)
+    setLastName(p.lastName)
+    setWorkplace(p.workplace)
+    setDepartment(p.department)
+    setPosition(p.position)
+    setAbout(p.about)
+    setAvatarDataUrl(p.avatarDataUrl)
+    skipSaveRef.current = true
+    setHydrated(true)
+  }, [router])
 
-  const handleSaveProfile = () => {
-    updateSessionName(name)
-    toast.success('Профиль сохранён')
+  useEffect(() => {
+    if (!hydrated || !userId) return
+    if (skipSaveRef.current) {
+      skipSaveRef.current = false
+      return
+    }
+    const t = window.setTimeout(() => {
+      saveProfileForUser(userId, {
+        firstName,
+        lastName,
+        workplace,
+        department,
+        position,
+        about
+      })
+    }, 450)
+    return () => window.clearTimeout(t)
+  }, [
+    hydrated,
+    userId,
+    firstName,
+    lastName,
+    workplace,
+    department,
+    position,
+    about
+  ])
+
+  const displayInitials = `${firstName[0] ?? ''}${lastName[0] ?? ''}`.toUpperCase() || 'RH'
+
+  const handleAvatarSaved = (dataUrl: string) => {
+    setAvatarDataUrl(dataUrl)
+    if (userId) saveProfileForUser(userId, { avatarDataUrl: dataUrl })
   }
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className="mx-auto flex max-w-6xl flex-col gap-6"
+      className="mx-auto max-w-2xl"
     >
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
-          Профиль
-        </h1>
-        <Button variant="outline" asChild>
-          <Link href="/settings">Системные настройки</Link>
-        </Button>
-      </div>
-
-      <Tabs defaultValue="profile">
-        <TabsList>
-          <TabsTrigger value="profile">Профиль</TabsTrigger>
-          <TabsTrigger value="access">Права доступа</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="profile" className="mt-4">
-          <div className="grid gap-4 lg:grid-cols-3">
-            <Card className="lg:col-span-1">
-              <CardHeader>
-                <CardTitle className="text-base">Ваш профиль</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <Avatar className="h-14 w-14">
-                    <AvatarFallback>
-                      {name.slice(0, 2).toUpperCase() || 'RH'}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="font-medium">{name || 'Пользователь'}</p>
-                    <Badge variant="secondary" className="mt-1">
-                      Менеджер
-                    </Badge>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="set-name">Имя</Label>
-                  <Input
-                    id="set-name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="set-email">Email</Label>
-                  <Input id="set-email" value={email} readOnly />
-                </div>
-                <Button type="button" className="w-full" onClick={handleSaveProfile}>
-                  Сохранить изменения
-                </Button>
-              </CardContent>
-            </Card>
-
-            <Card className="lg:col-span-2">
-              <CardHeader>
-                <CardTitle className="text-base">Настройки уведомлений</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <label className="flex items-center gap-2 text-sm">
-                  <Checkbox
-                    checked={emailNotif}
-                    onCheckedChange={(v) => setEmailNotif(!!v)}
-                  />
-                  Получать уведомления на Email
-                </label>
-                <label className="flex items-center gap-2 text-sm">
-                  <Checkbox checked={inApp} onCheckedChange={(v) => setInApp(!!v)} />
-                  Встроенные оповещения
-                </label>
-                <Separator />
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => toast.success('Настройки уведомлений сохранены')}
-                >
-                  Сохранить уведомления
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="access" className="mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">
-                Управление правами пользователей
-              </CardTitle>
-              <Badge variant="outline" className="w-fit">
-                Только для администраторов
-              </Badge>
-            </CardHeader>
-            <CardContent className="overflow-x-auto">
-              <Table className="min-w-[600px]">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="whitespace-nowrap">Пользователь</TableHead>
-                    <TableHead className="whitespace-nowrap">Email</TableHead>
-                    <TableHead className="whitespace-nowrap">Роль</TableHead>
-                    <TableHead className="whitespace-nowrap text-right">
-                      Действия
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {demoUsers.map((u) => (
-                    <TableRow key={u.id}>
-                      <TableCell className="whitespace-nowrap font-medium">
-                        {u.name}
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap">{u.email}</TableCell>
-                      <TableCell className="whitespace-nowrap">{u.role}</TableCell>
-                      <TableCell className="whitespace-nowrap text-right">
-                        <Button
-                          type="button"
-                          variant="link"
-                          className="h-auto p-0"
-                          onClick={() =>
-                            toast.success(`Роль для ${u.name} сохранена (демо)`)
-                          }
-                        >
-                          Сохранить
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="link"
-                          className="h-auto p-0 text-destructive"
-                          onClick={() =>
-                            toast.message('Удаление пользователя отключено в демо')
-                          }
-                        >
-                          Удалить
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-
-          <Card className="mt-4">
-            <CardHeader>
-              <CardTitle className="text-base">История действий</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-sm text-muted-foreground">
-              <p>25.05.2025 08:15 — {name || 'Пользователь'} изменил статус риска</p>
-              <p>24.05.2025 17:40 — Система: резервная копия (демо)</p>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Ваш профиль</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="flex flex-wrap items-start gap-4">
+            <Avatar className="h-20 w-20">
+              <AvatarImage src={avatarDataUrl ?? ''} alt="" />
+              <AvatarFallback className="text-lg">{displayInitials}</AvatarFallback>
+            </Avatar>
+            <div className="flex min-w-0 flex-1 flex-col gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="font-medium">
+                  {[firstName, lastName].filter(Boolean).join(' ') || 'Пользователь'}
+                </p>
+                <Badge variant="secondary">Менеджер</Badge>
+              </div>
               <Button
                 type="button"
-                variant="link"
-                className="h-auto p-0"
-                onClick={() => toast.message('Загрузка истории (демо)')}
+                variant="outline"
+                size="sm"
+                className="w-fit"
+                onClick={() => setCropOpen(true)}
               >
-                Показать ещё
+                Изменить фото
               </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="profile-first">Имя</Label>
+              <Input
+                id="profile-first"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                placeholder="Иван"
+                autoComplete="given-name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="profile-last">Фамилия</Label>
+              <Input
+                id="profile-last"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                placeholder="Иванов"
+                autoComplete="family-name"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="profile-email">Email</Label>
+            <Input id="profile-email" type="email" value={email} readOnly />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="profile-workplace">Место работы</Label>
+            <Input
+              id="profile-workplace"
+              value={workplace}
+              onChange={(e) => setWorkplace(e.target.value)}
+              placeholder="Компания или организация"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="profile-department">Отдел</Label>
+            <Input
+              id="profile-department"
+              value={department}
+              onChange={(e) => setDepartment(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="profile-position">Должность</Label>
+            <Input
+              id="profile-position"
+              value={position}
+              onChange={(e) => setPosition(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="profile-about">О себе</Label>
+            <Textarea
+              id="profile-about"
+              value={about}
+              onChange={(e) => setAbout(e.target.value)}
+              placeholder="Кратко о себе…"
+              rows={4}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <ProfilePhotoCropDialog
+        open={cropOpen}
+        onOpenChange={setCropOpen}
+        onSave={handleAvatarSaved}
+      />
     </motion.div>
   )
 }

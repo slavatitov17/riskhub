@@ -25,6 +25,7 @@ import {
   loginUser,
   registerUser
 } from '@/lib/auth-storage'
+import { initProfileForNewUser } from '@/lib/user-profile-storage'
 
 export function AuthPage() {
   const router = useRouter()
@@ -63,7 +64,8 @@ export function AuthPage() {
     }
 
     const res = registerUser({
-      name: `${regFirstName.trim()} ${regLastName.trim()}`.trim(),
+      firstName: regFirstName,
+      lastName: regLastName,
       email: regEmail,
       password: regPassword
     })
@@ -71,6 +73,7 @@ export function AuthPage() {
       toast.error(res.error)
       return
     }
+    initProfileForNewUser(res.user.id, regFirstName.trim(), regLastName.trim())
     toast.success('Аккаунт создан, вы вошли в систему')
     router.push('/panel')
     router.refresh()

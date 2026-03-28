@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { Bell, ChevronDown } from 'lucide-react'
@@ -20,7 +20,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
@@ -28,6 +27,7 @@ import { useNotifications } from '@/contexts/notifications-context'
 import { useLocale } from '@/contexts/locale-context'
 import type { Crumb } from '@/lib/breadcrumbs-i18n'
 import { clearSession, getSession } from '@/lib/auth-storage'
+import { getProfileForUser } from '@/lib/user-profile-storage'
 
 interface AppHeaderProps {
   crumbs: Crumb[]
@@ -38,10 +38,26 @@ export function AppHeader({ crumbs }: AppHeaderProps) {
   const pathname = usePathname()
   const { locale } = useLocale()
   const [userName, setUserName] = useState('Пользователь')
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+
+  const syncUserFromStorage = useCallback(() => {
+    const s = getSession()
+    setUserName(s?.name ?? 'Пользователь')
+    if (s?.userId) {
+      const p = getProfileForUser(s.userId)
+      setAvatarUrl(p.avatarDataUrl)
+    } else setAvatarUrl(null)
+  }, [])
 
   useEffect(() => {
-    setUserName(getSession()?.name ?? 'Пользователь')
-  }, [pathname])
+    syncUserFromStorage()
+  }, [pathname, syncUserFromStorage])
+
+  useEffect(() => {
+    window.addEventListener('riskhub-profile-updated', syncUserFromStorage)
+    return () =>
+      window.removeEventListener('riskhub-profile-updated', syncUserFromStorage)
+  }, [syncUserFromStorage])
 
   const {
     notifications,
@@ -67,10 +83,6 @@ export function AppHeader({ crumbs }: AppHeaderProps) {
     )
     router.replace('/')
     router.refresh()
-  }
-
-  const handleProfile = () => {
-    router.push('/settings/profile')
   }
 
   return (
@@ -104,7 +116,7 @@ export function AppHeader({ crumbs }: AppHeaderProps) {
                 aria-label="Меню профиля"
               >
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src="" alt="" />
+                  <AvatarImage src={avatarUrl ?? ''} alt="" />
                   <AvatarFallback className="bg-primary/15 text-xs text-primary">
                     {initials}
                   </AvatarFallback>
@@ -113,15 +125,8 @@ export function AppHeader({ crumbs }: AppHeaderProps) {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-52">
-              <DropdownMenuLabel>{userName}</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleProfile}>
-                {locale === 'en' ? 'Profile' : 'Профиль'}
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/settings">
-                  {locale === 'en' ? 'System settings' : 'Системные настройки'}
-                </Link>
+              <DropdownMenuItem asChild className="cursor-pointer font-medium">
+                <Link href="/settings/profile">{userName}</Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleLogout} className="text-destructive">

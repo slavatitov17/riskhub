@@ -49,7 +49,8 @@ export function ensureDemoUser() {
 }
 
 export function registerUser(input: {
-  name: string
+  firstName: string
+  lastName: string
   email: string
   password: string
 }): { ok: true; user: StoredUser } | { ok: false; error: string } {
@@ -58,9 +59,11 @@ export function registerUser(input: {
   if (users.some((u) => u.email.toLowerCase() === email)) {
     return { ok: false, error: 'Пользователь с таким email уже зарегистрирован' }
   }
+  const name =
+    `${input.firstName.trim()} ${input.lastName.trim()}`.trim() || 'Пользователь'
   const user: StoredUser = {
     id: `u_${crypto.randomUUID()}`,
-    name: input.name.trim(),
+    name,
     email,
     password: input.password
   }

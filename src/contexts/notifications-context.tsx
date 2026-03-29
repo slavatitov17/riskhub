@@ -61,7 +61,8 @@ function notifReadStorageKey(): string {
 function buildDemoRiskNotifications(
   risks: RiskRecord[],
   accessibleProjectIds: ReadonlySet<string>,
-  locale: 'ru' | 'en'
+  locale: 'ru' | 'en',
+  getProjectDisplayName: (projectId: string | undefined, fallback: string) => string
 ): Omit<NotificationItem, 'isRead'>[] {
   const scoped = risks.filter(
     (r) => r.projectId && accessibleProjectIds.has(r.projectId)
@@ -73,11 +74,12 @@ function buildDemoRiskNotifications(
   const pick = sorted.slice(0, 8)
   const title = locale === 'en' ? 'Risk created' : 'Создан риск'
   return pick.map((r) => {
-    const pid = r.projectId ?? '—'
+    const projectTitle = getProjectDisplayName(r.projectId, r.project)
+    const riskTitle = r.name.trim() || '—'
     const body =
       locale === 'en'
-        ? `User ${r.author} created risk ${r.code} in project ${pid}.`
-        : `Пользователь ${r.author} создал риск ${r.code} в проекте ${pid}.`
+        ? `${r.author} created risk «${riskTitle}» in project «${projectTitle}».`
+        : `${r.author} создал риск «${riskTitle}» в проекте «${projectTitle}».`
     return {
       id: `demo_risk_${r.id}`,
       kind: 'demo' as const,
@@ -220,7 +222,11 @@ export function NotificationsProvider({
   children
 }: Readonly<{ children: React.ReactNode }>) {
   const { locale } = useLocale()
-  const { accessibleProjectIds, ready: projectsReady } = useProjects()
+  const {
+    accessibleProjectIds,
+    ready: projectsReady,
+    getProjectDisplayName
+  } = useProjects()
   const [notifOpen, setNotifOpen] = useState(false)
   const [sessionTick, setSessionTick] = useState(0)
   const [inAppEnabled, setInAppEnabled] = useState(() =>
@@ -294,8 +300,13 @@ export function NotificationsProvider({
   const demoTemplates = useMemo(() => {
     void risksTick
     if (!projectsReady) return []
-    return buildDemoRiskNotifications(loadRisks(), accessibleProjectIds, locale)
-  }, [risksTick, projectsReady, accessibleProjectIds, locale])
+    return buildDemoRiskNotifications(
+      loadRisks(),
+      accessibleProjectIds,
+      locale,
+      getProjectDisplayName
+    )
+  }, [risksTick, projectsReady, accessibleProjectIds, locale, getProjectDisplayName])
 
   const notifications = useMemo((): NotificationItem[] => {
     if (!inAppEnabled) return []

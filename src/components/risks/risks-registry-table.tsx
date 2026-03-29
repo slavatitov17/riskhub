@@ -47,6 +47,7 @@ import {
 } from '@/lib/risk-badge-styles'
 import { getPageCopy } from '@/lib/page-copy'
 import { formatDisplayDate } from '@/lib/risks-storage'
+import { isCurrentUserRiskAuthor } from '@/lib/user-display'
 import { cn } from '@/lib/utils'
 
 export function RisksRegistryTable() {
@@ -175,8 +176,29 @@ export function RisksRegistryTable() {
     }
 
     if (bulkAction === 'delete') {
-      selectedIds.forEach((id) => removeRisk(id))
-      toast.success(p.registryRisks.deletedToast)
+      const deletable = selectedIds.filter((id) => {
+        const r = risks.find((x) => x.id === id)
+        return r != null && isCurrentUserRiskAuthor(r.author)
+      })
+      if (deletable.length === 0) {
+        toast.error(
+          locale === 'en'
+            ? 'You can only delete risks you created.'
+            : 'Удалять можно только свои риски (вы не автор выбранных карточек).'
+        )
+        setSelected({})
+        setBulkAction(null)
+        return
+      }
+      deletable.forEach((id) => removeRisk(id))
+      const skipped = selectedIds.length - deletable.length
+      if (skipped > 0) {
+        toast.success(
+          locale === 'en'
+            ? `Deleted ${deletable.length} risk(s). ${skipped} skipped (not author).`
+            : `Удалено рисков: ${deletable.length}. Пропущено (не автор): ${skipped}.`
+        )
+      } else toast.success(p.registryRisks.deletedToast)
     }
 
     setSelected({})
@@ -437,26 +459,32 @@ export function RisksRegistryTable() {
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          type="button"
-                          title={p.registry.edit}
-                          aria-label={p.registry.edit}
-                          onClick={() => router.push(`/risks/${row.id}/edit`)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          type="button"
-                          title={p.registry.delete}
-                          aria-label={p.registry.delete}
-                          onClick={() => setDeleteId(row.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {isCurrentUserRiskAuthor(row.author) ? (
+                          <>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              type="button"
+                              title={p.registry.edit}
+                              aria-label={p.registry.edit}
+                              onClick={() =>
+                                router.push(`/risks/${row.id}/edit`)
+                              }
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              type="button"
+                              title={p.registry.delete}
+                              aria-label={p.registry.delete}
+                              onClick={() => setDeleteId(row.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </>
+                        ) : null}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -722,10 +750,19 @@ export function RisksRegistryTable() {
             <AlertDialogCancel>{p.registry.cancel}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
-                if (deleteId) {
-                  removeRisk(deleteId)
-                  toast.success(p.registryRisks.deleted)
+                if (!deleteId) return
+                const r = risks.find((x) => x.id === deleteId)
+                if (!r || !isCurrentUserRiskAuthor(r.author)) {
+                  toast.error(
+                    locale === 'en'
+                      ? 'You can only delete risks you created.'
+                      : 'Удалять можно только свои риски.'
+                  )
+                  setDeleteId(null)
+                  return
                 }
+                removeRisk(deleteId)
+                toast.success(p.registryRisks.deleted)
                 setDeleteId(null)
               }}
             >

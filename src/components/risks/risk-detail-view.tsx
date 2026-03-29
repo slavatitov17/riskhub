@@ -60,7 +60,10 @@ import {
   formatDisplayDate,
   formatLocaleDateTime
 } from '@/lib/risks-storage'
-import { getCurrentUserCommentAuthor } from '@/lib/user-display'
+import {
+  getCurrentUserCommentAuthor,
+  isCurrentUserRiskAuthor
+} from '@/lib/user-display'
 import { cn } from '@/lib/utils'
 
 interface RiskDetailViewProps {
@@ -108,6 +111,8 @@ export function RiskDetailView({ risk }: RiskDetailViewProps) {
   const [isAddingMeasure, setIsAddingMeasure] = useState(false)
   const [editingMeasureId, setEditingMeasureId] = useState<string | null>(null)
   const [editMeasureText, setEditMeasureText] = useState('')
+
+  const canEditOrDeleteRisk = isCurrentUserRiskAuthor(risk.author)
 
   const comments = risk.comments ?? []
   const measures = risk.responseMeasures ?? []
@@ -233,12 +238,14 @@ export function RiskDetailView({ risk }: RiskDetailViewProps) {
           </Link>
         </Button>
         <div className="ml-auto flex flex-wrap gap-2">
-          <Button variant="outline" className="gap-2" asChild>
-            <Link href={`/risks/${risk.id}/edit`}>
-              <Pencil className="h-4 w-4" />
-              {p.riskDetail.edit}
-            </Link>
-          </Button>
+          {canEditOrDeleteRisk ? (
+            <Button variant="outline" className="gap-2" asChild>
+              <Link href={`/risks/${risk.id}/edit`}>
+                <Pencil className="h-4 w-4" />
+                {p.riskDetail.edit}
+              </Link>
+            </Button>
+          ) : null}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button size="icon" variant="outline" aria-label={p.riskDetail.more}>
@@ -254,13 +261,15 @@ export function RiskDetailView({ risk }: RiskDetailViewProps) {
               >
                 {p.riskDetail.copyId}
               </DropdownMenuItem>
-              <DropdownMenuItem
-                className="text-destructive"
-                onClick={() => setDeleteOpen(true)}
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                {p.riskDetail.delete}
-              </DropdownMenuItem>
+              {canEditOrDeleteRisk ? (
+                <DropdownMenuItem
+                  className="text-destructive"
+                  onClick={() => setDeleteOpen(true)}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  {p.riskDetail.delete}
+                </DropdownMenuItem>
+              ) : null}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

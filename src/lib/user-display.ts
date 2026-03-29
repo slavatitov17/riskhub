@@ -1,6 +1,20 @@
 import { getSession } from '@/lib/auth-storage'
 import { getProfileForUser } from '@/lib/user-profile-storage'
 
+function normalizeDisplayName(s: string): string {
+  return s.trim().toLowerCase().replace(/\s+/g, ' ')
+}
+
+/** True when the signed-in user matches the risk card author (by display name). */
+export function isCurrentUserRiskAuthor(riskAuthor: string): boolean {
+  const s = getSession()
+  if (!s) return false
+  const me = normalizeDisplayName(getCurrentUserDisplayName())
+  const author = normalizeDisplayName(riskAuthor)
+  if (!author) return false
+  return me === author
+}
+
 export function getCurrentUserDisplayName(): string {
   const s = getSession()
   if (!s) return 'Не указан'

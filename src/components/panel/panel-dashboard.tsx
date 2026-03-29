@@ -3,15 +3,7 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import {
-  ArrowRight,
-  BarChart3,
-  CheckCircle2,
-  Flame,
-  List,
-  Plus,
-  Zap
-} from 'lucide-react'
+import { ArrowRight, CheckCircle2, Flame, Zap } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -32,6 +24,9 @@ export function PanelDashboard() {
   const criticalCount = risks.filter(
     (r) => r.impact === 'Высокое' && r.probability === 'Высокая'
   ).length
+
+  const recentRisks = risks.slice(0, 3)
+  const unreadNotifications = notifications.filter((n) => !n.isRead)
 
   return (
     <motion.div
@@ -98,29 +93,20 @@ export function PanelDashboard() {
           </Card>
         </div>
 
-        <Card className="shadow-sm lg:sticky lg:top-4 h-full">
-          <CardHeader className="pb-2 pt-4">
+        <Card className="shadow-sm flex h-full min-h-[220px] flex-col lg:sticky lg:top-4">
+          <CardHeader className="shrink-0 pb-2 pt-4">
             <CardTitle className="text-base">Быстрые действия</CardTitle>
           </CardHeader>
-          <CardContent className="flex flex-col gap-2 pb-4 pt-0">
-            <Button className="w-full justify-center gap-2" asChild>
-              <Link href="/risks/new">
-                <Plus className="h-4 w-4" />
-                Добавить риск
-              </Link>
-            </Button>
-            <Button variant="outline" className="w-full justify-center gap-2" asChild>
-              <Link href="/risks">
-                <List className="h-4 w-4" />
-                Все риски
-              </Link>
-            </Button>
-            <Button variant="outline" className="w-full justify-center gap-2" asChild>
-              <Link href="/analytics">
-                <BarChart3 className="h-4 w-4" />
-                Аналитика
-              </Link>
-            </Button>
+          <CardContent className="flex flex-1 flex-col pb-4 pt-0">
+            <div className="min-h-4 flex-1" aria-hidden />
+            <div className="flex flex-col gap-2">
+              <Button className="w-full justify-center" asChild>
+                <Link href="/risks/new">Добавить риск</Link>
+              </Button>
+              <Button variant="outline" className="w-full justify-center" asChild>
+                <Link href="/projects/new">Добавить проект</Link>
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </section>
@@ -139,27 +125,38 @@ export function PanelDashboard() {
             </Button>
           </CardHeader>
           <CardContent className="pt-0">
-            <ul className="flex flex-col gap-2">
-              {risks.slice(0, 3).map((risk) => (
-                <li key={risk.id}>
-                  <button
-                    type="button"
-                    className="flex w-full items-start justify-between gap-3 rounded-lg border bg-muted/20 p-3 text-left transition-colors hover:bg-muted/40"
-                    onClick={() => router.push(`/risks/${risk.id}`)}
-                  >
-                    <div className="min-w-0">
-                      <p className="font-medium leading-tight">{risk.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {risk.category} · {formatDisplayDate(risk.created)}
-                      </p>
-                    </div>
-                    <Badge variant="outline" className="shrink-0">
-                      {risk.status}
-                    </Badge>
-                  </button>
-                </li>
-              ))}
-            </ul>
+            {recentRisks.length > 0 ? (
+              <ul className="flex flex-col gap-2">
+                {recentRisks.map((risk) => (
+                  <li key={risk.id}>
+                    <button
+                      type="button"
+                      className="flex w-full items-start justify-between gap-3 rounded-lg border bg-muted/20 p-3 text-left transition-colors hover:bg-muted/40"
+                      onClick={() => router.push(`/risks/${risk.id}`)}
+                    >
+                      <div className="min-w-0">
+                        <p className="font-medium leading-tight">{risk.name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {risk.category} · {formatDisplayDate(risk.created)}
+                        </p>
+                      </div>
+                      <Badge variant="outline" className="shrink-0">
+                        {risk.status}
+                      </Badge>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <div className="flex min-h-[180px] flex-col items-center justify-center gap-2 px-4 py-8 text-center opacity-60">
+                <p className="text-sm font-semibold text-foreground">
+                  Пока нет рисков
+                </p>
+                <p className="max-w-xs text-sm text-foreground">
+                  Добавьте риск в реестре — он появится в этом списке.
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -178,10 +175,9 @@ export function PanelDashboard() {
             </Button>
           </CardHeader>
           <CardContent className="pt-0">
-            <ul className="flex flex-col gap-2">
-              {notifications
-                .filter((n) => !n.isRead)
-                .map((n) => (
+            {unreadNotifications.length > 0 ? (
+              <ul className="flex flex-col gap-2">
+                {unreadNotifications.map((n) => (
                   <li key={n.id} className="flex gap-3 rounded-lg border p-3">
                     <span
                       className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${
@@ -195,7 +191,17 @@ export function PanelDashboard() {
                     </div>
                   </li>
                 ))}
-            </ul>
+              </ul>
+            ) : (
+              <div className="flex min-h-[180px] flex-col items-center justify-center gap-2 px-4 py-8 text-center opacity-60">
+                <p className="text-sm font-semibold text-foreground">
+                  Нет новых уведомлений
+                </p>
+                <p className="max-w-xs text-sm text-foreground">
+                  Здесь появятся непрочитанные сообщения.
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
       </section>

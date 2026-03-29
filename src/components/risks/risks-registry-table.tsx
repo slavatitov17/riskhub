@@ -275,7 +275,7 @@ export function RisksRegistryTable() {
               </Button>
               <Button
                 type="button"
-                variant="destructive"
+                variant="secondary"
                 size="sm"
                 className="gap-2"
                 disabled={!selectedIds.length}
@@ -322,8 +322,22 @@ export function RisksRegistryTable() {
               </TableHeader>
               <TableBody>
                 {filtered.map((row) => (
-                  <TableRow key={row.id}>
-                    <TableCell className="whitespace-nowrap">
+                  <TableRow
+                    key={row.id}
+                    className="cursor-pointer hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    tabIndex={0}
+                    onClick={() => router.push(`/risks/${row.id}`)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        router.push(`/risks/${row.id}`)
+                      }
+                    }}
+                  >
+                    <TableCell
+                      className="whitespace-nowrap"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <Checkbox
                         checked={!!selected[row.id]}
                         onCheckedChange={(v) =>
@@ -390,13 +404,17 @@ export function RisksRegistryTable() {
                     <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
                       {formatDisplayDate(row.updated)}
                     </TableCell>
-                    <TableCell className="whitespace-nowrap text-left">
+                    <TableCell
+                      className="whitespace-nowrap text-left"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <div className="flex justify-start gap-1">
                         <Button
                           size="icon"
                           variant="ghost"
-                          aria-label="Просмотр"
                           type="button"
+                          title="Показать"
+                          aria-label="Показать"
                           onClick={() => router.push(`/risks/${row.id}`)}
                         >
                           <Eye className="h-4 w-4" />
@@ -404,8 +422,9 @@ export function RisksRegistryTable() {
                         <Button
                           size="icon"
                           variant="ghost"
-                          aria-label="Изменить"
                           type="button"
+                          title="Изменить"
+                          aria-label="Изменить"
                           onClick={() => router.push(`/risks/${row.id}/edit`)}
                         >
                           <Pencil className="h-4 w-4" />
@@ -413,8 +432,9 @@ export function RisksRegistryTable() {
                         <Button
                           size="icon"
                           variant="ghost"
-                          aria-label="Удалить"
                           type="button"
+                          title="Удалить"
+                          aria-label="Удалить"
                           onClick={() => setDeleteId(row.id)}
                         >
                           <Trash2 className="h-4 w-4" />

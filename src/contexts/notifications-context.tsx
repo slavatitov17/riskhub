@@ -11,6 +11,8 @@ import {
 
 import { getSession } from '@/lib/auth-storage'
 import { dbGetPendingInvitationsForEmail } from '@/lib/projects-db'
+import type { RiskRecord } from '@/lib/risk-types'
+import { loadRisks } from '@/lib/risks-storage'
 
 type NotificationTone = 'default' | 'destructive'
 
@@ -44,32 +46,42 @@ const NotificationsContext = createContext<NotificationsContextValue | null>(
 
 const NOTIF_READ_KEY = 'riskhub_notifications_read_v2'
 
-const defaultNotifications: Omit<NotificationItem, 'isRead'>[] = [
-  {
-    id: 'demo_1',
-    kind: 'demo',
-    title: 'Просрочена мера',
-    body: 'Риск R-104 — обновите документацию до конца недели.',
-    tone: 'destructive',
-    actionHref: '/risks'
-  },
-  {
-    id: 'demo_2',
-    kind: 'demo',
-    title: 'Напоминание',
-    body: 'Проверка риска R-101 через 2 дня.',
-    tone: 'default',
-    actionHref: '/risks'
-  },
-  {
-    id: 'demo_3',
-    kind: 'demo',
-    title: 'Комментарий',
-    body: 'Новый комментарий к риску R-99.',
-    tone: 'default',
-    actionHref: '/risks'
-  }
-]
+function buildDemoRiskNotifications(
+  risks: RiskRecord[]
+): Omit<NotificationItem, 'isRead'>[] {
+  if (risks.length === 0) return []
+  const sorted = [...risks].sort(
+    (a, b) => Date.parse(b.created) - Date.parse(a.created)
+  )
+  const pick = sorted.slice(0, 3)
+  const templates: Array<{
+    title: string
+    body: (r: RiskRecord) => string
+  }> = [
+    {
+      title: 'Просрочена мера',
+      body: (r) =>
+        `Риск ${r.code} «${r.name}» — обновите документацию до конца недели.`
+    },
+    {
+      title: 'Напоминание',
+      body: (r) =>
+        `По риску ${r.code} «${r.name}» запланирована проверка через 2 дня.`
+    },
+    {
+      title: 'Комментарий',
+      body: (r) => `Новый комментарий к риску ${r.code} «${r.name}».`
+    }
+  ]
+  return pick.map((r, i) => ({
+    id: `demo_risk_${r.id}`,
+    kind: 'demo' as const,
+    title: templates[i]!.title,
+    body: templates[i]!.body(r),
+    tone: 'default' as const,
+    actionHref: `/risks/${r.id}`
+  }))
+}
 
 function loadReadMap(): Record<string, boolean> {
   if (typeof window === 'undefined') return {}
@@ -118,6 +130,7 @@ export function NotificationsProvider({
   const [inviteTemplates, setInviteTemplates] = useState<
     Omit<NotificationItem, 'isRead'>[]
   >([])
+  const [risksTick, setRisksTick] = useState(0)
 
   const syncInvites = useCallback(async () => {
     try {
@@ -143,17 +156,28 @@ export function NotificationsProvider({
     }
   }, [syncInvites])
 
+  useEffect(() => {
+    const onRisks = () => setRisksTick((t) => t + 1)
+    window.addEventListener('riskhub-risks-changed', onRisks)
+    return () => window.removeEventListener('riskhub-risks-changed', onRisks)
+  }, [])
+
+  const demoTemplates = useMemo(() => {
+    void risksTick
+    return buildDemoRiskNotifications(loadRisks())
+  }, [risksTick])
+
   const notifications = useMemo((): NotificationItem[] => {
-    const demos: NotificationItem[] = defaultNotifications.map((n, index) => ({
+    const demos: NotificationItem[] = demoTemplates.map((n) => ({
       ...n,
-      isRead: readMap[n.id] ?? index === 2
+      isRead: readMap[n.id] ?? false
     }))
     const invites: NotificationItem[] = inviteTemplates.map((n) => ({
       ...n,
       isRead: readMap[n.id] ?? false
     }))
     return [...invites, ...demos]
-  }, [readMap, inviteTemplates])
+  }, [readMap, inviteTemplates, demoTemplates])
 
   const unreadCount = useMemo(
     () => notifications.reduce((acc, n) => acc + (n.isRead ? 0 : 1), 0),
@@ -167,11 +191,11 @@ export function NotificationsProvider({
     setReadMap((prev) => {
       const next = { ...prev }
       for (const n of inviteTemplates) next[n.id] = true
-      for (const n of defaultNotifications) next[n.id] = true
+      for (const n of demoTemplates) next[n.id] = true
       persistReadMap(next)
       return next
     })
-  }, [inviteTemplates])
+  }, [inviteTemplates, demoTemplates])
 
   const markRead = useCallback((id: string) => {
     setReadMap((prev) => {

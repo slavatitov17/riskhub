@@ -11,12 +11,14 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import { useProjects } from '@/contexts/projects-context'
 
 export function ProjectFormView() {
   const router = useRouter()
   const { createProject } = useProjects()
   const [name, setName] = useState('')
+  const [description, setDescription] = useState('')
   const [inviteRows, setInviteRows] = useState<string[]>([''])
   const [submitting, setSubmitting] = useState(false)
 
@@ -57,6 +59,16 @@ export function ProjectFormView() {
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Например, внедрение CRM"
                 required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="project-desc">Описание проекта</Label>
+              <Textarea
+                id="project-desc"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={5}
+                placeholder="Кратко опишите цели и контекст проекта…"
               />
             </div>
             <div className="space-y-2">

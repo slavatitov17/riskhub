@@ -25,6 +25,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle
 } from '@/components/ui/alert-dialog'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -54,7 +55,8 @@ import {
 } from '@/components/ui/table'
 import { useProjects } from '@/contexts/projects-context'
 import { useRisks } from '@/contexts/risks-context'
-import { getSession, getUsers } from '@/lib/auth-storage'
+import { getSession, getUsers, type StoredUser } from '@/lib/auth-storage'
+import { getProfileForUser } from '@/lib/user-profile-storage'
 import type { ProjectMemberRecord, ProjectRecord } from '@/lib/project-types'
 import {
   projectStatusBadgeClass,
@@ -111,6 +113,9 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
   const [inviteRows, setInviteRows] = useState<string[]>([''])
   const [inviteSending, setInviteSending] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [profileMember, setProfileMember] = useState<ProjectMemberRecord | null>(
+    null
+  )
 
   const session = getSession()
   const canEdit =
@@ -288,7 +293,9 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
                         Категория
                       </TableHead>
                       <TableHead className="whitespace-nowrap">Статус</TableHead>
-                      <TableHead className="w-12" />
+                      <TableHead className="w-12">
+                        <span className="sr-only">Действия</span>
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -334,13 +341,16 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
                     <TableRow>
                       <TableHead>Имя</TableHead>
                       <TableHead>Email</TableHead>
+                      <TableHead className="w-12">
+                        <span className="sr-only">Действия</span>
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {members.length === 0 ? (
                       <TableRow>
                         <TableCell
-                          colSpan={2}
+                          colSpan={3}
                           className="text-muted-foreground"
                         >
                           Нет участников
@@ -348,12 +358,38 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
                       </TableRow>
                     ) : (
                       members.map((m) => (
-                        <TableRow key={m.id}>
+                        <TableRow
+                          key={m.id}
+                          className="cursor-pointer hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                          tabIndex={0}
+                          onClick={() => setProfileMember(m)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault()
+                              setProfileMember(m)
+                            }
+                          }}
+                        >
                           <TableCell className="text-sm">
                             {displayNameForMemberEmail(m.email)}
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground">
                             {m.email}
+                          </TableCell>
+                          <TableCell
+                            className="whitespace-nowrap text-right"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <Button
+                              type="button"
+                              size="icon"
+                              variant="ghost"
+                              title="Показать"
+                              aria-label="Показать"
+                              onClick={() => setProfileMember(m)}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
                           </TableCell>
                         </TableRow>
                       ))
@@ -383,6 +419,13 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
           </Card>
         </div>
       </div>
+
+      <MemberProfileDialog
+        member={profileMember}
+        onOpenChange={(open) => {
+          if (!open) setProfileMember(null)
+        }}
+      />
 
       <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
@@ -498,8 +541,19 @@ function ProjectRiskRow({
   risk: RiskRecord
   router: ReturnType<typeof useRouter>
 }) {
+  const go = () => router.push(`/risks/${risk.id}`)
   return (
-    <TableRow>
+    <TableRow
+      className="cursor-pointer hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+      tabIndex={0}
+      onClick={go}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          go()
+        }
+      }}
+    >
       <TableCell className="whitespace-nowrap font-medium">{risk.code}</TableCell>
       <TableCell className="font-medium">{risk.name}</TableCell>
       <TableCell>
@@ -512,17 +566,116 @@ function ProjectRiskRow({
           {risk.status}
         </span>
       </TableCell>
-      <TableCell>
+      <TableCell
+        className="whitespace-nowrap text-right"
+        onClick={(e) => e.stopPropagation()}
+      >
         <Button
           type="button"
           size="icon"
           variant="ghost"
-          aria-label="Открыть риск"
-          onClick={() => router.push(`/risks/${risk.id}`)}
+          title="Показать"
+          aria-label="Показать"
+          onClick={go}
         >
           <Eye className="h-4 w-4" />
         </Button>
       </TableCell>
     </TableRow>
+  )
+}
+
+function MemberProfileDialog({
+  member,
+  onOpenChange
+}: {
+  member: ProjectMemberRecord | null
+  onOpenChange: (open: boolean) => void
+}) {
+  const open = member !== null
+  const userId = member?.userId
+  const user: StoredUser | undefined = userId
+    ? getUsers().find((u) => u.id === userId)
+    : undefined
+  const profile = userId ? getProfileForUser(userId) : null
+
+  const firstName = profile?.firstName?.trim() || ''
+  const lastName = profile?.lastName?.trim() || ''
+  const displayName =
+    [firstName, lastName].filter(Boolean).join(' ') ||
+    user?.name ||
+    member?.email ||
+    '—'
+  const emailShown = user?.email ?? member?.email ?? '—'
+  const initials = displayName
+    .split(/\s+/)
+    .map((p) => p[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase()
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Участник</DialogTitle>
+        </DialogHeader>
+        {member && profile ? (
+          <div className="space-y-4 py-2">
+            <div className="flex flex-col items-center gap-3 text-center">
+              <Avatar className="h-20 w-20">
+                <AvatarImage src={profile.avatarDataUrl ?? ''} alt="" />
+                <AvatarFallback className="text-lg">{initials}</AvatarFallback>
+              </Avatar>
+              <div>
+                <p className="text-lg font-semibold">{displayName}</p>
+                <p className="text-sm text-muted-foreground">{emailShown}</p>
+              </div>
+            </div>
+            <Separator />
+            <div className="grid gap-3 text-sm">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground">
+                  Имя
+                </p>
+                <p className="mt-0.5">{firstName || '—'}</p>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-muted-foreground">
+                  Фамилия
+                </p>
+                <p className="mt-0.5">{lastName || '—'}</p>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-muted-foreground">
+                  Место работы
+                </p>
+                <p className="mt-0.5">{profile.workplace?.trim() || '—'}</p>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-muted-foreground">
+                  Отдел
+                </p>
+                <p className="mt-0.5">{profile.department?.trim() || '—'}</p>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-muted-foreground">
+                  Должность
+                </p>
+                <p className="mt-0.5">{profile.position?.trim() || '—'}</p>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-muted-foreground">
+                  О себе
+                </p>
+                <p className="mt-0.5 whitespace-pre-wrap">
+                  {profile.about?.trim() || '—'}
+                </p>
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </DialogContent>
+    </Dialog>
   )
 }

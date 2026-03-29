@@ -198,7 +198,7 @@ export function PanelDashboard() {
                   Нет новых уведомлений
                 </p>
                 <p className="max-w-xs text-sm text-foreground">
-                  Здесь появятся непрочитанные сообщения.
+                  Здесь появятся непрочитанные уведомления
                 </p>
               </div>
             )}

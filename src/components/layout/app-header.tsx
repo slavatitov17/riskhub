@@ -8,7 +8,6 @@ import { toast } from 'sonner'
 
 import { AppBreadcrumbs } from '@/components/layout/app-breadcrumbs'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -171,28 +170,42 @@ export function AppHeader({ crumbs }: AppHeaderProps) {
           {(() => {
             const unread = notifications.filter((n) => !n.isRead)
             const read = notifications.filter((n) => n.isRead)
+            const unreadLabel =
+              locale === 'en' ? 'Unread' : 'Непрочитанные'
+            const readLabel =
+              locale === 'en' ? 'Read' : 'Прочитанные'
+            const watchLabel = locale === 'en' ? 'View' : 'Смотреть'
+
+            const openRiskOrHref = (n: (typeof notifications)[number]) => {
+              if (!n.isRead) markRead(n.id)
+              closeNotifications()
+              router.push(n.actionHref)
+            }
 
             return (
               <div className="space-y-6">
                 <section className="space-y-2">
-                    <Badge variant="danger">Непрочитанные</Badge>
-                    <ul className="flex flex-col gap-2">
-                      {unread.map((n) => (
-                        <li
-                          key={n.id}
-                          className="rounded-lg border p-3 text-sm leading-snug"
-                        >
-                          <p
-                            className={
-                              n.tone === 'destructive'
-                                ? 'font-medium text-destructive'
-                                : 'font-medium'
-                            }
+                  <h3 className="text-base font-semibold tracking-tight">
+                    {unreadLabel}
+                  </h3>
+                  <ul className="flex flex-col gap-2">
+                    {unread.length === 0 ? (
+                      <li className="py-2 text-sm text-muted-foreground">
+                        {locale === 'en'
+                          ? 'No unread notifications.'
+                          : 'Нет непрочитанных уведомлений.'}
+                      </li>
+                    ) : (
+                      unread.map((n) =>
+                        n.kind === 'project_invite' && n.invitationId ? (
+                          <li
+                            key={n.id}
+                            className="rounded-lg border p-3 text-sm leading-snug"
                           >
-                            {n.title}
-                          </p>
-                          <p className="mt-1 text-muted-foreground">{n.body}</p>
-                          {n.kind === 'project_invite' && n.invitationId ? (
+                            <p className="font-medium text-foreground">
+                              {n.title}
+                            </p>
+                            <p className="mt-1 text-muted-foreground">{n.body}</p>
                             <div className="mt-2 flex flex-wrap gap-2">
                               <Button
                                 type="button"
@@ -242,68 +255,104 @@ export function AppHeader({ crumbs }: AppHeaderProps) {
                                 {locale === 'en' ? 'Decline' : 'Отклонить'}
                               </Button>
                             </div>
-                          ) : (
-                            <Button
-                              variant="link"
-                              className="mt-2 h-auto p-0 text-primary"
-                              type="button"
-                              onClick={() => {
-                                markRead(n.id)
-                                closeNotifications()
-                                router.push(n.actionHref)
-                                toast.success(
-                                  locale === 'en'
-                                    ? 'Opening'
-                                    : 'Переход'
-                                )
-                              }}
-                            >
-                              {locale === 'en' ? 'Open →' : 'Перейти →'}
-                            </Button>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  </section>
+                          </li>
+                        ) : (
+                          <li
+                            key={n.id}
+                            role="button"
+                            tabIndex={0}
+                            className="cursor-pointer rounded-lg border p-3 text-sm leading-snug transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                            onClick={() => openRiskOrHref(n)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault()
+                                openRiskOrHref(n)
+                              }
+                            }}
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <p className="font-medium text-foreground">
+                                {n.title}
+                              </p>
+                              <span className="shrink-0 text-sm font-medium text-primary">
+                                {watchLabel}
+                              </span>
+                            </div>
+                            <p className="mt-1 text-muted-foreground">{n.body}</p>
+                          </li>
+                        )
+                      )
+                    )}
+                  </ul>
+                </section>
 
                 <section className="space-y-2">
-                    <Badge variant="info">Прочитанные</Badge>
-                    <ul className="flex flex-col gap-2">
-                      {read.map((n) => (
-                        <li
-                          key={n.id}
-                          className="rounded-lg border p-3 text-sm leading-snug"
-                        >
-                          <p
-                            className={
-                              n.tone === 'destructive'
-                                ? 'font-medium text-destructive'
-                                : 'font-medium'
-                            }
+                  <h3 className="text-base font-semibold tracking-tight">
+                    {readLabel}
+                  </h3>
+                  <ul className="flex flex-col gap-2">
+                    {read.length === 0 ? (
+                      <li className="py-2 text-sm text-muted-foreground">
+                        {locale === 'en'
+                          ? 'No read notifications yet.'
+                          : 'Пока нет прочитанных уведомлений.'}
+                      </li>
+                    ) : (
+                      read.map((n) =>
+                        n.kind === 'project_invite' && n.invitationId ? (
+                          <li
+                            key={n.id}
+                            className="rounded-lg border p-3 text-sm leading-snug"
                           >
-                            {n.title}
-                          </p>
-                          <p className="mt-1 text-muted-foreground">{n.body}</p>
-                          <Button
-                            variant="link"
-                            className="mt-2 h-auto p-0 text-primary"
-                            type="button"
+                            <p className="font-medium text-foreground">
+                              {n.title}
+                            </p>
+                            <p className="mt-1 text-muted-foreground">{n.body}</p>
+                            <Button
+                              type="button"
+                              variant="link"
+                              className="mt-2 h-auto p-0 text-primary"
+                              onClick={() => {
+                                closeNotifications()
+                                router.push(n.actionHref)
+                              }}
+                            >
+                              {watchLabel}
+                            </Button>
+                          </li>
+                        ) : (
+                          <li
+                            key={n.id}
+                            role="button"
+                            tabIndex={0}
+                            className="cursor-pointer rounded-lg border p-3 text-sm leading-snug transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                             onClick={() => {
                               closeNotifications()
                               router.push(n.actionHref)
-                              toast.success(
-                                locale === 'en'
-                                  ? 'Opening'
-                                  : 'Переход'
-                              )
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault()
+                                closeNotifications()
+                                router.push(n.actionHref)
+                              }
                             }}
                           >
-                            {locale === 'en' ? 'Open →' : 'Перейти →'}
-                          </Button>
-                        </li>
-                      ))}
-                    </ul>
-                  </section>
+                            <div className="flex items-start justify-between gap-3">
+                              <p className="font-medium text-foreground">
+                                {n.title}
+                              </p>
+                              <span className="shrink-0 text-sm font-medium text-primary">
+                                {watchLabel}
+                              </span>
+                            </div>
+                            <p className="mt-1 text-muted-foreground">{n.body}</p>
+                          </li>
+                        )
+                      )
+                    )}
+                  </ul>
+                </section>
               </div>
             )
           })()}

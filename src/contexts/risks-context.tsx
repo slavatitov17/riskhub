@@ -96,6 +96,7 @@ export function RisksProvider({ children }: { children: React.ReactNode }) {
   const persist = useCallback((next: RiskRecord[]) => {
     saveRisks(next)
     setRisks(next)
+    window.dispatchEvent(new CustomEvent('riskhub-risks-changed'))
   }, [])
 
   const addRisk = useCallback(

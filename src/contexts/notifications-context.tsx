@@ -44,7 +44,11 @@ const NotificationsContext = createContext<NotificationsContextValue | null>(
   null
 )
 
-const NOTIF_READ_KEY = 'riskhub_notifications_read_v2'
+function notifReadStorageKey(): string {
+  const s = getSession()
+  if (!s?.userId) return 'riskhub_notifications_read_v2__guest'
+  return `riskhub_notifications_read_v2__${s.userId}`
+}
 
 function buildDemoRiskNotifications(
   risks: RiskRecord[]
@@ -87,7 +91,7 @@ function loadReadMap(): Record<string, boolean> {
   if (typeof window === 'undefined') return {}
 
   try {
-    const raw = window.localStorage.getItem(NOTIF_READ_KEY)
+    const raw = window.localStorage.getItem(notifReadStorageKey())
     if (!raw) return {}
     const parsed = JSON.parse(raw) as unknown
     if (!parsed || typeof parsed !== 'object') return {}
@@ -104,7 +108,10 @@ function loadReadMap(): Record<string, boolean> {
 
 function persistReadMap(readMap: Record<string, boolean>) {
   if (typeof window === 'undefined') return
-  window.localStorage.setItem(NOTIF_READ_KEY, JSON.stringify(readMap))
+  window.localStorage.setItem(
+    notifReadStorageKey(),
+    JSON.stringify(readMap)
+  )
 }
 
 async function fetchInviteTemplates(): Promise<Omit<NotificationItem, 'isRead'>[]> {
@@ -126,6 +133,7 @@ export function NotificationsProvider({
   children
 }: Readonly<{ children: React.ReactNode }>) {
   const [notifOpen, setNotifOpen] = useState(false)
+  const [sessionTick, setSessionTick] = useState(0)
   const [readMap, setReadMap] = useState<Record<string, boolean>>({})
   const [inviteTemplates, setInviteTemplates] = useState<
     Omit<NotificationItem, 'isRead'>[]
@@ -142,9 +150,15 @@ export function NotificationsProvider({
   }, [])
 
   useEffect(() => {
+    const onSession = () => setSessionTick((t) => t + 1)
+    window.addEventListener('riskhub-session-changed', onSession)
+    return () => window.removeEventListener('riskhub-session-changed', onSession)
+  }, [])
+
+  useEffect(() => {
     setReadMap(loadReadMap())
     void syncInvites()
-  }, [syncInvites])
+  }, [syncInvites, sessionTick])
 
   useEffect(() => {
     const onChange = () => void syncInvites()

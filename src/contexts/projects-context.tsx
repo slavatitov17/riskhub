@@ -165,12 +165,25 @@ async function buildAccessibleSet(
 
 export function ProjectsProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false)
+  const [sessionTick, setSessionTick] = useState(0)
   const [projects, setProjects] = useState<ProjectRecord[]>([])
   const [accessibleProjectIds, setAccessibleProjectIds] = useState(
     () => new Set<string>()
   )
 
+  useEffect(() => {
+    const onSession = () => setSessionTick((t) => t + 1)
+    window.addEventListener('riskhub-session-changed', onSession)
+    return () => window.removeEventListener('riskhub-session-changed', onSession)
+  }, [])
+
   const refresh = useCallback(async () => {
+    const s = getSession()
+    if (!s?.userId) {
+      setProjects([])
+      setAccessibleProjectIds(new Set())
+      return
+    }
     const list = await dbGetAllProjects()
     const sorted = [...list].sort((a, b) =>
       b.createdAt.localeCompare(a.createdAt)
@@ -181,6 +194,14 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let alive = true
+    const s = getSession()
+    if (!s?.userId) {
+      setProjects([])
+      setAccessibleProjectIds(new Set())
+      setReady(true)
+      return
+    }
+    setReady(false)
     ;(async () => {
       try {
         await migrateLegacyRisksToProjects()
@@ -201,7 +222,7 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
     return () => {
       alive = false
     }
-  }, [])
+  }, [sessionTick])
 
   useEffect(() => {
     const onSession = () => {

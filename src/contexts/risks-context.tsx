@@ -87,6 +87,12 @@ export function RisksProvider({ children }: { children: React.ReactNode }) {
   }, [refresh])
 
   useEffect(() => {
+    const onSession = () => refresh()
+    window.addEventListener('riskhub-session-changed', onSession)
+    return () => window.removeEventListener('riskhub-session-changed', onSession)
+  }, [refresh])
+
+  useEffect(() => {
     const handleProjectsReady = () => refresh()
     window.addEventListener('riskhub-projects-ready', handleProjectsReady)
     return () =>

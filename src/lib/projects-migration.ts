@@ -1,11 +1,11 @@
-import { getSession, getUsers } from '@/lib/auth-storage'
+import { getSession } from '@/lib/auth-storage'
 import { normalizeProjectRecord, type ProjectRecord } from '@/lib/project-types'
 import {
   dbEnsureAllProjectCodes,
   dbGetAllProjects,
-  dbPutMember,
   dbPutProject,
-  dbUpgradeProjectShapesIfNeeded
+  dbUpgradeProjectShapesIfNeeded,
+  maybeMigrateLegacySingletonProjectsDb
 } from '@/lib/projects-db'
 import type { RiskRecord } from '@/lib/risk-types'
 import { loadRisks, normalizeRiskRecord, saveRisks } from '@/lib/risks-storage'
@@ -21,6 +21,10 @@ export function stableLegacyProjectId(projectName: string): string {
  * Создаёт записи проектов из имён в рисках и проставляет projectId у рисков.
  */
 export async function migrateLegacyRisksToProjects(): Promise<void> {
+  const session = getSession()
+  if (!session?.userId) return
+
+  await maybeMigrateLegacySingletonProjectsDb()
   await dbUpgradeProjectShapesIfNeeded()
   const existing = await dbGetAllProjects()
   const byName = new Map(existing.map((p) => [p.name, p]))
@@ -30,8 +34,7 @@ export async function migrateLegacyRisksToProjects(): Promise<void> {
       risks.map((r) => r.project).filter((n): n is string => Boolean(n?.trim()))
     )
   )
-  const session = getSession()
-  const ownerFallback = session?.userId ?? 'seed_system'
+  const ownerFallback = session.userId
   const now = new Date().toISOString()
 
   for (const name of names) {
@@ -71,21 +74,6 @@ export async function migrateLegacyRisksToProjects(): Promise<void> {
   })
 
   if (changed) saveRisks(nextRisks)
-
-  const users = getUsers()
-  const legacyProjects = (await dbGetAllProjects()).filter((p) => p.isPublicLegacy)
-  for (const proj of legacyProjects) {
-    for (const u of users) {
-      const memberId = `${proj.id}__${u.id}`
-      await dbPutMember({
-        id: memberId,
-        projectId: proj.id,
-        userId: u.id,
-        email: u.email,
-        joinedAt: now
-      })
-    }
-  }
 
   await dbEnsureAllProjectCodes()
 }

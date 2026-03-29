@@ -1,6 +1,12 @@
 import type { RiskActivityLogEntry, RiskRecord } from '@/lib/risk-types'
+import { getSession } from '@/lib/auth-storage'
 
-const RISKS_KEY = 'riskhub_risks'
+/** Старый общий ключ (до изоляции по пользователям). */
+const LEGACY_RISKS_KEY = 'riskhub_risks'
+
+function risksKeyForUser(userId: string) {
+  return `riskhub_risks__${userId}`
+}
 
 function safeParse<T>(raw: string | null, fallback: T): T {
   if (!raw) return fallback
@@ -106,23 +112,44 @@ export function normalizeRiskRecord(r: RiskRecord): RiskRecord {
   }
 }
 
+function seedDemoRisksIfNeeded(key: string): RiskRecord[] {
+  const legacyRaw = localStorage.getItem(LEGACY_RISKS_KEY)
+  if (legacyRaw) {
+    const parsed = safeParse<RiskRecord[] | null>(legacyRaw, null)
+    if (parsed?.length) {
+      localStorage.setItem(key, legacyRaw)
+      localStorage.removeItem(LEGACY_RISKS_KEY)
+      return parsed.map(normalizeRiskRecord)
+    }
+  }
+  localStorage.setItem(key, JSON.stringify(SEED_RISKS))
+  return SEED_RISKS.map(normalizeRiskRecord)
+}
+
 export function loadRisks(): RiskRecord[] {
-  if (typeof window === 'undefined') return SEED_RISKS.map(normalizeRiskRecord)
-  const raw = localStorage.getItem(RISKS_KEY)
+  if (typeof window === 'undefined') return []
+  const s = getSession()
+  if (!s?.userId) return []
+
+  const key = risksKeyForUser(s.userId)
+  const raw = localStorage.getItem(key)
+
   if (!raw) {
-    localStorage.setItem(RISKS_KEY, JSON.stringify(SEED_RISKS))
-    return SEED_RISKS.map(normalizeRiskRecord)
+    if (s.userId === 'demo_user') return seedDemoRisksIfNeeded(key)
+    return []
   }
+
   const parsed = safeParse<RiskRecord[] | null>(raw, null)
-  if (!parsed?.length) {
-    localStorage.setItem(RISKS_KEY, JSON.stringify(SEED_RISKS))
-    return SEED_RISKS.map(normalizeRiskRecord)
-  }
+  if (!parsed?.length) return []
+
   return parsed.map(normalizeRiskRecord)
 }
 
 export function saveRisks(risks: RiskRecord[]) {
-  localStorage.setItem(RISKS_KEY, JSON.stringify(risks))
+  if (typeof window === 'undefined') return
+  const s = getSession()
+  if (!s?.userId) return
+  localStorage.setItem(risksKeyForUser(s.userId), JSON.stringify(risks))
 }
 
 export function formatDisplayDate(iso: string) {

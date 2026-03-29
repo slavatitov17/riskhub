@@ -32,7 +32,7 @@ export function saveUsers(users: StoredUser[]) {
   localStorage.setItem(USERS_KEY, JSON.stringify(users))
 }
 
-/** Создаёт демо-пользователя без автоматического входа (для кнопки «Заполнить демо»). */
+/** Создаёт демо-пользователя в локальном хранилище без автоматического входа. */
 export function ensureDemoUser() {
   if (typeof window === 'undefined') return
   const users = getUsers()

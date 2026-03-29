@@ -79,12 +79,6 @@ export function AuthPage() {
     router.refresh()
   }
 
-  const handleDemoFill = () => {
-    setLoginEmail('demo@riskhub.local')
-    setLoginPassword('demo123')
-    toast.message('Подставлен демо-аккаунт — нажмите «Войти»')
-  }
-
   const getPasswordStrength = (password: string) => {
     const hasMinLength = password.length >= 6
     const hasLower = /[a-zа-я]/.test(password)
@@ -198,14 +192,6 @@ export function AuthPage() {
                   </div>
                   <Button type="submit" className="w-full">
                     Войти
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    className="w-full"
-                    onClick={handleDemoFill}
-                  >
-                    Использовать демо-аккаунт
                   </Button>
                 </form>
               </TabsContent>

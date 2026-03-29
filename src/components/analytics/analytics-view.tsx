@@ -526,7 +526,7 @@ export function AnalyticsView() {
     risks.length === 0
       ? {
           title: 'Нет данных для графиков',
-          hint: 'Добавьте риски в реестре — здесь появится аналитика'
+          hint: 'Добавьте риски и здесь появится аналитика'
         }
       : {
           title: 'Нет данных по фильтрам',
@@ -895,7 +895,7 @@ export function AnalyticsView() {
 
         <Card className="min-h-[320px] lg:col-span-2">
           <CardHeader>
-            <CardTitle className="text-base">Вероятность рисков (столбчатая)</CardTitle>
+            <CardTitle className="text-base">Вероятность рисков</CardTitle>
           </CardHeader>
           <CardContent className="h-[280px]">
             {filteredRisks.length === 0 ? (

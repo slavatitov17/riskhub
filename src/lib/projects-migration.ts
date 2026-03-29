@@ -6,7 +6,7 @@ import {
   dbPutProject,
   dbUpgradeProjectShapesIfNeeded,
   maybeBootstrapInvitationsFromLegacySingletonIdb,
-  maybeMigrateLegacySingletonProjectsDb
+  reconcileAllProjectStoresIntoShared
 } from '@/lib/projects-db'
 import type { RiskRecord } from '@/lib/risk-types'
 import { loadRisks, normalizeRiskRecord, saveRisks } from '@/lib/risks-storage'
@@ -26,7 +26,7 @@ export async function migrateLegacyRisksToProjects(): Promise<void> {
   if (!session?.userId) return
 
   await maybeBootstrapInvitationsFromLegacySingletonIdb()
-  await maybeMigrateLegacySingletonProjectsDb()
+  await reconcileAllProjectStoresIntoShared()
   await dbUpgradeProjectShapesIfNeeded()
   const existing = await dbGetAllProjects()
   const byName = new Map(existing.map((p) => [p.name, p]))

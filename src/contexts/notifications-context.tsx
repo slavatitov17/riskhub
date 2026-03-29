@@ -11,7 +11,7 @@ import {
 
 import { useProjects } from '@/contexts/projects-context'
 import { getSession } from '@/lib/auth-storage'
-import { dbGetPendingInvitationsForEmail } from '@/lib/projects-db'
+import { dbGetAllInvitations } from '@/lib/projects-db'
 import {
   RISKHUB_NOTIFICATION_PREFS_CHANGED,
   readBuiltInNotificationsEnabled
@@ -125,20 +125,53 @@ function persistReadMap(readMap: Record<string, boolean>) {
   )
 }
 
-async function fetchInviteTemplates(): Promise<Omit<NotificationItem, 'isRead'>[]> {
+function normInviteEmail(email: string) {
+  return email.trim().toLowerCase()
+}
+
+async function fetchInviteNotificationBlocks(): Promise<{
+  pending: Omit<NotificationItem, 'isRead'>[]
+  resolved: Omit<NotificationItem, 'isRead'>[]
+}> {
   const s = getSession()
-  if (!s?.email) return []
-  const pending = await dbGetPendingInvitationsForEmail(s.email)
-  return pending.map((inv) => ({
-    id: `inv_notif_${inv.id}`,
-    kind: 'project_invite' as const,
-    title: 'Приглашение в проект',
-    body: `${inv.inviterName} пригласил вас в проект «${inv.projectName}».`,
-    tone: 'default' as const,
-    actionHref: '/projects',
-    invitationId: inv.id,
-    projectId: inv.projectId
-  }))
+  if (!s?.email) return { pending: [], resolved: [] }
+  const me = normInviteEmail(s.email)
+  const all = await dbGetAllInvitations()
+  const pendingInv = all.filter(
+    (i) => i.status === 'pending' && normInviteEmail(i.inviteeEmail) === me
+  )
+  const resolvedInv = all.filter(
+    (i) =>
+      (i.status === 'accepted' || i.status === 'declined') &&
+      normInviteEmail(i.inviteeEmail) === me
+  )
+  return {
+    pending: pendingInv.map((inv) => ({
+      id: `inv_notif_${inv.id}`,
+      kind: 'project_invite' as const,
+      title: 'Приглашение в проект',
+      body: `${inv.inviterName} пригласил вас в проект «${inv.projectName}».`,
+      tone: 'default' as const,
+      actionHref: '/projects',
+      invitationId: inv.id,
+      projectId: inv.projectId
+    })),
+    resolved: resolvedInv.map((inv) => ({
+      id: `inv_notif_${inv.id}`,
+      kind: 'project_invite' as const,
+      title:
+        inv.status === 'accepted'
+          ? 'Приглашение принято'
+          : 'Приглашение отклонено',
+      body:
+        inv.status === 'accepted'
+          ? `Вы вступили в проект «${inv.projectName}».`
+          : `Вы отклонили приглашение в проект «${inv.projectName}».`,
+      tone: 'default' as const,
+      actionHref: '/projects',
+      projectId: inv.projectId
+    }))
+  }
 }
 
 export function NotificationsProvider({
@@ -151,17 +184,22 @@ export function NotificationsProvider({
     typeof window !== 'undefined' ? readBuiltInNotificationsEnabled() : true
   )
   const [readMap, setReadMap] = useState<Record<string, boolean>>({})
-  const [inviteTemplates, setInviteTemplates] = useState<
+  const [invitePendingTemplates, setInvitePendingTemplates] = useState<
+    Omit<NotificationItem, 'isRead'>[]
+  >([])
+  const [inviteResolvedTemplates, setInviteResolvedTemplates] = useState<
     Omit<NotificationItem, 'isRead'>[]
   >([])
   const [risksTick, setRisksTick] = useState(0)
 
   const syncInvites = useCallback(async () => {
     try {
-      const next = await fetchInviteTemplates()
-      setInviteTemplates(next)
+      const { pending, resolved } = await fetchInviteNotificationBlocks()
+      setInvitePendingTemplates(pending)
+      setInviteResolvedTemplates(resolved)
     } catch {
-      setInviteTemplates([])
+      setInvitePendingTemplates([])
+      setInviteResolvedTemplates([])
     }
   }, [])
 
@@ -212,12 +250,24 @@ export function NotificationsProvider({
       ...n,
       isRead: readMap[n.id] ?? false
     }))
-    const invites: NotificationItem[] = inviteTemplates.map((n) => ({
+    const pendingInv: NotificationItem[] = invitePendingTemplates.map((n) => ({
       ...n,
       isRead: readMap[n.id] ?? false
     }))
-    return [...invites, ...demos]
-  }, [readMap, inviteTemplates, demoTemplates, inAppEnabled])
+    const resolvedInv: NotificationItem[] = inviteResolvedTemplates.map(
+      (n) => ({
+        ...n,
+        isRead: true
+      })
+    )
+    return [...pendingInv, ...resolvedInv, ...demos]
+  }, [
+    readMap,
+    invitePendingTemplates,
+    inviteResolvedTemplates,
+    demoTemplates,
+    inAppEnabled
+  ])
 
   const unreadCount = useMemo(
     () => notifications.reduce((acc, n) => acc + (n.isRead ? 0 : 1), 0),
@@ -230,12 +280,12 @@ export function NotificationsProvider({
   const markAllRead = useCallback(() => {
     setReadMap((prev) => {
       const next = { ...prev }
-      for (const n of inviteTemplates) next[n.id] = true
+      for (const n of invitePendingTemplates) next[n.id] = true
       for (const n of demoTemplates) next[n.id] = true
       persistReadMap(next)
       return next
     })
-  }, [inviteTemplates, demoTemplates])
+  }, [invitePendingTemplates, demoTemplates])
 
   const markRead = useCallback((id: string) => {
     setReadMap((prev) => {

@@ -12,6 +12,9 @@ const DB_VERSION = 1
 /** Старый общий IndexedDB до изоляции по пользователям. */
 const LEGACY_SINGLETON_DB_NAME = 'riskhub_projects'
 
+/** Единая БД проектов и участников для всех аккаунтов в этом браузере (коллаборация). */
+export const SHARED_PROJECTS_DB_NAME = 'riskhub_projects_shared_v2'
+
 const STORES = {
   projects: 'projects',
   members: 'projectMembers',
@@ -69,13 +72,96 @@ export async function maybeBootstrapInvitationsFromLegacySingletonIdb(): Promise
 }
 
 function getProjectsDbName(): string {
-  const uid = getSession()?.userId
-  if (!uid) throw new Error('Требуется сессия для базы проектов')
-  return `riskhub_projects__${uid}`
+  return SHARED_PROJECTS_DB_NAME
 }
 
-function legacyImportDoneKey(userId: string) {
-  return `riskhub_idb_legacy_singleton_import__${userId}`
+function idbGetAllProjectsFromDb(db: IDBDatabase): Promise<ProjectRecord[]> {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORES.projects, 'readonly')
+    const req = tx.objectStore(STORES.projects).getAll()
+    req.onsuccess = () =>
+      resolve(
+        ((req.result as ProjectRecordInput[]) ?? []).map((r) =>
+          normalizeProjectRecord(r)
+        )
+      )
+    req.onerror = () => reject(req.error)
+  })
+}
+
+function idbGetAllMembersFromDb(db: IDBDatabase): Promise<ProjectMemberRecord[]> {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORES.members, 'readonly')
+    const req = tx.objectStore(STORES.members).getAll()
+    req.onsuccess = () =>
+      resolve((req.result as ProjectMemberRecord[]) ?? [])
+    req.onerror = () => reject(req.error)
+  })
+}
+
+let reconcileInFlight: Promise<void> | null = null
+
+/**
+ * Сливает проекты и участников из всех старых IndexedDB (общая, per-user) в общую БД.
+ */
+export async function reconcileAllProjectStoresIntoShared(): Promise<void> {
+  if (typeof window === 'undefined' || typeof indexedDB === 'undefined') return
+  if (reconcileInFlight) return reconcileInFlight
+
+  reconcileInFlight = (async () => {
+    const projects = new Map<string, ProjectRecord>()
+    const members = new Map<string, ProjectMemberRecord>()
+
+    const mergeProject = (p: ProjectRecord) => {
+      const prev = projects.get(p.id)
+      if (!prev || p.updatedAt >= prev.updatedAt) projects.set(p.id, p)
+    }
+
+    async function absorbDbName(dbName: string) {
+      try {
+        const db = await openDatabase(dbName)
+        const prows = await idbGetAllProjectsFromDb(db)
+        const mrows = await idbGetAllMembersFromDb(db)
+        for (const p of prows) mergeProject(p)
+        for (const m of mrows) members.set(m.id, m)
+      } catch {
+        /* база отсутствует */
+      }
+    }
+
+    const names = new Set<string>()
+    names.add(LEGACY_SINGLETON_DB_NAME)
+    names.add(SHARED_PROJECTS_DB_NAME)
+    const s = getSession()
+    if (s?.userId) names.add(`riskhub_projects__${s.userId}`)
+
+    if (typeof indexedDB.databases === 'function') {
+      try {
+        const dbs = await indexedDB.databases()
+        for (const d of dbs) {
+          const n = d.name
+          if (!n) continue
+          if (
+            n === LEGACY_SINGLETON_DB_NAME ||
+            n === SHARED_PROJECTS_DB_NAME ||
+            n.startsWith('riskhub_projects__')
+          )
+            names.add(n)
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+
+    for (const n of Array.from(names)) await absorbDbName(n)
+
+    for (const p of Array.from(projects.values())) await dbPutProject(p)
+    for (const m of Array.from(members.values())) await dbPutMember(m)
+  })().finally(() => {
+    reconcileInFlight = null
+  })
+
+  return reconcileInFlight
 }
 
 function openDatabase(name: string): Promise<IDBDatabase> {
@@ -109,112 +195,6 @@ function txDone(tx: IDBTransaction): Promise<void> {
     tx.onerror = () => reject(tx.error ?? new Error('IndexedDB transaction failed'))
     tx.onabort = () => reject(tx.error ?? new Error('IndexedDB transaction aborted'))
   })
-}
-
-/**
- * Однократно переносит в БД текущего пользователя проекты из старого общего IndexedDB
- * (владелец или участник, без публичных legacy-проектов).
- */
-export async function maybeMigrateLegacySingletonProjectsDb(): Promise<void> {
-  if (typeof window === 'undefined') return
-  const s = getSession()
-  if (!s?.userId) return
-
-  const flag = legacyImportDoneKey(s.userId)
-  if (localStorage.getItem(flag)) return
-
-  const normEmail = s.email.trim().toLowerCase()
-
-  let existingCount = 0
-  try {
-    const db = await openDb()
-    existingCount = await new Promise<number>((resolve, reject) => {
-      const tx = db.transaction(STORES.projects, 'readonly')
-      const req = tx.objectStore(STORES.projects).count()
-      req.onsuccess = () => resolve(req.result)
-      req.onerror = () => reject(req.error)
-    })
-  } catch {
-    return
-  }
-
-  if (existingCount > 0) {
-    localStorage.setItem(flag, '1')
-    return
-  }
-
-  let legacyDb: IDBDatabase
-  try {
-    legacyDb = await openDatabase(LEGACY_SINGLETON_DB_NAME)
-  } catch {
-    localStorage.setItem(flag, '1')
-    return
-  }
-
-  const legacyProjects = await new Promise<ProjectRecordInput[]>((resolve, reject) => {
-    const tx = legacyDb.transaction(STORES.projects, 'readonly')
-    const req = tx.objectStore(STORES.projects).getAll()
-    req.onsuccess = () => resolve((req.result as ProjectRecordInput[]) ?? [])
-    req.onerror = () => reject(req.error)
-  })
-
-  const legacyMembers = await new Promise<ProjectMemberRecord[]>((resolve, reject) => {
-    const tx = legacyDb.transaction(STORES.members, 'readonly')
-    const req = tx.objectStore(STORES.members).getAll()
-    req.onsuccess = () => resolve((req.result as ProjectMemberRecord[]) ?? [])
-    req.onerror = () => reject(req.error)
-  })
-
-  const legacyInv = await new Promise<ProjectInvitationRecord[]>((resolve, reject) => {
-    const tx = legacyDb.transaction(STORES.invitations, 'readonly')
-    const req = tx.objectStore(STORES.invitations).getAll()
-    req.onsuccess = () => resolve((req.result as ProjectInvitationRecord[]) ?? [])
-    req.onerror = () => reject(req.error)
-  })
-
-  const relevantIds = new Set<string>()
-  for (const row of legacyProjects) {
-    const p = normalizeProjectRecord(row)
-    if (p.isPublicLegacy) continue
-    if (p.ownerUserId === s.userId) relevantIds.add(p.id)
-  }
-  for (const m of legacyMembers) {
-    if (m.userId !== s.userId) continue
-    const proj = legacyProjects.find((x) => (x as ProjectRecord).id === m.projectId)
-    if (proj && !normalizeProjectRecord(proj as ProjectRecordInput).isPublicLegacy)
-      relevantIds.add(m.projectId)
-  }
-
-  for (const inv of legacyInv) {
-    if (inv.inviteeEmail.trim().toLowerCase() !== normEmail) continue
-    if (relevantIds.has(inv.projectId)) continue
-    const proj = legacyProjects.find((x) => (x as ProjectRecord).id === inv.projectId)
-    if (proj && !normalizeProjectRecord(proj as ProjectRecordInput).isPublicLegacy)
-      relevantIds.add(inv.projectId)
-  }
-
-  if (relevantIds.size === 0) {
-    localStorage.setItem(flag, '1')
-    return
-  }
-
-  for (const row of legacyProjects) {
-    const p = normalizeProjectRecord(row)
-    if (!relevantIds.has(p.id)) continue
-    await dbPutProject(p)
-  }
-
-  for (const m of legacyMembers) {
-    if (relevantIds.has(m.projectId)) await dbPutMember(m)
-  }
-
-  for (const inv of legacyInv) {
-    if (!relevantIds.has(inv.projectId)) continue
-    if (inv.inviteeEmail.trim().toLowerCase() !== normEmail) continue
-    await dbPutInvitation(inv)
-  }
-
-  localStorage.setItem(flag, '1')
 }
 
 export async function dbUpgradeProjectShapesIfNeeded(): Promise<void> {

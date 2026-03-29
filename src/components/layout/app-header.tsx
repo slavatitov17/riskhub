@@ -23,6 +23,7 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { useLocale } from '@/contexts/locale-context'
+import { getPageCopy } from '@/lib/page-copy'
 import { useNotifications } from '@/contexts/notifications-context'
 import { useProjects } from '@/contexts/projects-context'
 import type { Crumb } from '@/lib/breadcrumbs-i18n'
@@ -37,17 +38,18 @@ export function AppHeader({ crumbs }: AppHeaderProps) {
   const router = useRouter()
   const pathname = usePathname()
   const { locale } = useLocale()
-  const [userName, setUserName] = useState('Пользователь')
+  const copy = getPageCopy(locale)
+  const [userName, setUserName] = useState(() => getPageCopy('ru').header.userFallback)
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
 
   const syncUserFromStorage = useCallback(() => {
     const s = getSession()
-    setUserName(s?.name ?? 'Пользователь')
+    setUserName(s?.name ?? getPageCopy(locale).header.userFallback)
     if (s?.userId) {
-      const p = getProfileForUser(s.userId)
-      setAvatarUrl(p.avatarDataUrl)
+      const profile = getProfileForUser(s.userId)
+      setAvatarUrl(profile.avatarDataUrl)
     } else setAvatarUrl(null)
-  }, [])
+  }, [locale])
 
   useEffect(() => {
     syncUserFromStorage()
@@ -100,7 +102,7 @@ export function AppHeader({ crumbs }: AppHeaderProps) {
             variant="ghost"
             size="icon"
             className="relative"
-            aria-label="Уведомления"
+            aria-label={copy.header.notificationsAria}
             onClick={openNotifications}
           >
             <Bell className="h-5 w-5" />
@@ -115,7 +117,7 @@ export function AppHeader({ crumbs }: AppHeaderProps) {
                 type="button"
                 variant="ghost"
                 className="gap-2 px-2"
-                aria-label="Меню профиля"
+                aria-label={copy.header.profileMenuAria}
               >
                 <Avatar className="h-8 w-8">
                   <AvatarImage src={avatarUrl ?? ''} alt="" />

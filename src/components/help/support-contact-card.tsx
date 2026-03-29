@@ -9,7 +9,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { useLocale } from '@/contexts/locale-context'
 import { getSession } from '@/lib/auth-storage'
+import { getPageCopy } from '@/lib/page-copy'
 
 interface SupportContactCardProps {
   idsPrefix: string
@@ -17,6 +19,8 @@ interface SupportContactCardProps {
 }
 
 export function SupportContactCard({ idsPrefix, cardClassName }: SupportContactCardProps) {
+  const { locale } = useLocale()
+  const p = getPageCopy(locale)
   const [email, setEmail] = useState('')
 
   useEffect(() => {
@@ -26,7 +30,7 @@ export function SupportContactCard({ idsPrefix, cardClassName }: SupportContactC
   return (
     <Card className={cardClassName}>
       <CardHeader>
-        <CardTitle className="text-xl">Обращение в поддержку</CardTitle>
+        <CardTitle className="text-xl">{p.helpContact.title}</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="space-y-2">
@@ -42,30 +46,30 @@ export function SupportContactCard({ idsPrefix, cardClassName }: SupportContactC
         </div>
         <div className="space-y-2">
           <Label htmlFor={`${idsPrefix}-subject`} className="sr-only">
-            Тема обращения
+            {p.helpContact.subjectPlaceholder}
           </Label>
           <Input
             id={`${idsPrefix}-subject`}
-            placeholder="Тема обращения"
+            placeholder={p.helpContact.subjectPlaceholder}
           />
         </div>
         <div className="space-y-2">
           <Label htmlFor={`${idsPrefix}-body`} className="sr-only">
-            Сообщение
+            {p.helpContact.messageLabel}
           </Label>
           <Textarea
             id={`${idsPrefix}-body`}
-            placeholder="Опишите проблему..."
+            placeholder={p.helpContact.messagePlaceholder}
             rows={4}
           />
         </div>
         <Button
           type="button"
           className="gap-2"
-          onClick={() => toast.success('Обращение отправлено (демо)')}
+          onClick={() => toast.success(p.helpContact.sentDemo)}
         >
           <Mail className="h-4 w-4" />
-          Отправить
+          {p.helpContact.send}
         </Button>
       </CardContent>
     </Card>

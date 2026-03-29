@@ -5,78 +5,40 @@ import { motion } from 'framer-motion'
 import { ChevronDown } from 'lucide-react'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-
-const faq = [
-  {
-    q: 'Как создать новый риск?',
-    a: 'После входа откройте раздел «Риски», нажмите «Новый риск», выберите проект, заполните форму и сохраните запись.'
-  },
-  {
-    q: 'Как работает фильтрация?',
-    a: 'Нажмите кнопку «Фильтры», выберите нужные статусы и категории. Выбранные фильтры отображаются рядом.'
-  },
-  {
-    q: 'Есть ли мобильная версия?',
-    a: 'Да, интерфейс адаптирован под телефоны и планшеты. Основное меню открывается через кнопку в шапке.'
-  },
-  {
-    q: 'Почему не приходят письма подтверждения?',
-    a: 'Текущая версия работает в демонстрационном режиме и не отправляет почтовые сообщения.'
-  },
-  {
-    q: 'Как формируется уровень риска?',
-    a: 'Уровень определяется комбинацией вероятности и воздействия, а также текущим статусом контроля.'
-  },
-  {
-    q: 'Что делать при ошибке интерфейса?',
-    a: 'Обновите страницу, проверьте браузер и очистите кэш. Если проблема повторяется, опишите шаги в поддержку.'
-  },
-  {
-    q: 'Где посмотреть уведомления?',
-    a: 'Уведомления доступны по иконке колокольчика в шапке и через блок на главной странице.'
-  },
-  {
-    q: 'Как изменить язык интерфейса?',
-    a: 'Переключение языка доступно в системных настройках внутри основного приложения.'
-  },
-  {
-    q: 'Где найти юридическую информацию?',
-    a: 'Доступны разделы «О системе», «Условия использования» и «Политика конфиденциальности» в приложении и на странице входа.'
-  }
-]
+import { useLocale } from '@/contexts/locale-context'
+import { getPageCopy } from '@/lib/page-copy'
 
 export function SupportHelpSections() {
+  const { locale } = useLocale()
+  const p = getPageCopy(locale)
   const [openId, setOpenId] = useState('0')
+  const faq = p.helpFaq
 
   return (
     <>
       <Card className="border bg-card/95 shadow-lg backdrop-blur">
         <CardHeader>
-          <CardTitle className="text-xl">Как мы можем помочь</CardTitle>
+          <CardTitle className="text-xl">{p.help.helpTitle}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 text-sm text-muted-foreground">
           <section className="rounded-lg border p-4">
             <h2 className="mb-2 text-base font-semibold text-foreground">
-              Поддержка пользователей
+              {p.help.supportUsers}
             </h2>
-            <p>
-              В этом разделе собраны практические рекомендации по входу, работе с рисками,
-              уведомлениями и настройками интерфейса.
-            </p>
+            <p>{p.help.supportIntro}</p>
           </section>
           <section className="rounded-lg border p-4">
-            <h2 className="mb-2 text-base font-semibold text-foreground">Формат помощи</h2>
-            <p>
-              Ниже расположен расширенный FAQ в формате аккордеона: откройте нужный вопрос,
-              чтобы быстро получить ответ.
-            </p>
+            <h2 className="mb-2 text-base font-semibold text-foreground">
+              {p.help.helpFormatTitle}
+            </h2>
+            <p>{p.help.helpFormatBody}</p>
           </section>
         </CardContent>
       </Card>
 
       <Card className="border bg-card/95 shadow-lg backdrop-blur">
         <CardHeader>
-          <CardTitle className="text-xl">Частые вопросы</CardTitle>
+          <CardTitle className="text-xl">{p.help.faqTitle}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           {faq.map((item, i) => (

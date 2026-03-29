@@ -31,11 +31,13 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { useLocale } from '@/contexts/locale-context'
 import { useProjects } from '@/contexts/projects-context'
 import { useRisks } from '@/contexts/risks-context'
 import { useVisibleRisks } from '@/hooks/use-visible-risks'
+import { getPageCopy } from '@/lib/page-copy'
 import type { RiskRecord } from '@/lib/risk-types'
-import { riskDateKey } from '@/lib/risks-storage'
+import { formatLocaleDateTime, riskDateKey } from '@/lib/risks-storage'
 import {
   IMPACTS,
   LEVELS,
@@ -43,7 +45,7 @@ import {
   RISK_STATUSES
 } from '@/lib/risk-types'
 
-const MONTH_LABELS = [
+const MONTH_LABELS_RU = [
   'Янв',
   'Фев',
   'Мар',
@@ -56,7 +58,22 @@ const MONTH_LABELS = [
   'Окт',
   'Ноя',
   'Дек'
-]
+] as const
+
+const MONTH_LABELS_EN = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec'
+] as const
 
 const PIE_COLORS = [
   'hsl(217 91% 60%)',
@@ -77,8 +94,9 @@ function probabilityBarColor(name: string) {
 function AnalyticsTooltip({
   active,
   payload,
-  label
-}: TooltipProps<number, string>) {
+  label,
+  valueSeriesLabel
+}: TooltipProps<number, string> & { valueSeriesLabel: string }) {
   if (!active || !payload?.length) return null
   return (
     <div className="rounded-md border border-border bg-card px-3 py-2 text-sm shadow-md">
@@ -91,7 +109,7 @@ function AnalyticsTooltip({
           const isValueSeries =
             entry.dataKey === 'value' ||
             (typeof rawName === 'string' && rawName.toLowerCase() === 'value')
-          const nameStr = isValueSeries ? 'значений' : String(rawName ?? '')
+          const nameStr = isValueSeries ? valueSeriesLabel : String(rawName ?? '')
           const key = `${String(entry.dataKey ?? '')}-${i}`
           return (
             <p key={key} className="text-foreground">
@@ -166,8 +184,11 @@ function eachDateInInclusiveRange(from: Date, to: Date): Date[] {
 function buildTimelineFromReport(
   periodFrom: string,
   periodTo: string,
-  filteredRisks: RiskRecord[]
-): { month: string; Активные: number; Закрытые: number }[] {
+  filteredRisks: RiskRecord[],
+  activeKey: string,
+  closedKey: string,
+  monthLabels: readonly string[]
+): Record<string, string | number>[] {
   let fromD = parseYmd(periodFrom)
   let toD = parseYmd(periodTo)
   if (!fromD || !toD || fromD > toD) {
@@ -185,8 +206,8 @@ function buildTimelineFromReport(
       return k >= kf && k <= kt
     })
     return {
-      Активные: inRange.filter((r) => r.status !== 'Закрыт').length,
-      Закрытые: inRange.filter((r) => r.status === 'Закрыт').length
+      [activeKey]: inRange.filter((r) => r.status !== 'Закрыт').length,
+      [closedKey]: inRange.filter((r) => r.status === 'Закрыт').length
     }
   }
 
@@ -196,14 +217,14 @@ function buildTimelineFromReport(
       const inDay = filteredRisks.filter((r) => riskDateKey(r.created) === key)
       return {
         month: `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}`,
-        Активные: inDay.filter((r) => r.status !== 'Закрыт').length,
-        Закрытые: inDay.filter((r) => r.status === 'Закрыт').length
+        [activeKey]: inDay.filter((r) => r.status !== 'Закрыт').length,
+        [closedKey]: inDay.filter((r) => r.status === 'Закрыт').length
       }
     })
   }
 
   if (days.length <= 120) {
-    const out: { month: string; Активные: number; Закрытые: number }[] = []
+    const out: Record<string, string | number>[] = []
     for (let i = 0; i < days.length; i += 7) {
       const chunk = days.slice(i, i + 7)
       const kf = isoDate(chunk[0]!)
@@ -216,16 +237,16 @@ function buildTimelineFromReport(
     return out
   }
 
-  const out: { month: string; Активные: number; Закрытые: number }[] = []
+  const out: Record<string, string | number>[] = []
   const cur = new Date(fromD.getFullYear(), fromD.getMonth(), 1)
   const endM = new Date(toD.getFullYear(), toD.getMonth(), 1)
   while (cur <= endM) {
     const ym = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}`
     const inMonth = filteredRisks.filter((r) => r.created.slice(0, 7) === ym)
     out.push({
-      month: MONTH_LABELS[cur.getMonth()] ?? ym,
-      Активные: inMonth.filter((r) => r.status !== 'Закрыт').length,
-      Закрытые: inMonth.filter((r) => r.status === 'Закрыт').length
+      month: monthLabels[cur.getMonth()] ?? ym,
+      [activeKey]: inMonth.filter((r) => r.status !== 'Закрыт').length,
+      [closedKey]: inMonth.filter((r) => r.status === 'Закрыт').length
     })
     cur.setMonth(cur.getMonth() + 1)
   }
@@ -272,16 +293,18 @@ function ReportFilterMultiSelect({
   allLabel,
   options,
   selected,
-  onChange
+  onChange,
+  formatSelected
 }: {
   label: string
   allLabel: string
   options: readonly string[]
   selected: string[]
   onChange: (next: string[]) => void
+  formatSelected: (n: number) => string
 }) {
   const isAll = selected.length === 0
-  const summary = isAll ? allLabel : `Выбрано: ${selected.length}`
+  const summary = isAll ? allLabel : formatSelected(selected.length)
 
   return (
     <div className="space-y-2">
@@ -342,7 +365,10 @@ function ReportFilterSearchableMultiSelect({
   options,
   selected,
   onChange,
-  searchPlaceholder
+  searchPlaceholder,
+  formatSelected,
+  notFoundLabel,
+  searchAriaPrefix
 }: {
   label: string
   allLabel: string
@@ -350,12 +376,15 @@ function ReportFilterSearchableMultiSelect({
   selected: string[]
   onChange: (next: string[]) => void
   searchPlaceholder: string
+  formatSelected: (n: number) => string
+  notFoundLabel: string
+  searchAriaPrefix: string
 }) {
   const searchRef = useRef<HTMLInputElement>(null)
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const isAll = selected.length === 0
-  const summary = isAll ? allLabel : `Выбрано: ${selected.length}`
+  const summary = isAll ? allLabel : formatSelected(selected.length)
   const q = query.trim().toLowerCase()
   const filteredOptions = useMemo(
     () => options.filter((o) => o.toLowerCase().includes(q)),
@@ -402,7 +431,7 @@ function ReportFilterSearchableMultiSelect({
               placeholder={searchPlaceholder}
               className="h-9"
               onKeyDown={(e) => e.stopPropagation()}
-              aria-label={`Поиск: ${label}`}
+              aria-label={`${searchAriaPrefix} ${label}`}
             />
           </div>
           <div className="max-h-52 overflow-y-auto p-1">
@@ -437,7 +466,7 @@ function ReportFilterSearchableMultiSelect({
             ))}
             {filteredOptions.length === 0 ? (
               <p className="px-2 py-3 text-center text-sm text-muted-foreground">
-                Не найдено
+                {notFoundLabel}
               </p>
             ) : null}
           </div>
@@ -447,18 +476,14 @@ function ReportFilterSearchableMultiSelect({
   )
 }
 
-function formatRuDateTime(d: Date) {
-  return d.toLocaleString('ru-RU', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit'
-  })
-}
-
 export function AnalyticsView() {
+  const { locale } = useLocale()
+  const p = getPageCopy(locale)
+  const monthLabels = locale === 'en' ? MONTH_LABELS_EN : MONTH_LABELS_RU
+  const formatSelected = (n: number) =>
+    p.analytics.selectedCount.replace('{n}', String(n))
+  const searchAriaPrefix = locale === 'en' ? 'Search:' : 'Поиск:'
+
   const { refresh } = useRisks()
   const risks = useVisibleRisks()
   const { getProjectDisplayName } = useProjects()
@@ -517,20 +542,30 @@ export function AnalyticsView() {
       buildTimelineFromReport(
         applied.periodFrom,
         applied.periodTo,
-        filteredRisks
+        filteredRisks,
+        p.analytics.timelineActive,
+        p.analytics.timelineClosed,
+        monthLabels
       ),
-    [applied.periodFrom, applied.periodTo, filteredRisks]
+    [
+      applied.periodFrom,
+      applied.periodTo,
+      filteredRisks,
+      p.analytics.timelineActive,
+      p.analytics.timelineClosed,
+      monthLabels
+    ]
   )
 
   const chartEmptyCopy =
     risks.length === 0
       ? {
-          title: 'Нет данных для графиков',
-          hint: 'Добавьте риски и здесь появится аналитика'
+          title: p.analytics.emptyNoRisksTitle,
+          hint: p.analytics.emptyNoRisksHint
         }
       : {
-          title: 'Нет данных по фильтрам',
-          hint: 'Измените период или фильтры отчёта'
+          title: p.analytics.emptyFilteredTitle,
+          hint: p.analytics.emptyFilteredHint
         }
 
   const handleResetFilters = () => {
@@ -551,9 +586,9 @@ export function AnalyticsView() {
     >
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-          <span className="text-sm text-muted-foreground">Последнее обновление: </span>
+          <span className="text-sm text-muted-foreground">{p.lastUpdated} </span>
           <span className="text-sm font-medium text-foreground">
-            {formatRuDateTime(lastUpdated)}
+            {formatLocaleDateTime(lastUpdated.toISOString(), locale)}
           </span>
           <Button
             type="button"
@@ -566,7 +601,7 @@ export function AnalyticsView() {
             }}
           >
             <RefreshCw className="h-4 w-4" />
-            Обновить
+            {p.refresh}
           </Button>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -574,32 +609,32 @@ export function AnalyticsView() {
             type="button"
             variant="outline"
             className="gap-2"
-            onClick={() => toast.success('Выгрузка в Excel (демо)')}
+            onClick={() => toast.success(p.analytics.exportExcelDemo)}
           >
             <Download className="h-4 w-4" />
-            Выгрузить в Excel
+            {p.analytics.exportExcelButton}
           </Button>
           <Button
             type="button"
             variant="outline"
             className="gap-2"
-            onClick={() => toast.success('Выгрузка в PDF (демо)')}
+            onClick={() => toast.success(p.analytics.exportPdfDemo)}
           >
             <Download className="h-4 w-4" />
-            Выгрузить в PDF
+            {p.analytics.exportPdfButton}
           </Button>
         </div>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Фильтры отчёта</CardTitle>
+          <CardTitle className="text-base">{p.analytics.filtersTitle}</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           <div className="space-y-2 md:col-span-2 lg:col-span-3">
             <Label className="flex items-center gap-2">
               <CalendarDays className="h-4 w-4 text-muted-foreground" aria-hidden />
-              Период (дата создания)
+              {p.analytics.periodLabel}
             </Label>
             <div className="grid gap-2 sm:grid-cols-2 sm:max-w-md">
               <Input
@@ -609,72 +644,82 @@ export function AnalyticsView() {
                 onChange={(e) =>
                   setDraft((d) => ({ ...d, periodFrom: e.target.value }))
                 }
-                aria-label="Период с"
+                aria-label={p.analytics.periodFrom}
               />
               <Input
                 type="date"
                 className="calendar-input accent-primary"
                 value={draft.periodTo}
                 onChange={(e) => setDraft((d) => ({ ...d, periodTo: e.target.value }))}
-                aria-label="Период по"
+                aria-label={p.analytics.periodTo}
               />
             </div>
           </div>
 
           <ReportFilterMultiSelect
-            label="Вероятность риска"
-            allLabel="Все"
+            label={p.analytics.riskProbability}
+            allLabel={p.analytics.all}
             options={LEVELS}
             selected={draft.probability}
             onChange={(probability) => setDraft((d) => ({ ...d, probability }))}
+            formatSelected={formatSelected}
           />
 
           <ReportFilterMultiSelect
-            label="Воздействие риска"
-            allLabel="Все"
+            label={p.analytics.riskImpact}
+            allLabel={p.analytics.all}
             options={IMPACTS}
             selected={draft.impact}
             onChange={(impact) => setDraft((d) => ({ ...d, impact }))}
+            formatSelected={formatSelected}
           />
 
           <ReportFilterMultiSelect
-            label="Статус риска"
-            allLabel="Все"
+            label={p.analytics.riskStatus}
+            allLabel={p.analytics.all}
             options={RISK_STATUSES}
             selected={draft.status}
             onChange={(status) => setDraft((d) => ({ ...d, status }))}
+            formatSelected={formatSelected}
           />
 
           <ReportFilterSearchableMultiSelect
-            label="ID"
-            allLabel="Все"
+            label={p.analytics.riskId}
+            allLabel={p.analytics.all}
             options={riskCodes}
             selected={draft.riskId}
             onChange={(riskId) => setDraft((d) => ({ ...d, riskId }))}
-            searchPlaceholder="Поиск по ID…"
+            searchPlaceholder={p.analytics.searchRiskId}
+            formatSelected={formatSelected}
+            notFoundLabel={p.analytics.notFound}
+            searchAriaPrefix={searchAriaPrefix}
           />
 
           <ReportFilterMultiSelect
-            label="Категория риска"
-            allLabel="Все категории"
+            label={p.analytics.riskCategory}
+            allLabel={p.analytics.allCategories}
             options={RISK_CATEGORIES}
             selected={draft.category}
             onChange={(category) => setDraft((d) => ({ ...d, category }))}
+            formatSelected={formatSelected}
           />
 
           <ReportFilterSearchableMultiSelect
-            label="Проект"
-            allLabel="Все проекты"
+            label={p.analytics.project}
+            allLabel={p.analytics.allProjects}
             options={projects}
             selected={draft.project}
             onChange={(project) => setDraft((d) => ({ ...d, project }))}
-            searchPlaceholder="Поиск по проекту…"
+            searchPlaceholder={p.analytics.searchProject}
+            formatSelected={formatSelected}
+            notFoundLabel={p.analytics.notFound}
+            searchAriaPrefix={searchAriaPrefix}
           />
 
           <div className="space-y-2 md:col-span-2 lg:col-span-2">
-            <Label>Ключевые слова</Label>
+            <Label>{p.analytics.keywords}</Label>
             <Input
-              placeholder="Поиск по названию или описанию..."
+              placeholder={p.analytics.keywordsPlaceholder}
               value={draft.keywords}
               onChange={(e) =>
                 setDraft((d) => ({ ...d, keywords: e.target.value }))
@@ -684,10 +729,10 @@ export function AnalyticsView() {
 
           <div className="flex flex-wrap items-end gap-2 md:col-span-2 lg:col-span-3">
             <Button type="button" variant="outline" onClick={handleResetFilters}>
-              Сбросить
+              {p.analytics.reset}
             </Button>
             <Button type="button" onClick={handleApplyFilters}>
-              Применить
+              {p.analytics.apply}
             </Button>
           </div>
         </CardContent>
@@ -696,7 +741,7 @@ export function AnalyticsView() {
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="min-h-[340px]">
           <CardHeader>
-            <CardTitle className="text-base">Количество рисков по категориям</CardTitle>
+            <CardTitle className="text-base">{p.analytics.chartByCategory}</CardTitle>
           </CardHeader>
           <CardContent className="h-[280px]">
             {filteredRisks.length === 0 ? (
@@ -724,7 +769,9 @@ export function AnalyticsView() {
                   <YAxis allowDecimals={false} width={36} tick={{ fontSize: 11 }} />
                   <Tooltip
                     cursor={{ fill: 'hsl(var(--muted) / 0.35)' }}
-                    content={<AnalyticsTooltip />}
+                    content={
+                      <AnalyticsTooltip valueSeriesLabel={p.analytics.tooltipValues} />
+                    }
                   />
                   <Bar
                     dataKey="value"
@@ -738,7 +785,7 @@ export function AnalyticsView() {
                     align="center"
                     height={28}
                     wrapperStyle={{ fontSize: 12, paddingTop: 6 }}
-                    formatter={() => 'Количество рисков'}
+                    formatter={() => p.analytics.chartShareCategory}
                     iconType="square"
                   />
                 </BarChart>
@@ -749,7 +796,7 @@ export function AnalyticsView() {
 
         <Card className="min-h-[340px]">
           <CardHeader>
-            <CardTitle className="text-base">Динамика рисков по времени</CardTitle>
+            <CardTitle className="text-base">{p.analytics.chartTimeline}</CardTitle>
           </CardHeader>
           <CardContent className="h-[280px]">
             {filteredRisks.length === 0 ? (
@@ -766,7 +813,11 @@ export function AnalyticsView() {
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                   <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                   <YAxis allowDecimals={false} width={36} tick={{ fontSize: 11 }} />
-                  <Tooltip content={<AnalyticsTooltip />} />
+                  <Tooltip
+                    content={
+                      <AnalyticsTooltip valueSeriesLabel={p.analytics.tooltipValues} />
+                    }
+                  />
                   <Legend
                     verticalAlign="bottom"
                     align="center"
@@ -776,7 +827,7 @@ export function AnalyticsView() {
                   />
                   <Line
                     type="monotone"
-                    dataKey="Активные"
+                    dataKey={p.analytics.timelineActive}
                     stroke="hsl(217 91% 52%)"
                     strokeWidth={2}
                     dot={{ r: 3, strokeWidth: 1, fill: 'hsl(var(--card))' }}
@@ -785,7 +836,7 @@ export function AnalyticsView() {
                   />
                   <Line
                     type="monotone"
-                    dataKey="Закрытые"
+                    dataKey={p.analytics.timelineClosed}
                     stroke="hsl(142 76% 34%)"
                     strokeWidth={2}
                     dot={{ r: 3, strokeWidth: 1, fill: 'hsl(var(--card))' }}
@@ -800,7 +851,7 @@ export function AnalyticsView() {
 
         <Card className="min-h-[340px]">
           <CardHeader>
-            <CardTitle className="text-base">Доля рисков по категориям</CardTitle>
+            <CardTitle className="text-base">{p.analytics.chartPieCategory}</CardTitle>
           </CardHeader>
           <CardContent className="h-[300px]">
             {filteredRisks.length === 0 ? (
@@ -831,7 +882,11 @@ export function AnalyticsView() {
                       />
                     ))}
                   </Pie>
-                  <Tooltip content={<AnalyticsTooltip />} />
+                  <Tooltip
+                    content={
+                      <AnalyticsTooltip valueSeriesLabel={p.analytics.tooltipValues} />
+                    }
+                  />
                   <Legend
                     verticalAlign="bottom"
                     layout="horizontal"
@@ -847,7 +902,7 @@ export function AnalyticsView() {
 
         <Card className="min-h-[340px]">
           <CardHeader>
-            <CardTitle className="text-base">Распределение по статусам</CardTitle>
+            <CardTitle className="text-base">{p.analytics.chartByStatus}</CardTitle>
           </CardHeader>
           <CardContent className="h-[300px]">
             {filteredRisks.length === 0 ? (
@@ -879,7 +934,11 @@ export function AnalyticsView() {
                       />
                     ))}
                   </Pie>
-                  <Tooltip content={<AnalyticsTooltip />} />
+                  <Tooltip
+                    content={
+                      <AnalyticsTooltip valueSeriesLabel={p.analytics.tooltipValues} />
+                    }
+                  />
                   <Legend
                     verticalAlign="bottom"
                     layout="horizontal"
@@ -895,7 +954,7 @@ export function AnalyticsView() {
 
         <Card className="min-h-[320px] lg:col-span-2">
           <CardHeader>
-            <CardTitle className="text-base">Вероятность рисков</CardTitle>
+            <CardTitle className="text-base">{p.analytics.chartProbability}</CardTitle>
           </CardHeader>
           <CardContent className="h-[280px]">
             {filteredRisks.length === 0 ? (
@@ -924,7 +983,9 @@ export function AnalyticsView() {
                   />
                   <Tooltip
                     cursor={{ fill: 'hsl(var(--muted) / 0.25)' }}
-                    content={<AnalyticsTooltip />}
+                    content={
+                      <AnalyticsTooltip valueSeriesLabel={p.analytics.tooltipValues} />
+                    }
                   />
                   <Bar
                     dataKey="value"

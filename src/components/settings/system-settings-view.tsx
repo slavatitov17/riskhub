@@ -16,6 +16,7 @@ import {
 import { Switch } from '@/components/ui/switch'
 import { useLocale, type AppLocale } from '@/contexts/locale-context'
 import { toast } from '@/lib/app-toast'
+import { getPageCopy } from '@/lib/page-copy'
 import {
   readNotificationPrefs,
   writeNotificationPrefs,
@@ -25,6 +26,7 @@ import {
 export function SystemSettingsView() {
   const { theme, setTheme } = useTheme()
   const { locale, setLocale } = useLocale()
+  const p = getPageCopy(locale)
   const [notifPrefs, setNotifPrefs] = useState<NotificationPrefs>({
     email: false,
     inApp: true
@@ -49,29 +51,33 @@ export function SystemSettingsView() {
     >
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Интерфейс</CardTitle>
+          <CardTitle className="text-base">{p.settingsSystem.interface}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label>Тема</Label>
+            <Label>{p.settingsSystem.theme}</Label>
             <Select
               value={themeValue}
               onValueChange={(v) => {
                 setTheme(v)
-                toast.message(v === 'dark' ? 'Тёмная тема' : 'Светлая тема')
+                toast.message(
+                  v === 'dark'
+                    ? p.settingsSystem.themeToastDark
+                    : p.settingsSystem.themeToastLight
+                )
               }}
             >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="light">Светлая</SelectItem>
-                <SelectItem value="dark">Тёмная</SelectItem>
+                <SelectItem value="light">{p.settingsSystem.themeLight}</SelectItem>
+                <SelectItem value="dark">{p.settingsSystem.themeDark}</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <div className="space-y-2">
-            <Label>Язык</Label>
+            <Label>{p.settingsSystem.language}</Label>
             <Select
               value={locale}
               onValueChange={(v) => {
@@ -93,31 +99,31 @@ export function SystemSettingsView() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Другое</CardTitle>
+          <CardTitle className="text-base">{p.settingsSystem.other}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <p className="text-sm font-medium">Уведомления</p>
+          <p className="text-sm font-medium">{p.settingsSystem.notificationsHeading}</p>
           <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between gap-4 text-sm">
               <span className="text-foreground">
-                Получать уведомления на Email
+                {p.settingsSystem.emailNotif}
               </span>
               <Switch
                 checked={notifPrefs.email}
                 onCheckedChange={(v) =>
                   persistNotif({ ...notifPrefs, email: v })
                 }
-                aria-label="Получать уведомления на Email"
+                aria-label={p.settingsSystem.emailNotifAria}
               />
             </div>
             <div className="flex items-center justify-between gap-4 text-sm">
-              <span className="text-foreground">Встроенные уведомления</span>
+              <span className="text-foreground">{p.settingsSystem.inAppNotif}</span>
               <Switch
                 checked={notifPrefs.inApp}
                 onCheckedChange={(v) =>
                   persistNotif({ ...notifPrefs, inApp: v })
                 }
-                aria-label="Встроенные уведомления"
+                aria-label={p.settingsSystem.inAppNotifAria}
               />
             </div>
           </div>

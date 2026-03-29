@@ -1,5 +1,7 @@
 export interface RiskCommentAttachment {
   name: string
+  /** data:…;base64,… for download in browser */
+  dataUrl?: string
 }
 
 export interface RiskComment {
@@ -9,7 +11,9 @@ export interface RiskComment {
   /** Data URL of avatar at post time; optional for legacy comments */
   authorAvatarUrl?: string | null
   text: string
+  /** @deprecated prefer attachments */
   attachment?: RiskCommentAttachment
+  attachments?: RiskCommentAttachment[]
 }
 
 export interface RiskResponseMeasure {

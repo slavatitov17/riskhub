@@ -21,6 +21,7 @@ interface AppSidebarProps {
 
 export function AppSidebar({ pathname, onNavigate }: AppSidebarProps) {
   const { t } = useLocale()
+  const navAria = t('mainNavAria')
 
   const navItems = [
     { href: '/panel', label: t('navPanel'), icon: Home },
@@ -41,7 +42,7 @@ export function AppSidebar({ pathname, onNavigate }: AppSidebarProps) {
 
       <nav
         className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto p-3"
-        aria-label="Основная навигация"
+        aria-label={navAria}
       >
         {navItems.map(({ href, label, icon: Icon }) => {
           const isActive =

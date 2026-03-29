@@ -17,7 +17,7 @@ interface DashboardShellProps {
 
 export function DashboardShell({ children }: DashboardShellProps) {
   const pathname = usePathname() ?? '/panel'
-  const { locale } = useLocale()
+  const { locale, t } = useLocale()
   const [mobileOpen, setMobileOpen] = useState(false)
 
   const crumbs = getBreadcrumbs(pathname, locale)
@@ -49,7 +49,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
             type="button"
             variant="outline"
             size="icon"
-            aria-label="Открыть меню"
+            aria-label={t('openMenu')}
             onClick={() => setMobileOpen(true)}
           >
             <Menu className="h-5 w-5" />

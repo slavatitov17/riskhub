@@ -53,6 +53,7 @@ import {
   TableHeader,
   TableRow
 } from '@/components/ui/table'
+import { useLocale } from '@/contexts/locale-context'
 import { useProjects } from '@/contexts/projects-context'
 import { useRisks } from '@/contexts/risks-context'
 import { getSession, getUsers, type StoredUser } from '@/lib/auth-storage'
@@ -63,8 +64,10 @@ import {
   riskTableChipBase,
   statusBadgeClass
 } from '@/lib/risk-badge-styles'
+import { translateActivityLogMessage } from '@/lib/activity-log-i18n'
+import { getPageCopy, type PageCopy } from '@/lib/page-copy'
 import type { RiskRecord } from '@/lib/risk-types'
-import { formatDisplayDate, formatRuDateTime } from '@/lib/risks-storage'
+import { formatDisplayDate, formatLocaleDateTime } from '@/lib/risks-storage'
 import { cn } from '@/lib/utils'
 
 const listUiTextClass = 'text-sm font-normal'
@@ -99,6 +102,8 @@ interface ProjectDetailViewProps {
 
 export function ProjectDetailView({ project }: ProjectDetailViewProps) {
   const router = useRouter()
+  const { locale } = useLocale()
+  const p = getPageCopy(locale)
   const { risks } = useRisks()
   const {
     inviteToProject,
@@ -146,8 +151,11 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
         return
       }
       if (res.sent === 0)
-        toast.message('Нет корректных адресов для приглашения')
-      else toast.success(`Отправлено приглашений: ${res.sent}`)
+        toast.message(p.projectDetail.noValidEmails)
+      else
+        toast.success(
+          p.projectDetail.invitesSent.replace('{n}', String(res.sent))
+        )
       setInviteOpen(false)
       setInviteRows([''])
       void loadMembers()
@@ -160,9 +168,9 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
   if (!accessibleProjectIds.has(project.id)) {
     return (
       <div className="mx-auto max-w-lg space-y-4 text-center">
-        <h1 className="text-xl font-semibold">Нет доступа</h1>
+        <h1 className="text-xl font-semibold">{p.projectDetail.noAccess}</h1>
         <Button asChild>
-          <Link href="/projects">К проектам</Link>
+          <Link href="/projects">{p.projectDetail.toProjects}</Link>
         </Button>
       </div>
     )
@@ -178,7 +186,7 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
         <Button variant="ghost" size="sm" className="gap-2" asChild>
           <Link href="/projects">
             <ArrowLeft className="h-4 w-4" />
-            Назад
+            {p.projectDetail.back}
           </Link>
         </Button>
         <div className="ml-auto flex flex-wrap gap-2">
@@ -186,13 +194,13 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
             <Button variant="outline" className="gap-2" asChild>
               <Link href={`/projects/${project.id}/edit`}>
                 <Pencil className="h-4 w-4" />
-                Редактировать
+                {p.projectDetail.edit}
               </Link>
             </Button>
           ) : null}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button size="icon" variant="outline" aria-label="Ещё">
+              <Button size="icon" variant="outline" aria-label={p.projectDetail.more}>
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -204,10 +212,10 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
                       ? project.code
                       : project.id
                   navigator.clipboard?.writeText(id)
-                  toast.success('ID скопирован')
+                  toast.success(p.projectDetail.idCopied)
                 }}
               >
-                Копировать ID
+                {p.projectDetail.copyId}
               </DropdownMenuItem>
               {canEdit ? (
                 <DropdownMenuItem
@@ -215,7 +223,7 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
                   onClick={() => setDeleteOpen(true)}
                 >
                   <Trash2 className="mr-2 h-4 w-4" />
-                  Удалить
+                  {p.projectDetail.delete}
                 </DropdownMenuItem>
               ) : null}
             </DropdownMenuContent>
@@ -246,14 +254,14 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
               <CardTitle className="text-2xl">{project.name}</CardTitle>
               {project.isPublicLegacy ? (
                 <div className="flex flex-wrap gap-2">
-                  <Badge variant="secondary">Демо</Badge>
+                  <Badge variant="secondary">{p.projectDetail.demo}</Badge>
                 </div>
               ) : null}
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
                 <p className="mb-2 text-sm font-medium text-foreground">
-                  Описание проекта
+                  {p.projectDetail.description}
                 </p>
                 <p className="text-sm leading-relaxed text-muted-foreground">
                   {project.description?.trim() || '—'}
@@ -262,11 +270,21 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
               <Separator />
               <div className="flex flex-wrap gap-2">
                 {metaOutlineTag(
-                  <>Владелец: {ownerDisplayName(project.ownerUserId)}</>
+                  <>
+                    {p.projectDetail.owner}: {ownerDisplayName(project.ownerUserId)}
+                  </>
                 )}
-                {metaOutlineTag(<>Создан {formatDisplayDate(project.createdAt)}</>)}
                 {metaOutlineTag(
-                  <>Обновлён {formatDisplayDate(project.updatedAt)}</>
+                  <>
+                    {p.projectDetail.created}{' '}
+                    {formatDisplayDate(project.createdAt, locale)}
+                  </>
+                )}
+                {metaOutlineTag(
+                  <>
+                    {p.projectDetail.updated}{' '}
+                    {formatDisplayDate(project.updatedAt, locale)}
+                  </>
                 )}
               </div>
             </CardContent>
@@ -274,11 +292,11 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0">
-              <CardTitle className="text-base">Риски по проекту</CardTitle>
+              <CardTitle className="text-base">{p.projectDetail.risksTitle}</CardTitle>
               <Button variant="link" className="h-auto gap-1 p-0" asChild>
                 <Link href={`/risks/new?projectId=${encodeURIComponent(project.id)}`}>
                   <Plus className="h-4 w-4" />
-                  Добавить
+                  {p.projectDetail.add}
                 </Link>
               </Button>
             </CardHeader>
@@ -287,14 +305,16 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="whitespace-nowrap">ID</TableHead>
-                      <TableHead>Название</TableHead>
+                      <TableHead className="whitespace-nowrap">{p.registry.colId}</TableHead>
+                      <TableHead>{p.projectDetail.riskName}</TableHead>
                       <TableHead className="whitespace-nowrap">
-                        Категория
+                        {p.projectDetail.riskCategory}
                       </TableHead>
-                      <TableHead className="whitespace-nowrap">Статус</TableHead>
+                      <TableHead className="whitespace-nowrap">
+                        {p.projectDetail.riskStatus}
+                      </TableHead>
                       <TableHead className="w-12">
-                        <span className="sr-only">Действия</span>
+                        <span className="sr-only">{p.registry.actionsSr}</span>
                       </TableHead>
                     </TableRow>
                   </TableHeader>
@@ -305,12 +325,12 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
                           colSpan={5}
                           className="text-muted-foreground"
                         >
-                          В этом проекте пока нет рисков.
+                          {p.projectDetail.noRisks}
                         </TableCell>
                       </TableRow>
                     ) : (
                       projectRisks.map((r) => (
-                        <ProjectRiskRow key={r.id} risk={r} router={router} />
+                        <ProjectRiskRow key={r.id} risk={r} router={router} page={p} />
                       ))
                     )}
                   </TableBody>
@@ -321,7 +341,7 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0">
-              <CardTitle className="text-base">Участники</CardTitle>
+              <CardTitle className="text-base">{p.projectDetail.members}</CardTitle>
               {!project.isPublicLegacy ? (
                 <Button
                   type="button"
@@ -330,7 +350,7 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
                   onClick={() => setInviteOpen(true)}
                 >
                   <Plus className="h-4 w-4" />
-                  Пригласить
+                  {p.projectDetail.invite}
                 </Button>
               ) : null}
             </CardHeader>
@@ -339,10 +359,10 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Имя</TableHead>
+                      <TableHead>{p.projectDetail.name}</TableHead>
                       <TableHead>Email</TableHead>
                       <TableHead className="w-12">
-                        <span className="sr-only">Действия</span>
+                        <span className="sr-only">{p.registry.actionsSr}</span>
                       </TableHead>
                     </TableRow>
                   </TableHeader>
@@ -353,7 +373,7 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
                           colSpan={3}
                           className="text-muted-foreground"
                         >
-                          Нет участников
+                          {p.projectDetail.noMembers}
                         </TableCell>
                       </TableRow>
                     ) : (
@@ -384,8 +404,8 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
                               type="button"
                               size="icon"
                               variant="ghost"
-                              title="Показать"
-                              aria-label="Показать"
+                              title={p.registry.show}
+                              aria-label={p.registry.show}
                               onClick={() => setProfileMember(m)}
                             >
                               <Eye className="h-4 w-4" />
@@ -404,14 +424,16 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
         <div className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Лента изменений</CardTitle>
+              <CardTitle className="text-base">{p.projectDetail.activity}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               {activityLog.map((e) => (
                 <div key={e.id} className="space-y-1 text-sm">
-                  <p className="text-foreground">• {e.message}</p>
+                  <p className="text-foreground">
+                    • {translateActivityLogMessage(e.message, locale)}
+                  </p>
                   <p className="text-left text-xs tabular-nums text-muted-foreground">
-                    {formatRuDateTime(e.at)}
+                    {formatLocaleDateTime(e.at, locale)}
                   </p>
                 </div>
               ))}
@@ -422,6 +444,7 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
 
       <MemberProfileDialog
         member={profileMember}
+        page={p}
         onOpenChange={(open) => {
           if (!open) setProfileMember(null)
         }}
@@ -430,11 +453,11 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
       <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Пригласить в проект</DialogTitle>
+            <DialogTitle>{p.projectDetail.inviteTitle}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-2">
             <div className="space-y-2">
-              <Label htmlFor="invite-0">Email для приглашения</Label>
+              <Label htmlFor="invite-0">{p.projectDetail.inviteEmail}</Label>
               <Input
                 id="invite-0"
                 type="email"
@@ -464,7 +487,7 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
                 }
                 placeholder="colleague@example.com"
                 autoComplete="email"
-                aria-label={`Email приглашения ${idx + 2}`}
+                aria-label={`${p.projectDetail.inviteEmail} ${idx + 2}`}
               />
             ))}
             <Button
@@ -475,10 +498,10 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
               onClick={handleAddInviteRow}
             >
               <Plus className="h-4 w-4" />
-              Указать еще
+              {p.projectDetail.addAnotherEmail}
             </Button>
             <p className="text-sm text-muted-foreground">
-              Пользователь увидит приглашение после входа в систему RiskHub.
+              {p.projectDetail.inviteHint}
             </p>
           </div>
           <DialogFooter className="gap-2 sm:gap-0">
@@ -487,7 +510,7 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
               variant="outline"
               onClick={() => setInviteOpen(false)}
             >
-              Отмена
+              {p.projectDetail.cancel}
             </Button>
             <Button
               type="button"
@@ -496,7 +519,7 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
               onClick={() => void handleSendInvites()}
             >
               <Send className="h-4 w-4" />
-              Отправить приглашение
+              {p.projectDetail.sendInvite}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -505,14 +528,13 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Удалить проект?</AlertDialogTitle>
+            <AlertDialogTitle>{p.projectDetail.deleteProjectTitle}</AlertDialogTitle>
             <AlertDialogDescription>
-              Проект, участники и приглашения будут удалены из локального
-              хранилища. Риски, привязанные к проекту, останутся в реестре.
+              {p.projectDetail.deleteProjectDescription}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Отмена</AlertDialogCancel>
+            <AlertDialogCancel>{p.projectDetail.cancel}</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={async () => {
@@ -521,11 +543,11 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
                   toast.error(res.error)
                   return
                 }
-                toast.success('Проект удалён')
+                toast.success(p.projectDetail.projectDeleted)
                 router.push('/projects')
               }}
             >
-              Удалить
+              {p.projectDetail.delete}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -536,10 +558,12 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
 
 function ProjectRiskRow({
   risk,
-  router
+  router,
+  page
 }: {
   risk: RiskRecord
   router: ReturnType<typeof useRouter>
+  page: PageCopy
 }) {
   const go = () => router.push(`/risks/${risk.id}`)
   return (
@@ -574,8 +598,8 @@ function ProjectRiskRow({
           type="button"
           size="icon"
           variant="ghost"
-          title="Показать"
-          aria-label="Показать"
+          title={page.registry.show}
+          aria-label={page.registry.show}
           onClick={go}
         >
           <Eye className="h-4 w-4" />
@@ -587,9 +611,11 @@ function ProjectRiskRow({
 
 function MemberProfileDialog({
   member,
+  page,
   onOpenChange
 }: {
   member: ProjectMemberRecord | null
+  page: PageCopy
   onOpenChange: (open: boolean) => void
 }) {
   const open = member !== null
@@ -618,7 +644,7 @@ function MemberProfileDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Участник</DialogTitle>
+          <DialogTitle>{page.projectDetail.memberDialog}</DialogTitle>
         </DialogHeader>
         {member && profile ? (
           <div className="space-y-4 py-2">
@@ -636,37 +662,37 @@ function MemberProfileDialog({
             <div className="grid gap-3 text-sm">
               <div>
                 <p className="text-xs font-medium text-muted-foreground">
-                  Имя
+                  {page.settingsProfile.firstName}
                 </p>
                 <p className="mt-0.5">{firstName || '—'}</p>
               </div>
               <div>
                 <p className="text-xs font-medium text-muted-foreground">
-                  Фамилия
+                  {page.settingsProfile.lastName}
                 </p>
                 <p className="mt-0.5">{lastName || '—'}</p>
               </div>
               <div>
                 <p className="text-xs font-medium text-muted-foreground">
-                  Место работы
+                  {page.projectDetail.workplace}
                 </p>
                 <p className="mt-0.5">{profile.workplace?.trim() || '—'}</p>
               </div>
               <div>
                 <p className="text-xs font-medium text-muted-foreground">
-                  Отдел
+                  {page.projectDetail.department}
                 </p>
                 <p className="mt-0.5">{profile.department?.trim() || '—'}</p>
               </div>
               <div>
                 <p className="text-xs font-medium text-muted-foreground">
-                  Должность
+                  {page.projectDetail.position}
                 </p>
                 <p className="mt-0.5">{profile.position?.trim() || '—'}</p>
               </div>
               <div>
                 <p className="text-xs font-medium text-muted-foreground">
-                  О себе
+                  {page.projectDetail.about}
                 </p>
                 <p className="mt-0.5 whitespace-pre-wrap">
                   {profile.about?.trim() || '—'}

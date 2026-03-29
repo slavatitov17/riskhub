@@ -10,12 +10,16 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ProjectsRegistryTable } from '@/components/projects/projects-registry-table'
 import { RisksRegistryTable } from '@/components/risks/risks-registry-table'
+import { useLocale } from '@/contexts/locale-context'
 import { useNotifications } from '@/contexts/notifications-context'
 import { useVisibleRisks } from '@/hooks/use-visible-risks'
+import { getPageCopy } from '@/lib/page-copy'
 import { formatDisplayDate } from '@/lib/risks-storage'
 
 export function PanelDashboard() {
   const router = useRouter()
+  const { locale } = useLocale()
+  const p = getPageCopy(locale)
   const risks = useVisibleRisks()
   const { openNotifications, notifications } = useNotifications()
 
@@ -45,10 +49,12 @@ export function PanelDashboard() {
               <div className="mt-auto flex items-end justify-between gap-3">
                 <div className="min-w-0 text-left">
                   <p className="text-4xl font-bold leading-none">{activeCount}</p>
-                  <p className="mt-2 text-sm text-muted-foreground">Активных рисков</p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    {p.panel.activeRisks}
+                  </p>
                 </div>
                 <Button variant="outline" size="icon" className="mt-3 h-8 w-8" asChild>
-                  <Link href="/risks" aria-label="Открыть список рисков">
+                  <Link href="/risks" aria-label={p.openRiskList}>
                     <ArrowRight className="h-4 w-4" />
                   </Link>
                 </Button>
@@ -63,10 +69,12 @@ export function PanelDashboard() {
               <div className="mt-auto flex items-end justify-between gap-3">
                 <div className="min-w-0 text-left">
                   <p className="text-4xl font-bold leading-none">{closedCount}</p>
-                  <p className="mt-2 text-sm text-muted-foreground">Закрытых рисков</p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    {p.panel.closedRisks}
+                  </p>
                 </div>
                 <Button variant="outline" size="icon" className="mt-3 h-8 w-8" asChild>
-                  <Link href="/risks" aria-label="Открыть список рисков">
+                  <Link href="/risks" aria-label={p.openRiskList}>
                     <ArrowRight className="h-4 w-4" />
                   </Link>
                 </Button>
@@ -81,10 +89,12 @@ export function PanelDashboard() {
               <div className="mt-auto flex items-end justify-between gap-3">
                 <div className="min-w-0 text-left">
                   <p className="text-4xl font-bold leading-none">{criticalCount}</p>
-                  <p className="mt-2 text-sm text-muted-foreground">Критических рисков</p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    {p.panel.criticalRisks}
+                  </p>
                 </div>
                 <Button variant="outline" size="icon" className="mt-3 h-8 w-8" asChild>
-                  <Link href="/risks" aria-label="Открыть список рисков">
+                  <Link href="/risks" aria-label={p.openRiskList}>
                     <ArrowRight className="h-4 w-4" />
                   </Link>
                 </Button>
@@ -95,7 +105,7 @@ export function PanelDashboard() {
 
         <Card className="shadow-sm flex h-full min-h-[220px] flex-col lg:sticky lg:top-4">
           <CardHeader className="shrink-0 pb-2 pt-4">
-            <CardTitle className="text-base">Быстрые действия</CardTitle>
+            <CardTitle className="text-base">{p.panel.quickActions}</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-1 flex-col pb-4 pt-0">
             <div className="min-h-4 flex-1" aria-hidden />
@@ -103,13 +113,13 @@ export function PanelDashboard() {
               <Button className="w-full justify-center gap-2" asChild>
                 <Link href="/risks/new" className="gap-2">
                   <Plus className="h-4 w-4 shrink-0" aria-hidden />
-                  Добавить риск
+                  {p.panel.addRisk}
                 </Link>
               </Button>
               <Button variant="outline" className="w-full justify-center gap-2" asChild>
                 <Link href="/projects/new" className="gap-2">
                   <Plus className="h-4 w-4 shrink-0" aria-hidden />
-                  Добавить проект
+                  {p.panel.addProject}
                 </Link>
               </Button>
             </div>
@@ -121,11 +131,11 @@ export function PanelDashboard() {
         <Card className="shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
             <CardTitle className="text-base font-semibold">
-              Последние добавленные риски
+              {p.panel.recentRisks}
             </CardTitle>
             <Button variant="outline" size="sm" className="gap-1.5" asChild>
               <Link href="/risks">
-                Все риски
+                {p.panel.allRisks}
                 <ArrowRight className="h-4 w-4" />
               </Link>
             </Button>
@@ -143,7 +153,7 @@ export function PanelDashboard() {
                       <div className="min-w-0">
                         <p className="font-medium leading-tight">{risk.name}</p>
                         <p className="text-sm text-muted-foreground">
-                          {risk.category} · {formatDisplayDate(risk.created)}
+                          {risk.category} · {formatDisplayDate(risk.created, locale)}
                         </p>
                       </div>
                       <Badge variant="outline" className="shrink-0">
@@ -156,10 +166,10 @@ export function PanelDashboard() {
             ) : (
               <div className="flex min-h-[180px] flex-col items-center justify-center gap-2 px-4 py-8 text-center opacity-60">
                 <p className="text-sm font-semibold text-foreground">
-                  Нет новых рисков
+                  {p.panel.noNewRisks}
                 </p>
                 <p className="max-w-xs text-sm text-foreground">
-                  Здесь появятся новые риски
+                  {p.panel.newRisksHint}
                 </p>
               </div>
             )}
@@ -168,7 +178,9 @@ export function PanelDashboard() {
 
         <Card className="shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-            <CardTitle className="text-base font-semibold">Уведомления</CardTitle>
+            <CardTitle className="text-base font-semibold">
+              {p.panel.notifications}
+            </CardTitle>
             <Button
               variant="outline"
               size="sm"
@@ -176,7 +188,7 @@ export function PanelDashboard() {
               type="button"
               onClick={openNotifications}
             >
-              Все уведомления
+              {p.panel.allNotifications}
               <ArrowRight className="h-4 w-4" />
             </Button>
           </CardHeader>
@@ -201,10 +213,10 @@ export function PanelDashboard() {
             ) : (
               <div className="flex min-h-[180px] flex-col items-center justify-center gap-2 px-4 py-8 text-center opacity-60">
                 <p className="text-sm font-semibold text-foreground">
-                  Нет новых уведомлений
+                  {p.panel.noNewNotifications}
                 </p>
                 <p className="max-w-xs text-sm text-foreground">
-                  Здесь появятся непрочитанные уведомления
+                  {p.panel.unreadHint}
                 </p>
               </div>
             )}

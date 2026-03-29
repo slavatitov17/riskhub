@@ -9,6 +9,7 @@ import {
   useState
 } from 'react'
 
+import { useLocale } from '@/contexts/locale-context'
 import { useProjects } from '@/contexts/projects-context'
 import { getSession } from '@/lib/auth-storage'
 import { dbGetAllInvitations } from '@/lib/projects-db'
@@ -59,7 +60,8 @@ function notifReadStorageKey(): string {
 
 function buildDemoRiskNotifications(
   risks: RiskRecord[],
-  accessibleProjectIds: ReadonlySet<string>
+  accessibleProjectIds: ReadonlySet<string>,
+  locale: 'ru' | 'en'
 ): Omit<NotificationItem, 'isRead'>[] {
   const scoped = risks.filter(
     (r) => r.projectId && accessibleProjectIds.has(r.projectId)
@@ -68,33 +70,85 @@ function buildDemoRiskNotifications(
   const sorted = [...scoped].sort(
     (a, b) => Date.parse(b.created) - Date.parse(a.created)
   )
-  const pick = sorted.slice(0, 3)
-  const templates: Array<{
-    title: string
-    body: (r: RiskRecord) => string
-  }> = [
-    {
-      title: 'Просрочена мера',
-      body: (r) =>
-        `Риск ${r.code} «${r.name}» — обновите документацию до конца недели.`
-    },
-    {
-      title: 'Напоминание',
-      body: (r) =>
-        `По риску ${r.code} «${r.name}» запланирована проверка через 2 дня.`
-    },
-    {
-      title: 'Комментарий',
-      body: (r) => `Новый комментарий к риску ${r.code} «${r.name}».`
+  const pick = sorted.slice(0, 8)
+  const title = locale === 'en' ? 'Risk created' : 'Создан риск'
+  return pick.map((r) => {
+    const pid = r.projectId ?? '—'
+    const body =
+      locale === 'en'
+        ? `User ${r.author} created risk ${r.code} in project ${pid}.`
+        : `Пользователь ${r.author} создал риск ${r.code} в проекте ${pid}.`
+    return {
+      id: `demo_risk_${r.id}`,
+      kind: 'demo' as const,
+      title,
+      body,
+      tone: 'default' as const,
+      actionHref: `/risks/${r.id}`
     }
-  ]
-  return pick.map((r, i) => ({
-    id: `demo_risk_${r.id}`,
-    kind: 'demo' as const,
-    title: templates[i]!.title,
-    body: templates[i]!.body(r),
+  })
+}
+
+interface InvitePendingRaw {
+  id: string
+  invitationId: string
+  projectId: string
+  inviterName: string
+  projectName: string
+}
+
+interface InviteResolvedRaw {
+  id: string
+  projectId: string
+  projectName: string
+  status: 'accepted' | 'declined'
+}
+
+function mapInvitePendingToItems(
+  raw: InvitePendingRaw[],
+  locale: 'ru' | 'en'
+): Omit<NotificationItem, 'isRead'>[] {
+  return raw.map((inv) => ({
+    id: inv.id,
+    kind: 'project_invite' as const,
+    title: locale === 'en' ? 'Project invitation' : 'Приглашение в проект',
+    body:
+      locale === 'en'
+        ? `${inv.inviterName} invited you to the project «${inv.projectName}».`
+        : `${inv.inviterName} пригласил вас в проект «${inv.projectName}».`,
     tone: 'default' as const,
-    actionHref: `/risks/${r.id}`
+    actionHref: '/projects',
+    invitationId: inv.invitationId,
+    projectId: inv.projectId
+  }))
+}
+
+function mapInviteResolvedToItems(
+  raw: InviteResolvedRaw[],
+  locale: 'ru' | 'en'
+): Omit<NotificationItem, 'isRead'>[] {
+  return raw.map((inv) => ({
+    id: inv.id,
+    kind: 'project_invite' as const,
+    title:
+      inv.status === 'accepted'
+        ? locale === 'en'
+          ? 'Invitation accepted'
+          : 'Приглашение принято'
+        : locale === 'en'
+          ? 'Invitation declined'
+          : 'Приглашение отклонено',
+    body:
+      inv.status === 'accepted'
+        ? locale === 'en'
+          ? `You joined the project «${inv.projectName}».`
+          : `Вы вступили в проект «${inv.projectName}».`
+        : locale === 'en'
+          ? `You declined the invitation to «${inv.projectName}».`
+          : `Вы отклонили приглашение в проект «${inv.projectName}».`,
+    tone: 'default' as const,
+    actionHref: '/projects',
+    projectId: inv.projectId
   }))
 }
 
@@ -129,9 +183,9 @@ function normInviteEmail(email: string) {
   return email.trim().toLowerCase()
 }
 
-async function fetchInviteNotificationBlocks(): Promise<{
-  pending: Omit<NotificationItem, 'isRead'>[]
-  resolved: Omit<NotificationItem, 'isRead'>[]
+async function fetchInviteRaws(): Promise<{
+  pending: InvitePendingRaw[]
+  resolved: InviteResolvedRaw[]
 }> {
   const s = getSession()
   if (!s?.email) return { pending: [], resolved: [] }
@@ -148,28 +202,16 @@ async function fetchInviteNotificationBlocks(): Promise<{
   return {
     pending: pendingInv.map((inv) => ({
       id: `inv_notif_${inv.id}`,
-      kind: 'project_invite' as const,
-      title: 'Приглашение в проект',
-      body: `${inv.inviterName} пригласил вас в проект «${inv.projectName}».`,
-      tone: 'default' as const,
-      actionHref: '/projects',
       invitationId: inv.id,
-      projectId: inv.projectId
+      projectId: inv.projectId,
+      inviterName: inv.inviterName,
+      projectName: inv.projectName
     })),
     resolved: resolvedInv.map((inv) => ({
       id: `inv_notif_${inv.id}`,
-      kind: 'project_invite' as const,
-      title:
-        inv.status === 'accepted'
-          ? 'Приглашение принято'
-          : 'Приглашение отклонено',
-      body:
-        inv.status === 'accepted'
-          ? `Вы вступили в проект «${inv.projectName}».`
-          : `Вы отклонили приглашение в проект «${inv.projectName}».`,
-      tone: 'default' as const,
-      actionHref: '/projects',
-      projectId: inv.projectId
+      projectId: inv.projectId,
+      projectName: inv.projectName,
+      status: inv.status as 'accepted' | 'declined'
     }))
   }
 }
@@ -177,6 +219,7 @@ async function fetchInviteNotificationBlocks(): Promise<{
 export function NotificationsProvider({
   children
 }: Readonly<{ children: React.ReactNode }>) {
+  const { locale } = useLocale()
   const { accessibleProjectIds, ready: projectsReady } = useProjects()
   const [notifOpen, setNotifOpen] = useState(false)
   const [sessionTick, setSessionTick] = useState(0)
@@ -184,22 +227,22 @@ export function NotificationsProvider({
     typeof window !== 'undefined' ? readBuiltInNotificationsEnabled() : true
   )
   const [readMap, setReadMap] = useState<Record<string, boolean>>({})
-  const [invitePendingTemplates, setInvitePendingTemplates] = useState<
-    Omit<NotificationItem, 'isRead'>[]
-  >([])
-  const [inviteResolvedTemplates, setInviteResolvedTemplates] = useState<
-    Omit<NotificationItem, 'isRead'>[]
+  const [invitePendingRaw, setInvitePendingRaw] = useState<InvitePendingRaw[]>(
+    []
+  )
+  const [inviteResolvedRaw, setInviteResolvedRaw] = useState<
+    InviteResolvedRaw[]
   >([])
   const [risksTick, setRisksTick] = useState(0)
 
   const syncInvites = useCallback(async () => {
     try {
-      const { pending, resolved } = await fetchInviteNotificationBlocks()
-      setInvitePendingTemplates(pending)
-      setInviteResolvedTemplates(resolved)
+      const { pending, resolved } = await fetchInviteRaws()
+      setInvitePendingRaw(pending)
+      setInviteResolvedRaw(resolved)
     } catch {
-      setInvitePendingTemplates([])
-      setInviteResolvedTemplates([])
+      setInvitePendingRaw([])
+      setInviteResolvedRaw([])
     }
   }, [])
 
@@ -238,11 +281,21 @@ export function NotificationsProvider({
     return () => window.removeEventListener('riskhub-risks-changed', onRisks)
   }, [])
 
+  const invitePendingTemplates = useMemo(
+    () => mapInvitePendingToItems(invitePendingRaw, locale),
+    [invitePendingRaw, locale]
+  )
+
+  const inviteResolvedTemplates = useMemo(
+    () => mapInviteResolvedToItems(inviteResolvedRaw, locale),
+    [inviteResolvedRaw, locale]
+  )
+
   const demoTemplates = useMemo(() => {
     void risksTick
     if (!projectsReady) return []
-    return buildDemoRiskNotifications(loadRisks(), accessibleProjectIds)
-  }, [risksTick, projectsReady, accessibleProjectIds])
+    return buildDemoRiskNotifications(loadRisks(), accessibleProjectIds, locale)
+  }, [risksTick, projectsReady, accessibleProjectIds, locale])
 
   const notifications = useMemo((): NotificationItem[] => {
     if (!inAppEnabled) return []

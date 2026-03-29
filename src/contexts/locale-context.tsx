@@ -32,7 +32,10 @@ const messages = {
     crumbSettings: 'Настройки',
     crumbSystem: 'Системные настройки',
     crumbHelp: 'Помощь',
-    crumbSection: 'Раздел'
+    crumbSection: 'Раздел',
+    sheetMenu: 'Меню',
+    mainNavAria: 'Основная навигация',
+    openMenu: 'Открыть меню'
   },
   en: {
     navPanel: 'Home',
@@ -52,7 +55,10 @@ const messages = {
     crumbSettings: 'Settings',
     crumbSystem: 'System settings',
     crumbHelp: 'Help',
-    crumbSection: 'Section'
+    crumbSection: 'Section',
+    sheetMenu: 'Menu',
+    mainNavAria: 'Main navigation',
+    openMenu: 'Open menu'
   }
 } as const
 

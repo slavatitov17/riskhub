@@ -1,3 +1,4 @@
+import type { AppLocale } from '@/contexts/locale-context'
 import type { RiskActivityLogEntry, RiskRecord } from '@/lib/risk-types'
 import { getSession } from '@/lib/auth-storage'
 
@@ -183,10 +184,11 @@ export function saveRisks(risks: RiskRecord[]) {
   localStorage.setItem(SHARED_RISKS_KEY, JSON.stringify(risks))
 }
 
-export function formatDisplayDate(iso: string) {
+export function formatDisplayDate(iso: string, locale: AppLocale = 'ru') {
   const datePart = iso.slice(0, 10)
   const [y, m, d] = datePart.split('-')
   if (!y || !m || !d) return iso
+  if (locale === 'en') return `${d}/${m}/${y}`
   return `${d}.${m}.${y}`
 }
 
@@ -199,6 +201,29 @@ export function formatRuDateTime(iso: string) {
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit'
+  })
+}
+
+export function formatLocaleDateTime(iso: string, locale: AppLocale) {
+  const t = Date.parse(iso)
+  if (Number.isNaN(t)) return iso
+  const d = new Date(t)
+  if (locale === 'en') {
+    return d.toLocaleString('en-GB', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  }
+  return d.toLocaleString('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
   })
 }
 

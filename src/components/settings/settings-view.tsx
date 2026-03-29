@@ -11,7 +11,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { useLocale } from '@/contexts/locale-context'
 import { getSession } from '@/lib/auth-storage'
+import { getPageCopy } from '@/lib/page-copy'
 import {
   getProfileForUser,
   saveProfileForUser
@@ -19,6 +21,8 @@ import {
 
 export function SettingsView() {
   const router = useRouter()
+  const { locale } = useLocale()
+  const p = getPageCopy(locale)
   const [userId, setUserId] = useState<string | null>(null)
   const [email, setEmail] = useState('')
   const [firstName, setFirstName] = useState('')
@@ -95,7 +99,7 @@ export function SettingsView() {
     >
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Ваш профиль</CardTitle>
+          <CardTitle className="text-base">{p.settingsProfile.title}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="flex flex-wrap items-start gap-4">
@@ -105,7 +109,8 @@ export function SettingsView() {
             </Avatar>
             <div className="flex min-w-0 flex-1 flex-col gap-2">
               <p className="font-medium">
-                {[firstName, lastName].filter(Boolean).join(' ') || 'Пользователь'}
+                {[firstName, lastName].filter(Boolean).join(' ') ||
+                  p.settingsProfile.userFallback}
               </p>
               <Button
                 type="button"
@@ -114,29 +119,29 @@ export function SettingsView() {
                 className="w-fit"
                 onClick={() => setCropOpen(true)}
               >
-                Изменить фото
+                {p.settingsProfile.changePhoto}
               </Button>
             </div>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="profile-first">Имя</Label>
+              <Label htmlFor="profile-first">{p.settingsProfile.firstName}</Label>
               <Input
                 id="profile-first"
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
-                placeholder="Иван"
+                placeholder={p.settingsProfile.firstPlaceholder}
                 autoComplete="given-name"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="profile-last">Фамилия</Label>
+              <Label htmlFor="profile-last">{p.settingsProfile.lastName}</Label>
               <Input
                 id="profile-last"
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
-                placeholder="Иванов"
+                placeholder={p.settingsProfile.lastPlaceholder}
                 autoComplete="family-name"
               />
             </div>
@@ -148,7 +153,7 @@ export function SettingsView() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="profile-workplace">Место работы</Label>
+            <Label htmlFor="profile-workplace">{p.settingsProfile.workplace}</Label>
             <Input
               id="profile-workplace"
               value={workplace}
@@ -157,7 +162,7 @@ export function SettingsView() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="profile-department">Отдел</Label>
+            <Label htmlFor="profile-department">{p.settingsProfile.department}</Label>
             <Input
               id="profile-department"
               value={department}
@@ -166,7 +171,7 @@ export function SettingsView() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="profile-position">Должность</Label>
+            <Label htmlFor="profile-position">{p.settingsProfile.position}</Label>
             <Input
               id="profile-position"
               value={position}
@@ -175,7 +180,7 @@ export function SettingsView() {
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="profile-about">О себе</Label>
+            <Label htmlFor="profile-about">{p.settingsProfile.about}</Label>
             <Textarea
               id="profile-about"
               value={about}

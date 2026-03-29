@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import {
   ArrowLeft,
+  Download,
   MessageSquare,
   MoreHorizontal,
   Paperclip,
@@ -38,6 +39,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
 import { Textarea } from '@/components/ui/textarea'
+import { useLocale } from '@/contexts/locale-context'
 import { useProjects } from '@/contexts/projects-context'
 import { useRisks } from '@/contexts/risks-context'
 import {
@@ -45,8 +47,19 @@ import {
   probabilityBadgeClass,
   statusBadgeClass
 } from '@/lib/risk-badge-styles'
-import type { RiskComment, RiskRecord, RiskResponseMeasure } from '@/lib/risk-types'
-import { formatDisplayDate, formatRuDateTime } from '@/lib/risks-storage'
+import { translateActivityLogMessage } from '@/lib/activity-log-i18n'
+import { getCommentAttachments } from '@/lib/comment-attachments'
+import { getPageCopy } from '@/lib/page-copy'
+import type {
+  RiskComment,
+  RiskCommentAttachment,
+  RiskRecord,
+  RiskResponseMeasure
+} from '@/lib/risk-types'
+import {
+  formatDisplayDate,
+  formatLocaleDateTime
+} from '@/lib/risks-storage'
 import { getCurrentUserCommentAuthor } from '@/lib/user-display'
 import { cn } from '@/lib/utils'
 
@@ -80,12 +93,14 @@ function metaOutlineTag(children: React.ReactNode) {
 
 export function RiskDetailView({ risk }: RiskDetailViewProps) {
   const router = useRouter()
+  const { locale } = useLocale()
+  const p = getPageCopy(locale)
   const { removeRisk, updateRisk } = useRisks()
   const { getProjectDisplayName } = useProjects()
   const [draft, setDraft] = useState('')
-  const [pendingAttachment, setPendingAttachment] = useState<{
-    name: string
-  } | null>(null)
+  const [pendingAttachments, setPendingAttachments] = useState<
+    RiskCommentAttachment[]
+  >([])
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [deleteOpen, setDeleteOpen] = useState(false)
 
@@ -119,14 +134,14 @@ export function RiskDetailView({ risk }: RiskDetailViewProps) {
     ])
     setNewMeasureLabel('')
     setIsAddingMeasure(false)
-    toast.success('Мера добавлена')
+    toast.success(p.riskDetail.measureAdded)
   }
 
   const handleSaveEditMeasure = () => {
     if (!editingMeasureId) return
     const label = editMeasureText.trim()
     if (!label) {
-      toast.message('Текст не может быть пустым')
+      toast.message(p.riskDetail.measureEmpty)
       return
     }
     patchMeasures(
@@ -136,13 +151,31 @@ export function RiskDetailView({ risk }: RiskDetailViewProps) {
     )
     setEditingMeasureId(null)
     setEditMeasureText('')
-    toast.success('Мера обновлена')
+    toast.success(p.riskDetail.measureUpdated)
+  }
+
+  const handleDownloadAttachment = (att: RiskCommentAttachment) => {
+    if (!att.dataUrl) {
+      toast.message(
+        locale === 'en'
+          ? 'This file cannot be downloaded (saved before update).'
+          : 'Файл недоступен для скачивания (сохранён до обновления).'
+      )
+      return
+    }
+    const a = document.createElement('a')
+    a.href = att.dataUrl
+    a.download = att.name
+    a.rel = 'noopener'
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
   }
 
   const handleSendComment = () => {
     const text = draft.trim()
-    if (!text && !pendingAttachment) {
-      toast.message('Введите текст или прикрепите файл')
+    if (!text && pendingAttachments.length === 0) {
+      toast.message(p.riskDetail.needTextOrFile)
       return
     }
     const { name: authorName, avatarUrl } = getCurrentUserCommentAuthor()
@@ -151,19 +184,39 @@ export function RiskDetailView({ risk }: RiskDetailViewProps) {
       at: new Date().toISOString(),
       authorName,
       authorAvatarUrl: avatarUrl ?? undefined,
-      text: text || 'Вложение',
-      attachment: pendingAttachment ?? undefined
+      text,
+      attachments: pendingAttachments.length ? pendingAttachments : undefined
     }
     updateRisk(risk.id, { comments: [entry, ...comments] })
     setDraft('')
-    setPendingAttachment(null)
-    toast.success('Комментарий отправлен')
+    setPendingAttachments([])
+    toast.success(p.riskDetail.commentSent)
   }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) setPendingAttachment({ name: file.name })
+    const picked = Array.from(e.target.files ?? [])
     e.target.value = ''
+    if (!picked.length) return
+    void Promise.all(
+      picked.map(
+        (file) =>
+          new Promise<RiskCommentAttachment>((resolve, reject) => {
+            const r = new FileReader()
+            r.onload = () =>
+              resolve({ name: file.name, dataUrl: String(r.result) })
+            r.onerror = () => reject(r.error)
+            r.readAsDataURL(file)
+          })
+      )
+    )
+      .then((atts) =>
+        setPendingAttachments((prev) => [...prev, ...atts])
+      )
+      .catch(() =>
+        toast.message(
+          locale === 'en' ? 'Could not read file' : 'Не удалось прочитать файл'
+        )
+      )
   }
 
   return (
@@ -176,19 +229,19 @@ export function RiskDetailView({ risk }: RiskDetailViewProps) {
         <Button variant="ghost" size="sm" className="gap-2" asChild>
           <Link href="/risks">
             <ArrowLeft className="h-4 w-4" />
-            Назад
+            {p.riskDetail.back}
           </Link>
         </Button>
         <div className="ml-auto flex flex-wrap gap-2">
           <Button variant="outline" className="gap-2" asChild>
             <Link href={`/risks/${risk.id}/edit`}>
               <Pencil className="h-4 w-4" />
-              Редактировать
+              {p.riskDetail.edit}
             </Link>
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button size="icon" variant="outline" aria-label="Ещё">
+              <Button size="icon" variant="outline" aria-label={p.riskDetail.more}>
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -196,17 +249,17 @@ export function RiskDetailView({ risk }: RiskDetailViewProps) {
               <DropdownMenuItem
                 onClick={() => {
                   navigator.clipboard?.writeText(risk.code)
-                  toast.success('ID скопирован')
+                  toast.success(p.riskDetail.idCopied)
                 }}
               >
-                Копировать ID
+                {p.riskDetail.copyId}
               </DropdownMenuItem>
               <DropdownMenuItem
                 className="text-destructive"
                 onClick={() => setDeleteOpen(true)}
               >
                 <Trash2 className="mr-2 h-4 w-4" />
-                Удалить
+                {p.riskDetail.delete}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -233,10 +286,14 @@ export function RiskDetailView({ risk }: RiskDetailViewProps) {
               </div>
               <CardTitle className="text-2xl">{risk.name}</CardTitle>
               <div className="flex flex-wrap gap-2">
-                {metaOutlineTag(<>Категория: {risk.category}</>)}
                 {metaOutlineTag(
                   <>
-                    Проект:{' '}
+                    {p.riskDetail.category}: {risk.category}
+                  </>
+                )}
+                {metaOutlineTag(
+                  <>
+                    {p.riskDetail.project}:{' '}
                     {getProjectDisplayName(risk.projectId, risk.project)}
                   </>
                 )}
@@ -245,7 +302,7 @@ export function RiskDetailView({ risk }: RiskDetailViewProps) {
             <CardContent className="space-y-4">
               <div>
                 <p className="mb-2 text-sm font-medium text-foreground">
-                  Описание риска
+                  {p.riskDetail.descriptionTitle}
                 </p>
                 <p className="text-sm leading-relaxed text-muted-foreground">
                   {risk.description || '—'}
@@ -259,7 +316,7 @@ export function RiskDetailView({ risk }: RiskDetailViewProps) {
                     probabilityBadgeClass(risk.probability)
                   )}
                 >
-                  Вероятность: {risk.probability}
+                  {p.riskDetail.probability}: {risk.probability}
                 </span>
                 <span
                   className={cn(
@@ -268,14 +325,28 @@ export function RiskDetailView({ risk }: RiskDetailViewProps) {
                     impactBadgeClass(risk.impact)
                   )}
                 >
-                  Воздействие: {risk.impact}
+                  {p.riskDetail.impact}: {risk.impact}
                 </span>
               </div>
               <Separator />
               <div className="flex flex-wrap gap-2">
-                {metaOutlineTag(<>Автор: {risk.author}</>)}
-                {metaOutlineTag(<>Создан {formatDisplayDate(risk.created)}</>)}
-                {metaOutlineTag(<>Обновлён {formatDisplayDate(risk.updated)}</>)}
+                {metaOutlineTag(
+                  <>
+                    {p.riskDetail.author}: {risk.author}
+                  </>
+                )}
+                {metaOutlineTag(
+                  <>
+                    {p.riskDetail.created}{' '}
+                    {formatDisplayDate(risk.created, locale)}
+                  </>
+                )}
+                {metaOutlineTag(
+                  <>
+                    {p.riskDetail.updated}{' '}
+                    {formatDisplayDate(risk.updated, locale)}
+                  </>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -284,87 +355,130 @@ export function RiskDetailView({ risk }: RiskDetailViewProps) {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <MessageSquare className="h-4 w-4" />
-                Комментарии
+                {p.riskDetail.comments}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               {comments.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
-                  Комментариев пока нет.
+                  {p.riskDetail.noComments}
                 </p>
               ) : (
                 <ul className="space-y-4">
-                  {comments.map((c) => (
-                    <li
-                      key={c.id}
-                      className="rounded-lg border border-border bg-muted/20 p-3"
-                    >
-                      <div className="flex gap-3">
-                        <Avatar className="size-9 shrink-0">
-                          <AvatarImage
-                            src={
-                              c.authorAvatarUrl ||
-                              `https://api.dicebear.com/7.x/notionists-neutral/svg?seed=${encodeURIComponent(c.authorName)}`
-                            }
-                            alt=""
-                          />
-                          <AvatarFallback className="text-xs">
-                            {authorInitials(c.authorName)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="min-w-0 flex-1 space-y-1">
-                          <p className={cn('font-medium text-foreground', listUiTextClass)}>
-                            {c.authorName}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {formatRuDateTime(c.at)}
-                          </p>
-                          <p className="text-sm leading-relaxed">{c.text}</p>
-                          {c.attachment ? (
-                            <p className="text-xs text-muted-foreground">
-                              Вложение:{' '}
-                              <span className="font-medium text-foreground">
-                                {c.attachment.name}
-                              </span>
-                            </p>
-                          ) : null}
+                  {comments.map((c) => {
+                    const atts = getCommentAttachments(c)
+                    const showText = c.text.trim().length > 0
+                    const hasImg =
+                      Boolean(c.authorAvatarUrl) &&
+                      /^data:|^https?:\/\//i.test(c.authorAvatarUrl!)
+                    return (
+                      <li
+                        key={c.id}
+                        className="rounded-lg border border-border bg-muted/20 p-3"
+                      >
+                        <div className="flex gap-3">
+                          <Avatar className="size-9 shrink-0">
+                            {hasImg ? (
+                              <AvatarImage src={c.authorAvatarUrl!} alt="" />
+                            ) : null}
+                            <AvatarFallback className="text-xs font-medium">
+                              {authorInitials(c.authorName)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="min-w-0 flex-1 space-y-2">
+                            <div>
+                              <p
+                                className={cn(
+                                  'font-medium text-foreground',
+                                  listUiTextClass
+                                )}
+                              >
+                                {c.authorName}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {formatLocaleDateTime(c.at, locale)}
+                              </p>
+                            </div>
+                            {showText ? (
+                              <p className="text-sm leading-relaxed">{c.text}</p>
+                            ) : null}
+                            {atts.map((att, idx) => (
+                              <div
+                                key={`${c.id}-att-${idx}-${att.name}`}
+                                className="flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2"
+                              >
+                                <Paperclip
+                                  className="h-4 w-4 shrink-0 text-muted-foreground"
+                                  aria-hidden
+                                />
+                                <button
+                                  type="button"
+                                  className="min-w-0 flex-1 truncate text-left text-sm font-medium text-foreground underline-offset-4 hover:underline"
+                                  onClick={() => handleDownloadAttachment(att)}
+                                >
+                                  {att.name}
+                                </button>
+                                <Button
+                                  type="button"
+                                  size="icon"
+                                  variant="ghost"
+                                  className="size-8 shrink-0"
+                                  title={p.riskDetail.download}
+                                  aria-label={p.riskDetail.download}
+                                  onClick={() => handleDownloadAttachment(att)}
+                                >
+                                  <Download className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    </li>
-                  ))}
+                      </li>
+                    )
+                  })}
                 </ul>
               )}
               <input
                 ref={fileInputRef}
                 type="file"
+                multiple
                 className="sr-only"
                 aria-hidden
                 tabIndex={-1}
                 onChange={handleFileChange}
               />
               <Textarea
-                placeholder="Оставить комментарий..."
+                placeholder={p.riskDetail.commentPlaceholder}
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
-                aria-label="Текст комментария"
+                aria-label={p.riskDetail.commentPlaceholder}
               />
-              {pendingAttachment ? (
-                <div className="flex items-center gap-2 rounded-md border border-border bg-muted/30 px-3 py-2 text-sm">
-                  <Paperclip className="h-4 w-4 shrink-0 text-muted-foreground" />
-                  <span className="min-w-0 flex-1 truncate">
-                    {pendingAttachment.name}
-                  </span>
-                  <Button
-                    type="button"
-                    size="icon"
-                    variant="ghost"
-                    className="size-8 shrink-0"
-                    aria-label="Убрать вложение"
-                    onClick={() => setPendingAttachment(null)}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
+              {pendingAttachments.length > 0 ? (
+                <ul className="space-y-2">
+                  {pendingAttachments.map((att, idx) => (
+                    <li
+                      key={`pending-${idx}-${att.name}`}
+                      className="flex items-center gap-2 rounded-md border border-border bg-muted/30 px-3 py-2 text-sm"
+                    >
+                      <Paperclip className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      <span className="min-w-0 flex-1 truncate">{att.name}</span>
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="ghost"
+                        className="size-8 shrink-0"
+                        aria-label={p.riskDetail.removeAttachment}
+                        onClick={() =>
+                          setPendingAttachments((prev) =>
+                            prev.filter((_, i) => i !== idx)
+                          )
+                        }
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
               ) : null}
               <div className="flex flex-wrap gap-2">
                 <Button
@@ -374,11 +488,11 @@ export function RiskDetailView({ risk }: RiskDetailViewProps) {
                   onClick={() => fileInputRef.current?.click()}
                 >
                   <Paperclip className="h-4 w-4" />
-                  Прикрепить файл
+                  {p.riskDetail.attachFile}
                 </Button>
                 <Button type="button" className="gap-2" onClick={handleSendComment}>
                   <Send className="h-4 w-4" />
-                  Отправить
+                  {p.riskDetail.send}
                 </Button>
               </div>
             </CardContent>
@@ -388,7 +502,7 @@ export function RiskDetailView({ risk }: RiskDetailViewProps) {
         <div className="space-y-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0">
-              <CardTitle className="text-base">Меры реагирования</CardTitle>
+              <CardTitle className="text-base">{p.riskDetail.measuresTitle}</CardTitle>
               <Button
                 type="button"
                 variant="link"
@@ -398,13 +512,13 @@ export function RiskDetailView({ risk }: RiskDetailViewProps) {
                   setNewMeasureLabel('')
                 }}
               >
-                + Добавить
+                {p.riskDetail.addMeasure}
               </Button>
             </CardHeader>
             <CardContent className="space-y-3">
               {measures.length === 0 && !isAddingMeasure ? (
                 <p className="text-sm text-muted-foreground">
-                  Мер реагирования пока нет.
+                  {p.riskDetail.noMeasures}
                 </p>
               ) : null}
               {measures.map((m) => (
@@ -414,7 +528,7 @@ export function RiskDetailView({ risk }: RiskDetailViewProps) {
                     className="mt-1 size-4 shrink-0 accent-primary"
                     checked={m.done}
                     onChange={() => handleToggleMeasure(m.id)}
-                    aria-label={`Выполнено: ${m.label}`}
+                        aria-label={`${m.label}`}
                   />
                   {editingMeasureId === m.id ? (
                     <Input
@@ -445,7 +559,7 @@ export function RiskDetailView({ risk }: RiskDetailViewProps) {
                         size="icon"
                         variant="ghost"
                         className="size-8 shrink-0 text-muted-foreground"
-                        aria-label="Изменить меру"
+                        aria-label={p.riskDetail.editMeasure}
                         onClick={() => {
                           setEditingMeasureId(m.id)
                           setEditMeasureText(m.label)
@@ -460,7 +574,7 @@ export function RiskDetailView({ risk }: RiskDetailViewProps) {
               {isAddingMeasure ? (
                 <div className="border-t border-border pt-3">
                   <Input
-                    placeholder="Текст меры реагирования"
+                    placeholder={p.riskDetail.measurePlaceholder}
                     value={newMeasureLabel}
                     onChange={(e) => setNewMeasureLabel(e.target.value)}
                     className="w-full"
@@ -480,14 +594,16 @@ export function RiskDetailView({ risk }: RiskDetailViewProps) {
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Лента изменений</CardTitle>
+              <CardTitle className="text-base">{p.riskDetail.activity}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               {activityLog.map((e) => (
                 <div key={e.id} className="space-y-1 text-sm">
-                  <p className="text-foreground">• {e.message}</p>
+                  <p className="text-foreground">
+                    • {translateActivityLogMessage(e.message, locale)}
+                  </p>
                   <p className="text-left text-xs tabular-nums text-muted-foreground">
-                    {formatRuDateTime(e.at)}
+                    {formatLocaleDateTime(e.at, locale)}
                   </p>
                 </div>
               ))}
@@ -499,21 +615,23 @@ export function RiskDetailView({ risk }: RiskDetailViewProps) {
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Удалить риск {risk.code}?</AlertDialogTitle>
+            <AlertDialogTitle>
+              {p.riskDetail.deleteTitle.replace('{code}', risk.code)}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              Запись будет удалена из локального хранилища.
+              {p.riskDetail.deleteDescription}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Отмена</AlertDialogCancel>
+            <AlertDialogCancel>{p.registry.cancel}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 removeRisk(risk.id)
-                toast.success('Риск удалён')
+                toast.success(p.riskDetail.riskDeleted)
                 router.push('/risks')
               }}
             >
-              Удалить
+              {p.riskDetail.delete}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

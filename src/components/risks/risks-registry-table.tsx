@@ -35,6 +35,7 @@ import {
   TableHeader,
   TableRow
 } from '@/components/ui/table'
+import { useLocale } from '@/contexts/locale-context'
 import { useProjects } from '@/contexts/projects-context'
 import { useRisks } from '@/contexts/risks-context'
 import { useVisibleRisks } from '@/hooks/use-visible-risks'
@@ -44,17 +45,14 @@ import {
   riskTableChipBase,
   statusBadgeClass
 } from '@/lib/risk-badge-styles'
+import { getPageCopy } from '@/lib/page-copy'
 import { formatDisplayDate } from '@/lib/risks-storage'
 import { cn } from '@/lib/utils'
 
-function filterPlural(count: number) {
-  if (count === 1) return 'фильтр'
-  if (count >= 2 && count <= 4) return 'фильтра'
-  return 'фильтров'
-}
-
 export function RisksRegistryTable() {
   const router = useRouter()
+  const { locale } = useLocale()
+  const p = getPageCopy(locale)
   const { removeRisk, updateRisk } = useRisks()
   const risks = useVisibleRisks()
   const { getProjectDisplayName, ready: projectsReady } = useProjects()
@@ -173,12 +171,12 @@ export function RisksRegistryTable() {
 
     if (bulkAction === 'close') {
       selectedIds.forEach((id) => updateRisk(id, { status: 'Закрыт' }))
-      toast.success('Выбранные риски закрыты')
+      toast.success(p.registryRisks.closedToast)
     }
 
     if (bulkAction === 'delete') {
       selectedIds.forEach((id) => removeRisk(id))
-      toast.success('Выбранные риски удалены')
+      toast.success(p.registryRisks.deletedToast)
     }
 
     setSelected({})
@@ -186,10 +184,13 @@ export function RisksRegistryTable() {
   }
 
   const handleSearch = () => {
+    const q = search.trim()
     toast.success(
-      search.trim()
-        ? `Поиск: «${search.trim()}» — найдено ${filtered.length}`
-        : 'Введите текст для поиска'
+      q
+        ? p.registryRisks.searchFound
+            .replace('{q}', q)
+            .replace('{n}', String(filtered.length))
+        : p.registryRisks.searchEmpty
     )
   }
 
@@ -197,7 +198,9 @@ export function RisksRegistryTable() {
     <>
       <Card className="shadow-sm">
         <CardHeader className="flex flex-col gap-3 border-b pb-4">
-          <CardTitle className="text-base font-semibold">Риски</CardTitle>
+          <CardTitle className="text-base font-semibold">
+            {p.registryRisks.cardTitle}
+          </CardTitle>
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
               <Button
@@ -208,11 +211,11 @@ export function RisksRegistryTable() {
                 onClick={() => setFilterOpen(true)}
               >
                 <Filter className="h-4 w-4" />
-                Фильтры
+                {p.registry.filters}
               </Button>
               {appliedFilters > 0 && (
                 <span className="whitespace-nowrap text-sm text-muted-foreground">
-                  {appliedFilters} {filterPlural(appliedFilters)}
+                  {p.filterCount(appliedFilters)}
                 </span>
               )}
               {appliedFilters > 0 && (
@@ -231,30 +234,30 @@ export function RisksRegistryTable() {
                     setCreatedTo('')
                     setUpdatedFrom('')
                     setUpdatedTo('')
-                    toast.message('Фильтры сброшены')
+                    toast.message(p.registry.filtersResetToast)
                   }}
                 >
-                  Сбросить
+                  {p.registry.reset}
                 </Button>
               )}
             </div>
             <div className="flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:items-center lg:max-w-xl lg:flex-1">
               <Input
-                placeholder="Поиск по названию или описанию..."
+                placeholder={p.registry.searchPlaceholder}
                 className="min-w-0 flex-1"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                aria-label="Поиск по названию или описанию"
+                aria-label={p.registry.searchAria}
               />
               <Button
                 type="button"
                 className="shrink-0 sm:size-10"
-                aria-label="Искать"
+                aria-label={p.registry.search}
                 onClick={handleSearch}
               >
                 <Search className="h-4 w-4 sm:mx-auto" />
-                <span className="ml-2 sm:hidden">Найти</span>
+                <span className="ml-2 sm:hidden">{p.registry.find}</span>
               </Button>
             </div>
           </div>
@@ -271,7 +274,7 @@ export function RisksRegistryTable() {
                 onClick={() => setBulkAction('close')}
               >
                 <Check className="h-4 w-4" />
-                Закрыть выбранные
+                {p.registry.closeSelected}
               </Button>
               <Button
                 type="button"
@@ -282,7 +285,7 @@ export function RisksRegistryTable() {
                 onClick={() => setBulkAction('delete')}
               >
                 <Trash2 className="h-4 w-4" />
-                Удалить выбранные
+                {p.registry.deleteSelected}
               </Button>
             </div>
           </div>
@@ -299,24 +302,24 @@ export function RisksRegistryTable() {
                           filtered.every((r) => selected[r.id])
                         }
                         onCheckedChange={(v) => toggleAll(!!v)}
-                        aria-label="Выбрать все"
+                        aria-label={p.registry.selectAll}
                       />
                     </div>
                   </TableHead>
-                  <TableHead className="whitespace-nowrap">ID</TableHead>
+                  <TableHead className="whitespace-nowrap">{p.registry.colId}</TableHead>
                   <TableHead className="min-w-[200px] whitespace-nowrap">
-                    Название
+                    {p.registry.colName}
                   </TableHead>
-                  <TableHead className="whitespace-nowrap">Категория</TableHead>
-                  <TableHead className="whitespace-nowrap">Вероятность</TableHead>
-                  <TableHead className="whitespace-nowrap">Воздействие</TableHead>
-                  <TableHead className="whitespace-nowrap">Статус</TableHead>
-                  <TableHead className="whitespace-nowrap">Проект</TableHead>
-                  <TableHead className="whitespace-nowrap">Автор</TableHead>
-                  <TableHead className="whitespace-nowrap">Создан</TableHead>
-                  <TableHead className="whitespace-nowrap">Обновлён</TableHead>
+                  <TableHead className="whitespace-nowrap">{p.registry.colCategory}</TableHead>
+                  <TableHead className="whitespace-nowrap">{p.registry.colProbability}</TableHead>
+                  <TableHead className="whitespace-nowrap">{p.registry.colImpact}</TableHead>
+                  <TableHead className="whitespace-nowrap">{p.registry.colStatus}</TableHead>
+                  <TableHead className="whitespace-nowrap">{p.registry.colProject}</TableHead>
+                  <TableHead className="whitespace-nowrap">{p.registry.colAuthor}</TableHead>
+                  <TableHead className="whitespace-nowrap">{p.registry.colCreated}</TableHead>
+                  <TableHead className="whitespace-nowrap">{p.registry.colUpdated}</TableHead>
                   <TableHead className="whitespace-nowrap text-left">
-                    Действия
+                    {p.registry.colActions}
                   </TableHead>
                 </TableRow>
               </TableHeader>
@@ -324,15 +327,15 @@ export function RisksRegistryTable() {
                 {!projectsReady ? (
                   <TableRow>
                     <TableCell colSpan={12} className="text-muted-foreground">
-                      Загрузка…
+                      {p.registry.loading}
                     </TableCell>
                   </TableRow>
                 ) : filtered.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={12} className="text-muted-foreground">
                       {risks.length === 0
-                        ? 'Нет рисков. Создайте первый риск, чтобы начать работу над ним'
-                        : 'Нет рисков по текущим фильтрам.'}
+                        ? p.registryRisks.emptyNoRisks
+                        : p.registryRisks.emptyFiltered}
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -358,7 +361,7 @@ export function RisksRegistryTable() {
                         onCheckedChange={(v) =>
                           setSelected((s) => ({ ...s, [row.id]: !!v }))
                         }
-                        aria-label={`Выбрать ${row.code}`}
+                        aria-label={`${p.registry.selectAll} ${row.code}`}
                       />
                     </TableCell>
                     <TableCell className="whitespace-nowrap font-medium">
@@ -414,10 +417,10 @@ export function RisksRegistryTable() {
                       </div>
                     </TableCell>
                     <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
-                      {formatDisplayDate(row.created)}
+                      {formatDisplayDate(row.created, locale)}
                     </TableCell>
                     <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
-                      {formatDisplayDate(row.updated)}
+                      {formatDisplayDate(row.updated, locale)}
                     </TableCell>
                     <TableCell
                       className="whitespace-nowrap text-left"
@@ -428,8 +431,8 @@ export function RisksRegistryTable() {
                           size="icon"
                           variant="ghost"
                           type="button"
-                          title="Показать"
-                          aria-label="Показать"
+                          title={p.registry.show}
+                          aria-label={p.registry.show}
                           onClick={() => router.push(`/risks/${row.id}`)}
                         >
                           <Eye className="h-4 w-4" />
@@ -438,8 +441,8 @@ export function RisksRegistryTable() {
                           size="icon"
                           variant="ghost"
                           type="button"
-                          title="Изменить"
-                          aria-label="Изменить"
+                          title={p.registry.edit}
+                          aria-label={p.registry.edit}
                           onClick={() => router.push(`/risks/${row.id}/edit`)}
                         >
                           <Pencil className="h-4 w-4" />
@@ -448,8 +451,8 @@ export function RisksRegistryTable() {
                           size="icon"
                           variant="ghost"
                           type="button"
-                          title="Удалить"
-                          aria-label="Удалить"
+                          title={p.registry.delete}
+                          aria-label={p.registry.delete}
                           onClick={() => setDeleteId(row.id)}
                         >
                           <Trash2 className="h-4 w-4" />
@@ -463,7 +466,7 @@ export function RisksRegistryTable() {
             </Table>
           </div>
           <div className="px-4 py-4 text-sm md:px-6">
-            <span className="text-muted-foreground">Всего записей: </span>
+            <span className="text-muted-foreground">{p.registry.totalRecords} </span>
             <span className="text-foreground">{filtered.length}</span>
           </div>
         </CardContent>
@@ -472,11 +475,11 @@ export function RisksRegistryTable() {
       <Dialog open={filterOpen} onOpenChange={setFilterOpen}>
         <DialogContent className="risk-filter-scroll max-h-[90vh] overflow-y-auto sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Фильтры</DialogTitle>
+            <DialogTitle>{p.registry.dialogFilters}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <p className="mb-2 text-sm font-medium">Категория</p>
+              <p className="mb-2 text-sm font-medium">{p.registry.category}</p>
               <div className="flex flex-col gap-2">
                 {categories.map((c) => (
                   <label key={c} className="flex items-center gap-2 text-sm">
@@ -494,7 +497,7 @@ export function RisksRegistryTable() {
               </div>
             </div>
             <div>
-              <p className="mb-2 text-sm font-medium">Вероятность</p>
+              <p className="mb-2 text-sm font-medium">{p.registry.probability}</p>
               <div className="flex flex-col gap-2">
                 {probabilities.map((p) => (
                   <label key={p} className="flex items-center gap-2 text-sm">
@@ -512,7 +515,7 @@ export function RisksRegistryTable() {
               </div>
             </div>
             <div>
-              <p className="mb-2 text-sm font-medium">Воздействие</p>
+              <p className="mb-2 text-sm font-medium">{p.registry.impact}</p>
               <div className="flex flex-col gap-2">
                 {impacts.map((i) => (
                   <label key={i} className="flex items-center gap-2 text-sm">
@@ -530,7 +533,7 @@ export function RisksRegistryTable() {
               </div>
             </div>
             <div>
-              <p className="mb-2 text-sm font-medium">Статус</p>
+              <p className="mb-2 text-sm font-medium">{p.registry.status}</p>
               <div className="flex flex-col gap-2">
                 {statuses.map((s) => (
                   <label key={s} className="flex items-center gap-2 text-sm">
@@ -548,7 +551,7 @@ export function RisksRegistryTable() {
               </div>
             </div>
             <div>
-              <p className="mb-2 text-sm font-medium">Проект</p>
+              <p className="mb-2 text-sm font-medium">{p.registry.project}</p>
               <div className="flex flex-col gap-2">
                 <label className="flex cursor-pointer items-center gap-2 text-sm">
                   <Checkbox
@@ -557,7 +560,7 @@ export function RisksRegistryTable() {
                       if (v) setProjectFilter([])
                     }}
                   />
-                  Все проекты
+                  {p.registry.allProjects}
                 </label>
                 {projects.map((project) => (
                   <label
@@ -586,7 +589,7 @@ export function RisksRegistryTable() {
               </div>
             </div>
             <div>
-              <p className="mb-2 text-sm font-medium">Автор</p>
+              <p className="mb-2 text-sm font-medium">{p.registry.author}</p>
               <div className="flex flex-col gap-2">
                 <label className="flex cursor-pointer items-center gap-2 text-sm">
                   <Checkbox
@@ -595,7 +598,7 @@ export function RisksRegistryTable() {
                       if (v) setAuthorFilter([])
                     }}
                   />
-                  Все авторы
+                  {p.registry.allAuthors}
                 </label>
                 {authors.map((author) => (
                   <label
@@ -624,40 +627,40 @@ export function RisksRegistryTable() {
               </div>
             </div>
             <div>
-              <p className="mb-2 text-sm font-medium">Создан</p>
+              <p className="mb-2 text-sm font-medium">{p.registry.colCreated}</p>
               <div className="grid grid-cols-2 gap-2">
                 <Input
                   type="date"
                   value={createdFrom}
                   onChange={(e) => setCreatedFrom(e.target.value)}
                   className="calendar-input accent-primary"
-                  aria-label="Создан с"
+                  aria-label={p.registry.createdFrom}
                 />
                 <Input
                   type="date"
                   value={createdTo}
                   onChange={(e) => setCreatedTo(e.target.value)}
                   className="calendar-input accent-primary"
-                  aria-label="Создан по"
+                  aria-label={p.registry.createdTo}
                 />
               </div>
             </div>
             <div>
-              <p className="mb-2 text-sm font-medium">Обновлен</p>
+              <p className="mb-2 text-sm font-medium">{p.registry.updatedLabel}</p>
               <div className="grid grid-cols-2 gap-2">
                 <Input
                   type="date"
                   value={updatedFrom}
                   onChange={(e) => setUpdatedFrom(e.target.value)}
                   className="calendar-input accent-primary"
-                  aria-label="Обновлен с"
+                  aria-label={p.registry.updatedFrom}
                 />
                 <Input
                   type="date"
                   value={updatedTo}
                   onChange={(e) => setUpdatedTo(e.target.value)}
                   className="calendar-input accent-primary"
-                  aria-label="Обновлен по"
+                  aria-label={p.registry.updatedTo}
                 />
               </div>
             </div>
@@ -667,10 +670,10 @@ export function RisksRegistryTable() {
               type="button"
               onClick={() => {
                 setFilterOpen(false)
-                toast.success('Фильтры применены')
+                toast.success(p.registry.filtersApplied)
               }}
             >
-              Применить
+              {p.registry.apply}
             </Button>
           </div>
         </DialogContent>
@@ -681,15 +684,18 @@ export function RisksRegistryTable() {
           <AlertDialogHeader>
             <AlertDialogTitle>
               {bulkAction === 'close'
-                ? 'Закрыть выбранные риски?'
-                : 'Удалить выбранные риски?'}
+                ? p.registryRisks.bulkCloseTitle
+                : p.registryRisks.bulkDeleteTitle}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Выбрано записей: {selectedIds.length}. Подтвердите выполнение действия.
+              {p.registryRisks.bulkDescription.replace(
+                '{n}',
+                String(selectedIds.length)
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Отмена</AlertDialogCancel>
+            <AlertDialogCancel>{p.registry.cancel}</AlertDialogCancel>
             <AlertDialogAction
               className={
                 bulkAction === 'delete'
@@ -698,7 +704,7 @@ export function RisksRegistryTable() {
               }
               onClick={handleBulkConfirm}
             >
-              {bulkAction === 'delete' ? 'Удалить' : 'Подтвердить'}
+              {bulkAction === 'delete' ? p.registry.delete : p.registry.confirm}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -707,23 +713,23 @@ export function RisksRegistryTable() {
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Удалить риск?</AlertDialogTitle>
+            <AlertDialogTitle>{p.registryRisks.deleteTitle}</AlertDialogTitle>
             <AlertDialogDescription>
-              Действие необратимо в рамках локального хранилища браузера.
+              {p.registryRisks.deleteDescription}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Отмена</AlertDialogCancel>
+            <AlertDialogCancel>{p.registry.cancel}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 if (deleteId) {
                   removeRisk(deleteId)
-                  toast.success('Риск удалён')
+                  toast.success(p.registryRisks.deleted)
                 }
                 setDeleteId(null)
               }}
             >
-              Удалить
+              {p.registry.delete}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

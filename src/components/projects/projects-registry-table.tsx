@@ -33,20 +33,16 @@ import {
   TableHeader,
   TableRow
 } from '@/components/ui/table'
+import { useLocale } from '@/contexts/locale-context'
 import { useProjects } from '@/contexts/projects-context'
 import { PROJECT_STATUSES, type ProjectRecord } from '@/lib/project-types'
 import {
   projectStatusBadgeClass,
   riskTableChipBase
 } from '@/lib/risk-badge-styles'
+import { getPageCopy } from '@/lib/page-copy'
 import { formatDisplayDate } from '@/lib/risks-storage'
 import { cn } from '@/lib/utils'
-
-function filterPlural(count: number) {
-  if (count === 1) return 'фильтр'
-  if (count >= 2 && count <= 4) return 'фильтра'
-  return 'фильтров'
-}
 
 function projectDisplayCode(p: ProjectRecord) {
   return p.code && /^P-\d{3}$/.test(p.code) ? p.code : p.id
@@ -54,6 +50,8 @@ function projectDisplayCode(p: ProjectRecord) {
 
 export function ProjectsRegistryTable() {
   const router = useRouter()
+  const { locale } = useLocale()
+  const p = getPageCopy(locale)
   const {
     myProjects,
     ready,
@@ -127,10 +125,11 @@ export function ProjectsRegistryTable() {
         if (r.ok) ok += 1
         else fail += 1
       }
-      if (ok) toast.success(`Завершено проектов: ${ok}`)
+      if (ok)
+        toast.success(p.registryProjects.closedOk.replace('{n}', String(ok)))
       if (fail)
         toast.message(
-          `Не удалось завершить ${fail} (демо-проект или нет прав владельца)`
+          p.registryProjects.closedFail.replace('{n}', String(fail))
         )
     }
 
@@ -142,10 +141,11 @@ export function ProjectsRegistryTable() {
         if (r.ok) ok += 1
         else fail += 1
       }
-      if (ok) toast.success(`Удалено проектов: ${ok}`)
+      if (ok)
+        toast.success(p.registryProjects.deletedOk.replace('{n}', String(ok)))
       if (fail)
         toast.message(
-          `Не удалось удалить ${fail} (демо-проект или нет прав владельца)`
+          p.registryProjects.deletedFail.replace('{n}', String(fail))
         )
     }
 
@@ -155,10 +155,13 @@ export function ProjectsRegistryTable() {
   }
 
   const handleSearch = () => {
+    const q = search.trim()
     toast.success(
-      search.trim()
-        ? `Поиск: «${search.trim()}» — найдено ${filtered.length}`
-        : 'Введите текст для поиска'
+      q
+        ? p.registryProjects.searchFound
+            .replace('{q}', q)
+            .replace('{n}', String(filtered.length))
+        : p.registryProjects.searchEmpty
     )
   }
 
@@ -166,7 +169,9 @@ export function ProjectsRegistryTable() {
     <>
       <Card className="shadow-sm">
         <CardHeader className="flex flex-col gap-3 border-b pb-4">
-          <CardTitle className="text-base font-semibold">Проекты</CardTitle>
+          <CardTitle className="text-base font-semibold">
+            {p.registryProjects.cardTitle}
+          </CardTitle>
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
               <Button
@@ -177,11 +182,11 @@ export function ProjectsRegistryTable() {
                 onClick={() => setFilterOpen(true)}
               >
                 <Filter className="h-4 w-4" />
-                Фильтры
+                {p.registry.filters}
               </Button>
               {appliedFilters > 0 && (
                 <span className="whitespace-nowrap text-sm text-muted-foreground">
-                  {appliedFilters} {filterPlural(appliedFilters)}
+                  {p.filterCount(appliedFilters)}
                 </span>
               )}
               {appliedFilters > 0 && (
@@ -193,30 +198,30 @@ export function ProjectsRegistryTable() {
                     setStatusFilter([])
                     setCreatedFrom('')
                     setCreatedTo('')
-                    toast.message('Фильтры сброшены')
+                    toast.message(p.registry.filtersResetToast)
                   }}
                 >
-                  Сбросить
+                  {p.registry.reset}
                 </Button>
               )}
             </div>
             <div className="flex w-full min-w-0 flex-col gap-2 sm:flex-row sm:items-center lg:max-w-xl lg:flex-1">
               <Input
-                placeholder="Поиск по названию или описанию..."
+                placeholder={p.registry.searchPlaceholder}
                 className="min-w-0 flex-1"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                aria-label="Поиск по названию или описанию"
+                aria-label={p.registry.searchAria}
               />
               <Button
                 type="button"
                 className="shrink-0 sm:size-10"
-                aria-label="Искать"
+                aria-label={p.registry.search}
                 onClick={handleSearch}
               >
                 <Search className="h-4 w-4 sm:mx-auto" />
-                <span className="ml-2 sm:hidden">Найти</span>
+                <span className="ml-2 sm:hidden">{p.registry.find}</span>
               </Button>
             </div>
           </div>
@@ -233,7 +238,7 @@ export function ProjectsRegistryTable() {
                 onClick={() => setBulkAction('close')}
               >
                 <Check className="h-4 w-4" />
-                Закрыть выбранные
+                {p.registry.closeSelected}
               </Button>
               <Button
                 type="button"
@@ -244,7 +249,7 @@ export function ProjectsRegistryTable() {
                 onClick={() => setBulkAction('delete')}
               >
                 <Trash2 className="h-4 w-4" />
-                Удалить выбранные
+                {p.registry.deleteSelected}
               </Button>
             </div>
           </div>
@@ -261,19 +266,19 @@ export function ProjectsRegistryTable() {
                           filtered.every((p) => selected[p.id])
                         }
                         onCheckedChange={(v) => toggleAll(!!v)}
-                        aria-label="Выбрать все"
+                        aria-label={p.registry.selectAll}
                       />
                     </div>
                   </TableHead>
-                  <TableHead className="whitespace-nowrap">ID</TableHead>
+                  <TableHead className="whitespace-nowrap">{p.registry.colId}</TableHead>
                   <TableHead className="min-w-[200px] whitespace-nowrap">
-                    Название
+                    {p.registry.colName}
                   </TableHead>
-                  <TableHead className="whitespace-nowrap">Создан</TableHead>
-                  <TableHead className="whitespace-nowrap">Статус</TableHead>
-                  <TableHead className="whitespace-nowrap">Участники</TableHead>
+                  <TableHead className="whitespace-nowrap">{p.registry.colCreated}</TableHead>
+                  <TableHead className="whitespace-nowrap">{p.registry.colStatus}</TableHead>
+                  <TableHead className="whitespace-nowrap">{p.registry.colMembers}</TableHead>
                   <TableHead className="whitespace-nowrap text-left">
-                    Действия
+                    {p.registry.colActions}
                   </TableHead>
                 </TableRow>
               </TableHeader>
@@ -284,7 +289,7 @@ export function ProjectsRegistryTable() {
                       colSpan={7}
                       className="text-muted-foreground"
                     >
-                      Загрузка…
+                      {p.registry.loading}
                     </TableCell>
                   </TableRow>
                 ) : filtered.length === 0 ? (
@@ -294,8 +299,8 @@ export function ProjectsRegistryTable() {
                       className="text-muted-foreground"
                     >
                       {myProjects.length === 0
-                        ? 'Нет проектов. Создайте первый проект, чтобы добавить риски по нему'
-                        : 'Нет проектов по текущим фильтрам.'}
+                        ? p.registryProjects.emptyNoProjects
+                        : p.registryProjects.emptyFiltered}
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -321,7 +326,7 @@ export function ProjectsRegistryTable() {
                           onCheckedChange={(v) =>
                             setSelected((s) => ({ ...s, [row.id]: !!v }))
                           }
-                          aria-label={`Выбрать ${projectDisplayCode(row)}`}
+                          aria-label={`${p.registry.selectAll} ${projectDisplayCode(row)}`}
                         />
                       </TableCell>
                       <TableCell className="whitespace-nowrap font-medium">
@@ -331,7 +336,7 @@ export function ProjectsRegistryTable() {
                         {row.name}
                       </TableCell>
                       <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
-                        {formatDisplayDate(row.createdAt)}
+                        {formatDisplayDate(row.createdAt, locale)}
                       </TableCell>
                       <TableCell className="whitespace-nowrap">
                         <span
@@ -355,8 +360,8 @@ export function ProjectsRegistryTable() {
                             size="icon"
                             variant="ghost"
                             type="button"
-                            title="Показать"
-                            aria-label="Показать"
+                            title={p.registry.show}
+                            aria-label={p.registry.show}
                             onClick={() => router.push(`/projects/${row.id}`)}
                           >
                             <Eye className="h-4 w-4" />
@@ -365,8 +370,8 @@ export function ProjectsRegistryTable() {
                             size="icon"
                             variant="ghost"
                             type="button"
-                            title="Изменить"
-                            aria-label="Изменить"
+                            title={p.registry.edit}
+                            aria-label={p.registry.edit}
                             onClick={() =>
                               router.push(`/projects/${row.id}/edit`)
                             }
@@ -377,8 +382,8 @@ export function ProjectsRegistryTable() {
                             size="icon"
                             variant="ghost"
                             type="button"
-                            title="Удалить"
-                            aria-label="Удалить"
+                            title={p.registry.delete}
+                            aria-label={p.registry.delete}
                             onClick={() => setDeleteId(row.id)}
                           >
                             <Trash2 className="h-4 w-4" />
@@ -393,7 +398,7 @@ export function ProjectsRegistryTable() {
           </div>
           {ready && (
             <div className="px-4 py-4 text-sm md:px-6">
-              <span className="text-muted-foreground">Всего записей: </span>
+              <span className="text-muted-foreground">{p.registry.totalRecords} </span>
               <span className="text-foreground">{filtered.length}</span>
             </div>
           )}
@@ -403,11 +408,11 @@ export function ProjectsRegistryTable() {
       <Dialog open={filterOpen} onOpenChange={setFilterOpen}>
         <DialogContent className="risk-filter-scroll max-h-[90vh] overflow-y-auto sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Фильтры</DialogTitle>
+            <DialogTitle>{p.registry.dialogFilters}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <p className="mb-2 text-sm font-medium">Статус</p>
+              <p className="mb-2 text-sm font-medium">{p.registry.status}</p>
               <div className="flex flex-col gap-2">
                 {PROJECT_STATUSES.map((s) => (
                   <label key={s} className="flex items-center gap-2 text-sm">
@@ -425,21 +430,21 @@ export function ProjectsRegistryTable() {
               </div>
             </div>
             <div>
-              <p className="mb-2 text-sm font-medium">Создан</p>
+              <p className="mb-2 text-sm font-medium">{p.registry.colCreated}</p>
               <div className="grid grid-cols-2 gap-2">
                 <Input
                   type="date"
                   value={createdFrom}
                   onChange={(e) => setCreatedFrom(e.target.value)}
                   className="calendar-input accent-primary"
-                  aria-label="Создан с"
+                  aria-label={p.registry.createdFrom}
                 />
                 <Input
                   type="date"
                   value={createdTo}
                   onChange={(e) => setCreatedTo(e.target.value)}
                   className="calendar-input accent-primary"
-                  aria-label="Создан по"
+                  aria-label={p.registry.createdTo}
                 />
               </div>
             </div>
@@ -449,10 +454,10 @@ export function ProjectsRegistryTable() {
               type="button"
               onClick={() => {
                 setFilterOpen(false)
-                toast.success('Фильтры применены')
+                toast.success(p.registry.filtersApplied)
               }}
             >
-              Применить
+              {p.registry.apply}
             </Button>
           </div>
         </DialogContent>
@@ -463,17 +468,18 @@ export function ProjectsRegistryTable() {
           <AlertDialogHeader>
             <AlertDialogTitle>
               {bulkAction === 'close'
-                ? 'Закрыть выбранные проекты?'
-                : 'Удалить выбранные проекты?'}
+                ? p.registryProjects.bulkCloseTitle
+                : p.registryProjects.bulkDeleteTitle}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Выбрано записей: {selectedIds.length}. Подтвердите выполнение
-              действия. Демо-проекты и проекты без прав владельца будут пропущены
-              при массовом действии.
+              {p.registryProjects.bulkDescription.replace(
+                '{n}',
+                String(selectedIds.length)
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Отмена</AlertDialogCancel>
+            <AlertDialogCancel>{p.registry.cancel}</AlertDialogCancel>
             <AlertDialogAction
               className={
                 bulkAction === 'delete'
@@ -482,7 +488,7 @@ export function ProjectsRegistryTable() {
               }
               onClick={() => void handleBulkConfirm()}
             >
-              {bulkAction === 'delete' ? 'Удалить' : 'Подтвердить'}
+              {bulkAction === 'delete' ? p.registry.delete : p.registry.confirm}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -491,14 +497,13 @@ export function ProjectsRegistryTable() {
       <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Удалить проект?</AlertDialogTitle>
+            <AlertDialogTitle>{p.registryProjects.deleteTitle}</AlertDialogTitle>
             <AlertDialogDescription>
-              Проект, участники и приглашения будут удалены из локального
-              хранилища. Риски, привязанные к проекту, останутся в реестре.
+              {p.registryProjects.deleteDescription}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Отмена</AlertDialogCancel>
+            <AlertDialogCancel>{p.registry.cancel}</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={async () => {
@@ -509,12 +514,12 @@ export function ProjectsRegistryTable() {
                   setDeleteId(null)
                   return
                 }
-                toast.success('Проект удалён')
+                toast.success(p.registryProjects.deleted)
                 setDeleteId(null)
                 await refresh()
               }}
             >
-              Удалить
+              {p.registry.delete}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

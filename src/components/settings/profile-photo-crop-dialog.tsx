@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Cropper, { type Area } from 'react-easy-crop'
-import { toast } from 'sonner'
+import { toast } from '@/lib/app-toast'
 
 import { Button } from '@/components/ui/button'
 import {

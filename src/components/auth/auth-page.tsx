@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { Eye, EyeOff, Shield } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/app-toast'
 
 import { Button } from '@/components/ui/button'
 import {

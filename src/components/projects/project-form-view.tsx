@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { Plus, X } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/app-toast'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -29,6 +29,7 @@ export function ProjectFormView() {
     try {
       const res = await createProject({
         name,
+        description,
         inviteEmails: inviteRows
       })
       if (!res.ok) {

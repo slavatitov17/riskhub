@@ -1,12 +1,13 @@
 import type { RiskActivityLogEntry, RiskRecord } from '@/lib/risk-types'
 import { getSession } from '@/lib/auth-storage'
 
-/** Старый общий ключ (до изоляции по пользователям). */
-const LEGACY_RISKS_KEY = 'riskhub_risks'
+/** Общий каталог рисков по проектам (видимость через участие в проекте). */
+const SHARED_RISKS_KEY = 'riskhub_risks_shared_v1'
 
-function risksKeyForUser(userId: string) {
-  return `riskhub_risks__${userId}`
-}
+const MIGRATED_TO_SHARED_FLAG = 'riskhub_risks_shared_v1_migrated'
+
+/** Старые ключи до общего каталога. */
+const LEGACY_FLAT_KEY = 'riskhub_risks'
 
 function safeParse<T>(raw: string | null, fallback: T): T {
   if (!raw) return fallback
@@ -15,6 +16,34 @@ function safeParse<T>(raw: string | null, fallback: T): T {
   } catch {
     return fallback
   }
+}
+
+function migrateToSharedCatalogOnce() {
+  if (typeof window === 'undefined') return
+  if (localStorage.getItem(MIGRATED_TO_SHARED_FLAG)) return
+
+  const byId = new Map<string, RiskRecord>()
+  const ingest = (raw: string | null) => {
+    const arr = safeParse<RiskRecord[] | null>(raw, null)
+    if (!arr?.length) return
+    for (const r of arr) byId.set(r.id, normalizeRiskRecord(r))
+  }
+
+  ingest(localStorage.getItem(SHARED_RISKS_KEY))
+  ingest(localStorage.getItem(LEGACY_FLAT_KEY))
+
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i)
+    if (k?.startsWith('riskhub_risks__')) ingest(localStorage.getItem(k))
+  }
+
+  if (byId.size > 0)
+    localStorage.setItem(
+      SHARED_RISKS_KEY,
+      JSON.stringify(Array.from(byId.values()))
+    )
+
+  localStorage.setItem(MIGRATED_TO_SHARED_FLAG, '1')
 }
 
 export const SEED_RISKS: RiskRecord[] = [
@@ -112,44 +141,46 @@ export function normalizeRiskRecord(r: RiskRecord): RiskRecord {
   }
 }
 
-function seedDemoRisksIfNeeded(key: string): RiskRecord[] {
-  const legacyRaw = localStorage.getItem(LEGACY_RISKS_KEY)
+function seedDemoCatalog(): RiskRecord[] {
+  const legacyRaw = localStorage.getItem(LEGACY_FLAT_KEY)
   if (legacyRaw) {
     const parsed = safeParse<RiskRecord[] | null>(legacyRaw, null)
     if (parsed?.length) {
-      localStorage.setItem(key, legacyRaw)
-      localStorage.removeItem(LEGACY_RISKS_KEY)
+      localStorage.setItem(SHARED_RISKS_KEY, legacyRaw)
+      localStorage.removeItem(LEGACY_FLAT_KEY)
       return parsed.map(normalizeRiskRecord)
     }
   }
-  localStorage.setItem(key, JSON.stringify(SEED_RISKS))
+  localStorage.setItem(SHARED_RISKS_KEY, JSON.stringify(SEED_RISKS))
   return SEED_RISKS.map(normalizeRiskRecord)
 }
 
 export function loadRisks(): RiskRecord[] {
   if (typeof window === 'undefined') return []
-  const s = getSession()
-  if (!s?.userId) return []
+  migrateToSharedCatalogOnce()
 
-  const key = risksKeyForUser(s.userId)
-  const raw = localStorage.getItem(key)
-
+  const raw = localStorage.getItem(SHARED_RISKS_KEY)
   if (!raw) {
-    if (s.userId === 'demo_user') return seedDemoRisksIfNeeded(key)
+    const s = getSession()
+    if (s?.userId === 'demo_user') return seedDemoCatalog()
     return []
   }
 
   const parsed = safeParse<RiskRecord[] | null>(raw, null)
-  if (!parsed?.length) return []
+  if (!parsed?.length) {
+    const s = getSession()
+    if (s?.userId === 'demo_user') return seedDemoCatalog()
+    return []
+  }
 
   return parsed.map(normalizeRiskRecord)
 }
 
 export function saveRisks(risks: RiskRecord[]) {
   if (typeof window === 'undefined') return
-  const s = getSession()
-  if (!s?.userId) return
-  localStorage.setItem(risksKeyForUser(s.userId), JSON.stringify(risks))
+  if (!getSession()?.userId) return
+  migrateToSharedCatalogOnce()
+  localStorage.setItem(SHARED_RISKS_KEY, JSON.stringify(risks))
 }
 
 export function formatDisplayDate(iso: string) {

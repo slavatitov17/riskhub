@@ -12,11 +12,11 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
       <LocaleProvider>
-        <NotificationsProvider>
-          <ProjectsProvider>
+        <ProjectsProvider>
+          <NotificationsProvider>
             <RisksProvider>{children}</RisksProvider>
-          </ProjectsProvider>
-        </NotificationsProvider>
+          </NotificationsProvider>
+        </ProjectsProvider>
       </LocaleProvider>
       <Toaster richColors position="top-center" closeButton />
     </ThemeProvider>

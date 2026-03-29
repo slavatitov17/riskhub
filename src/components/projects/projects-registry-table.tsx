@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Check, Eye, Filter, Pencil, Search, Trash2 } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/app-toast'
 
 import {
   AlertDialog,
@@ -294,7 +294,7 @@ export function ProjectsRegistryTable() {
                       className="text-muted-foreground"
                     >
                       {myProjects.length === 0
-                        ? 'Нет проектов. Создайте первый проект, чтобы вести риски в его рамках.'
+                        ? 'Нет проектов. Создайте первый проект, чтобы добавить риски по нему'
                         : 'Нет проектов по текущим фильтрам.'}
                     </TableCell>
                   </TableRow>

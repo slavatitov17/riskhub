@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { ArrowRight, CheckCircle2, Flame, Zap } from 'lucide-react'
+import { ArrowRight, CheckCircle2, Flame, Plus, Zap } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -100,11 +100,17 @@ export function PanelDashboard() {
           <CardContent className="flex flex-1 flex-col pb-4 pt-0">
             <div className="min-h-4 flex-1" aria-hidden />
             <div className="flex flex-col gap-2">
-              <Button className="w-full justify-center" asChild>
-                <Link href="/risks/new">Добавить риск</Link>
+              <Button className="w-full justify-center gap-2" asChild>
+                <Link href="/risks/new" className="gap-2">
+                  <Plus className="h-4 w-4 shrink-0" aria-hidden />
+                  Добавить риск
+                </Link>
               </Button>
-              <Button variant="outline" className="w-full justify-center" asChild>
-                <Link href="/projects/new">Добавить проект</Link>
+              <Button variant="outline" className="w-full justify-center gap-2" asChild>
+                <Link href="/projects/new" className="gap-2">
+                  <Plus className="h-4 w-4 shrink-0" aria-hidden />
+                  Добавить проект
+                </Link>
               </Button>
             </div>
           </CardContent>
@@ -150,10 +156,10 @@ export function PanelDashboard() {
             ) : (
               <div className="flex min-h-[180px] flex-col items-center justify-center gap-2 px-4 py-8 text-center opacity-60">
                 <p className="text-sm font-semibold text-foreground">
-                  Пока нет рисков
+                  Нет новых рисков
                 </p>
                 <p className="max-w-xs text-sm text-foreground">
-                  Добавьте риск в реестре — он появится в этом списке.
+                  Здесь появятся новые риски
                 </p>
               </div>
             )}

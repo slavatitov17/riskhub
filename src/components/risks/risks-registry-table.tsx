@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Check, Eye, Filter, Pencil, Search, Trash2 } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/app-toast'
 
 import {
   AlertDialog,
@@ -57,7 +57,7 @@ export function RisksRegistryTable() {
   const router = useRouter()
   const { removeRisk, updateRisk } = useRisks()
   const risks = useVisibleRisks()
-  const { getProjectDisplayName } = useProjects()
+  const { getProjectDisplayName, ready: projectsReady } = useProjects()
   const [filterOpen, setFilterOpen] = useState(false)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string[]>([])
@@ -321,7 +321,22 @@ export function RisksRegistryTable() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.map((row) => (
+                {!projectsReady ? (
+                  <TableRow>
+                    <TableCell colSpan={12} className="text-muted-foreground">
+                      Загрузка…
+                    </TableCell>
+                  </TableRow>
+                ) : filtered.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={12} className="text-muted-foreground">
+                      {risks.length === 0
+                        ? 'Нет рисков. Создайте первый риск, чтобы начать работу над ним'
+                        : 'Нет рисков по текущим фильтрам.'}
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filtered.map((row) => (
                   <TableRow
                     key={row.id}
                     className="cursor-pointer hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
@@ -442,7 +457,8 @@ export function RisksRegistryTable() {
                       </div>
                     </TableCell>
                   </TableRow>
-                ))}
+                  ))
+                )}
               </TableBody>
             </Table>
           </div>

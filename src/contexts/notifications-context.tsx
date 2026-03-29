@@ -9,8 +9,13 @@ import {
   useState
 } from 'react'
 
+import { useProjects } from '@/contexts/projects-context'
 import { getSession } from '@/lib/auth-storage'
 import { dbGetPendingInvitationsForEmail } from '@/lib/projects-db'
+import {
+  RISKHUB_NOTIFICATION_PREFS_CHANGED,
+  readBuiltInNotificationsEnabled
+} from '@/lib/notification-prefs'
 import type { RiskRecord } from '@/lib/risk-types'
 import { loadRisks } from '@/lib/risks-storage'
 
@@ -27,6 +32,8 @@ export interface NotificationItem {
   actionHref: string
   isRead: boolean
   invitationId?: string
+  /** Для приглашений — проект, в который пригласили */
+  projectId?: string
 }
 
 interface NotificationsContextValue {
@@ -51,10 +58,14 @@ function notifReadStorageKey(): string {
 }
 
 function buildDemoRiskNotifications(
-  risks: RiskRecord[]
+  risks: RiskRecord[],
+  accessibleProjectIds: ReadonlySet<string>
 ): Omit<NotificationItem, 'isRead'>[] {
-  if (risks.length === 0) return []
-  const sorted = [...risks].sort(
+  const scoped = risks.filter(
+    (r) => r.projectId && accessibleProjectIds.has(r.projectId)
+  )
+  if (scoped.length === 0) return []
+  const sorted = [...scoped].sort(
     (a, b) => Date.parse(b.created) - Date.parse(a.created)
   )
   const pick = sorted.slice(0, 3)
@@ -125,15 +136,20 @@ async function fetchInviteTemplates(): Promise<Omit<NotificationItem, 'isRead'>[
     body: `${inv.inviterName} пригласил вас в проект «${inv.projectName}».`,
     tone: 'default' as const,
     actionHref: '/projects',
-    invitationId: inv.id
+    invitationId: inv.id,
+    projectId: inv.projectId
   }))
 }
 
 export function NotificationsProvider({
   children
 }: Readonly<{ children: React.ReactNode }>) {
+  const { accessibleProjectIds, ready: projectsReady } = useProjects()
   const [notifOpen, setNotifOpen] = useState(false)
   const [sessionTick, setSessionTick] = useState(0)
+  const [inAppEnabled, setInAppEnabled] = useState(() =>
+    typeof window !== 'undefined' ? readBuiltInNotificationsEnabled() : true
+  )
   const [readMap, setReadMap] = useState<Record<string, boolean>>({})
   const [inviteTemplates, setInviteTemplates] = useState<
     Omit<NotificationItem, 'isRead'>[]
@@ -156,6 +172,14 @@ export function NotificationsProvider({
   }, [])
 
   useEffect(() => {
+    const onPrefs = () => setInAppEnabled(readBuiltInNotificationsEnabled())
+    window.addEventListener(RISKHUB_NOTIFICATION_PREFS_CHANGED, onPrefs)
+    return () =>
+      window.removeEventListener(RISKHUB_NOTIFICATION_PREFS_CHANGED, onPrefs)
+  }, [])
+
+  useEffect(() => {
+    setInAppEnabled(readBuiltInNotificationsEnabled())
     setReadMap(loadReadMap())
     void syncInvites()
   }, [syncInvites, sessionTick])
@@ -178,10 +202,12 @@ export function NotificationsProvider({
 
   const demoTemplates = useMemo(() => {
     void risksTick
-    return buildDemoRiskNotifications(loadRisks())
-  }, [risksTick])
+    if (!projectsReady) return []
+    return buildDemoRiskNotifications(loadRisks(), accessibleProjectIds)
+  }, [risksTick, projectsReady, accessibleProjectIds])
 
   const notifications = useMemo((): NotificationItem[] => {
+    if (!inAppEnabled) return []
     const demos: NotificationItem[] = demoTemplates.map((n) => ({
       ...n,
       isRead: readMap[n.id] ?? false
@@ -191,7 +217,7 @@ export function NotificationsProvider({
       isRead: readMap[n.id] ?? false
     }))
     return [...invites, ...demos]
-  }, [readMap, inviteTemplates, demoTemplates])
+  }, [readMap, inviteTemplates, demoTemplates, inAppEnabled])
 
   const unreadCount = useMemo(
     () => notifications.reduce((acc, n) => acc + (n.isRead ? 0 : 1), 0),

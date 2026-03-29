@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { Bell, ChevronDown } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/app-toast'
 
 import { AppBreadcrumbs } from '@/components/layout/app-breadcrumbs'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'

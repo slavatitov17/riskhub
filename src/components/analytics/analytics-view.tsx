@@ -19,7 +19,7 @@ import {
   type TooltipProps
 } from 'recharts'
 import { CalendarDays, ChevronDown, Download, RefreshCw } from 'lucide-react'
-import { toast } from 'sonner'
+import { toast } from '@/lib/app-toast'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -31,13 +31,6 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@/components/ui/select'
 import { useProjects } from '@/contexts/projects-context'
 import { useRisks } from '@/contexts/risks-context'
 import { useVisibleRisks } from '@/hooks/use-visible-risks'
@@ -129,10 +122,18 @@ export type ReportFilters = {
   keywords: string
 }
 
+function isoDate(d: Date): string {
+  return d.toISOString().slice(0, 10)
+}
+
 function defaultReportFilters(): ReportFilters {
+  const to = new Date()
+  to.setHours(12, 0, 0, 0)
+  const from = new Date(to)
+  from.setDate(from.getDate() - 6)
   return {
-    periodFrom: '',
-    periodTo: '',
+    periodFrom: isoDate(from),
+    periodTo: isoDate(to),
     probability: [],
     impact: [],
     status: [],
@@ -141,6 +142,103 @@ function defaultReportFilters(): ReportFilters {
     project: [],
     keywords: ''
   }
+}
+
+function parseYmd(s: string): Date | null {
+  if (!s || s.length < 10) return null
+  const d = new Date(`${s.slice(0, 10)}T12:00:00`)
+  return Number.isNaN(d.getTime()) ? null : d
+}
+
+function eachDateInInclusiveRange(from: Date, to: Date): Date[] {
+  const res: Date[] = []
+  const d = new Date(from)
+  d.setHours(12, 0, 0, 0)
+  const end = new Date(to)
+  end.setHours(12, 0, 0, 0)
+  while (d <= end) {
+    res.push(new Date(d))
+    d.setDate(d.getDate() + 1)
+  }
+  return res
+}
+
+function buildTimelineFromReport(
+  periodFrom: string,
+  periodTo: string,
+  filteredRisks: RiskRecord[]
+): { month: string; Активные: number; Закрытые: number }[] {
+  let fromD = parseYmd(periodFrom)
+  let toD = parseYmd(periodTo)
+  if (!fromD || !toD || fromD > toD) {
+    toD = new Date()
+    toD.setHours(12, 0, 0, 0)
+    fromD = new Date(toD)
+    fromD.setDate(fromD.getDate() - 6)
+  }
+
+  const days = eachDateInInclusiveRange(fromD, toD)
+
+  const countsForKeys = (kf: string, kt: string) => {
+    const inRange = filteredRisks.filter((r) => {
+      const k = riskDateKey(r.created)
+      return k >= kf && k <= kt
+    })
+    return {
+      Активные: inRange.filter((r) => r.status !== 'Закрыт').length,
+      Закрытые: inRange.filter((r) => r.status === 'Закрыт').length
+    }
+  }
+
+  if (days.length <= 45) {
+    return days.map((d) => {
+      const key = isoDate(d)
+      const inDay = filteredRisks.filter((r) => riskDateKey(r.created) === key)
+      return {
+        month: `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}`,
+        Активные: inDay.filter((r) => r.status !== 'Закрыт').length,
+        Закрытые: inDay.filter((r) => r.status === 'Закрыт').length
+      }
+    })
+  }
+
+  if (days.length <= 120) {
+    const out: { month: string; Активные: number; Закрытые: number }[] = []
+    for (let i = 0; i < days.length; i += 7) {
+      const chunk = days.slice(i, i + 7)
+      const kf = isoDate(chunk[0]!)
+      const kt = isoDate(chunk[chunk.length - 1]!)
+      out.push({
+        month: `${kf.slice(8, 10)}.${kf.slice(5, 7)}–${kt.slice(8, 10)}.${kt.slice(5, 7)}`,
+        ...countsForKeys(kf, kt)
+      })
+    }
+    return out
+  }
+
+  const out: { month: string; Активные: number; Закрытые: number }[] = []
+  const cur = new Date(fromD.getFullYear(), fromD.getMonth(), 1)
+  const endM = new Date(toD.getFullYear(), toD.getMonth(), 1)
+  while (cur <= endM) {
+    const ym = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}`
+    const inMonth = filteredRisks.filter((r) => r.created.slice(0, 7) === ym)
+    out.push({
+      month: MONTH_LABELS[cur.getMonth()] ?? ym,
+      Активные: inMonth.filter((r) => r.status !== 'Закрыт').length,
+      Закрытые: inMonth.filter((r) => r.status === 'Закрыт').length
+    })
+    cur.setMonth(cur.getMonth() + 1)
+  }
+  return out
+}
+
+function ChartEmptyState({ title, hint }: { title: string; hint: string }) {
+  return (
+    <div className="flex h-full min-h-[220px] flex-col items-center justify-center gap-2 px-4 py-8 text-center opacity-60">
+      <p className="text-sm font-semibold text-foreground">{title}</p>
+      <p className="max-w-sm text-sm text-foreground">{hint}</p>
+    </div>
+  )
 }
 
 function matchesReportFilters(
@@ -349,17 +447,6 @@ function ReportFilterSearchableMultiSelect({
   )
 }
 
-function last6MonthBuckets() {
-  const out: { key: string; label: string }[] = []
-  const now = new Date()
-  for (let i = 5; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-    out.push({ key, label: MONTH_LABELS[d.getMonth()] ?? '' })
-  }
-  return out
-}
-
 function formatRuDateTime(d: Date) {
   return d.toLocaleString('ru-RU', {
     day: '2-digit',
@@ -375,7 +462,6 @@ export function AnalyticsView() {
   const { refresh } = useRisks()
   const risks = useVisibleRisks()
   const { getProjectDisplayName } = useProjects()
-  const [period, setPeriod] = useState('month')
   const [lastUpdated, setLastUpdated] = useState(() => new Date())
   const [draft, setDraft] = useState<ReportFilters>(() => defaultReportFilters())
   const [applied, setApplied] = useState<ReportFilters>(() => defaultReportFilters())
@@ -426,17 +512,26 @@ export function AnalyticsView() {
     return Array.from(map.entries()).map(([name, value]) => ({ name, value }))
   }, [filteredRisks])
 
-  const timeline = useMemo(() => {
-    const buckets = last6MonthBuckets()
-    return buckets.map(({ key, label }) => {
-      const inMonth = filteredRisks.filter((r) => r.created.slice(0, 7) === key)
-      return {
-        month: label,
-        Активные: inMonth.filter((r) => r.status !== 'Закрыт').length,
-        Закрытые: inMonth.filter((r) => r.status === 'Закрыт').length
-      }
-    })
-  }, [filteredRisks])
+  const timeline = useMemo(
+    () =>
+      buildTimelineFromReport(
+        applied.periodFrom,
+        applied.periodTo,
+        filteredRisks
+      ),
+    [applied.periodFrom, applied.periodTo, filteredRisks]
+  )
+
+  const chartEmptyCopy =
+    risks.length === 0
+      ? {
+          title: 'Нет данных для графиков',
+          hint: 'Добавьте риски в реестре — здесь появится аналитика'
+        }
+      : {
+          title: 'Нет данных по фильтрам',
+          hint: 'Измените период или фильтры отчёта'
+        }
 
   const handleResetFilters = () => {
     const next = defaultReportFilters()
@@ -604,95 +699,102 @@ export function AnalyticsView() {
             <CardTitle className="text-base">Количество рисков по категориям</CardTitle>
           </CardHeader>
           <CardContent className="h-[280px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={byCategory}
-                margin={{ top: 8, right: 8, left: -8, bottom: 4 }}
-              >
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke="hsl(var(--border))"
-                  vertical={false}
-                />
-                <XAxis
-                  dataKey="name"
-                  tick={{ fontSize: 10 }}
-                  interval={0}
-                  height={52}
-                />
-                <YAxis allowDecimals={false} width={36} tick={{ fontSize: 11 }} />
-                <Tooltip
-                  cursor={{ fill: 'hsl(var(--muted) / 0.35)' }}
-                  content={<AnalyticsTooltip />}
-                />
-                <Bar
-                  dataKey="value"
-                  fill="hsl(217 91% 60%)"
-                  radius={[4, 4, 0, 0]}
-                  maxBarSize={52}
-                  isAnimationActive
-                />
-                <Legend
-                  verticalAlign="bottom"
-                  align="center"
-                  height={28}
-                  wrapperStyle={{ fontSize: 12, paddingTop: 6 }}
-                  formatter={() => 'Количество рисков'}
-                  iconType="square"
-                />
-              </BarChart>
-            </ResponsiveContainer>
+            {filteredRisks.length === 0 ? (
+              <ChartEmptyState
+                title={chartEmptyCopy.title}
+                hint={chartEmptyCopy.hint}
+              />
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={byCategory}
+                  margin={{ top: 8, right: 8, left: -8, bottom: 4 }}
+                >
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="hsl(var(--border))"
+                    vertical={false}
+                  />
+                  <XAxis
+                    dataKey="name"
+                    tick={{ fontSize: 10 }}
+                    interval={0}
+                    height={52}
+                  />
+                  <YAxis allowDecimals={false} width={36} tick={{ fontSize: 11 }} />
+                  <Tooltip
+                    cursor={{ fill: 'hsl(var(--muted) / 0.35)' }}
+                    content={<AnalyticsTooltip />}
+                  />
+                  <Bar
+                    dataKey="value"
+                    fill="hsl(217 91% 60%)"
+                    radius={[4, 4, 0, 0]}
+                    maxBarSize={52}
+                    isAnimationActive
+                  />
+                  <Legend
+                    verticalAlign="bottom"
+                    align="center"
+                    height={28}
+                    wrapperStyle={{ fontSize: 12, paddingTop: 6 }}
+                    formatter={() => 'Количество рисков'}
+                    iconType="square"
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
 
         <Card className="min-h-[340px]">
-          <CardHeader className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <CardHeader>
             <CardTitle className="text-base">Динамика рисков по времени</CardTitle>
-            <Select value={period} onValueChange={setPeriod}>
-              <SelectTrigger className="w-[140px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="week">Неделя</SelectItem>
-                <SelectItem value="month">Месяц</SelectItem>
-                <SelectItem value="quarter">Квартал</SelectItem>
-              </SelectContent>
-            </Select>
           </CardHeader>
           <CardContent className="h-[280px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={timeline} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                <YAxis allowDecimals={false} width={36} tick={{ fontSize: 11 }} />
-                <Tooltip content={<AnalyticsTooltip />} />
-                <Legend
-                  verticalAlign="bottom"
-                  align="center"
-                  height={32}
-                  wrapperStyle={{ fontSize: 12, paddingTop: 8 }}
-                  iconType="circle"
-                />
-                <Line
-                  type="monotone"
-                  dataKey="Активные"
-                  stroke="hsl(217 91% 52%)"
-                  strokeWidth={2}
-                  dot={{ r: 3, strokeWidth: 1, fill: 'hsl(var(--card))' }}
-                  activeDot={{ r: 5 }}
-                  isAnimationActive
-                />
-                <Line
-                  type="monotone"
-                  dataKey="Закрытые"
-                  stroke="hsl(142 76% 34%)"
-                  strokeWidth={2}
-                  dot={{ r: 3, strokeWidth: 1, fill: 'hsl(var(--card))' }}
-                  activeDot={{ r: 5 }}
-                  isAnimationActive
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            {filteredRisks.length === 0 ? (
+              <ChartEmptyState
+                title={chartEmptyCopy.title}
+                hint={chartEmptyCopy.hint}
+              />
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart
+                  data={timeline}
+                  margin={{ top: 8, right: 8, left: -8, bottom: 0 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                  <YAxis allowDecimals={false} width={36} tick={{ fontSize: 11 }} />
+                  <Tooltip content={<AnalyticsTooltip />} />
+                  <Legend
+                    verticalAlign="bottom"
+                    align="center"
+                    height={32}
+                    wrapperStyle={{ fontSize: 12, paddingTop: 8 }}
+                    iconType="circle"
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="Активные"
+                    stroke="hsl(217 91% 52%)"
+                    strokeWidth={2}
+                    dot={{ r: 3, strokeWidth: 1, fill: 'hsl(var(--card))' }}
+                    activeDot={{ r: 5 }}
+                    isAnimationActive
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="Закрытые"
+                    stroke="hsl(142 76% 34%)"
+                    strokeWidth={2}
+                    dot={{ r: 3, strokeWidth: 1, fill: 'hsl(var(--card))' }}
+                    activeDot={{ r: 5 }}
+                    isAnimationActive
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
 
@@ -701,38 +803,45 @@ export function AnalyticsView() {
             <CardTitle className="text-base">Доля рисков по категориям</CardTitle>
           </CardHeader>
           <CardContent className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart margin={{ top: 0, right: 4, bottom: 4, left: 4 }}>
-                <Pie
-                  data={byCategory}
-                  dataKey="value"
-                  nameKey="name"
-                  cx="50%"
-                  cy="44%"
-                  outerRadius={82}
-                  paddingAngle={2}
-                  label={false}
-                  isAnimationActive
-                >
-                  {byCategory.map((_, i) => (
-                    <Cell
-                      key={`c-${i}`}
-                      fill={PIE_COLORS[i % PIE_COLORS.length]}
-                      stroke="hsl(var(--background))"
-                      strokeWidth={1}
-                    />
-                  ))}
-                </Pie>
-                <Tooltip content={<AnalyticsTooltip />} />
-                <Legend
-                  verticalAlign="bottom"
-                  layout="horizontal"
-                  align="center"
-                  wrapperStyle={{ fontSize: 12, paddingTop: 4 }}
-                  iconType="circle"
-                />
-              </PieChart>
-            </ResponsiveContainer>
+            {filteredRisks.length === 0 ? (
+              <ChartEmptyState
+                title={chartEmptyCopy.title}
+                hint={chartEmptyCopy.hint}
+              />
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart margin={{ top: 0, right: 4, bottom: 4, left: 4 }}>
+                  <Pie
+                    data={byCategory}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="44%"
+                    outerRadius={82}
+                    paddingAngle={2}
+                    label={false}
+                    isAnimationActive
+                  >
+                    {byCategory.map((_, i) => (
+                      <Cell
+                        key={`c-${i}`}
+                        fill={PIE_COLORS[i % PIE_COLORS.length]}
+                        stroke="hsl(var(--background))"
+                        strokeWidth={1}
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip content={<AnalyticsTooltip />} />
+                  <Legend
+                    verticalAlign="bottom"
+                    layout="horizontal"
+                    align="center"
+                    wrapperStyle={{ fontSize: 12, paddingTop: 4 }}
+                    iconType="circle"
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
 
@@ -741,39 +850,46 @@ export function AnalyticsView() {
             <CardTitle className="text-base">Распределение по статусам</CardTitle>
           </CardHeader>
           <CardContent className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart margin={{ top: 0, right: 4, bottom: 4, left: 4 }}>
-                <Pie
-                  data={byStatus}
-                  dataKey="value"
-                  nameKey="name"
-                  cx="50%"
-                  cy="44%"
-                  innerRadius={52}
-                  outerRadius={82}
-                  paddingAngle={2}
-                  label={false}
-                  isAnimationActive
-                >
-                  {byStatus.map((_, i) => (
-                    <Cell
-                      key={`s-${i}`}
-                      fill={PIE_COLORS[i % PIE_COLORS.length]}
-                      stroke="hsl(var(--background))"
-                      strokeWidth={1}
-                    />
-                  ))}
-                </Pie>
-                <Tooltip content={<AnalyticsTooltip />} />
-                <Legend
-                  verticalAlign="bottom"
-                  layout="horizontal"
-                  align="center"
-                  wrapperStyle={{ fontSize: 12, paddingTop: 4 }}
-                  iconType="circle"
-                />
-              </PieChart>
-            </ResponsiveContainer>
+            {filteredRisks.length === 0 ? (
+              <ChartEmptyState
+                title={chartEmptyCopy.title}
+                hint={chartEmptyCopy.hint}
+              />
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart margin={{ top: 0, right: 4, bottom: 4, left: 4 }}>
+                  <Pie
+                    data={byStatus}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="44%"
+                    innerRadius={52}
+                    outerRadius={82}
+                    paddingAngle={2}
+                    label={false}
+                    isAnimationActive
+                  >
+                    {byStatus.map((_, i) => (
+                      <Cell
+                        key={`s-${i}`}
+                        fill={PIE_COLORS[i % PIE_COLORS.length]}
+                        stroke="hsl(var(--background))"
+                        strokeWidth={1}
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip content={<AnalyticsTooltip />} />
+                  <Legend
+                    verticalAlign="bottom"
+                    layout="horizontal"
+                    align="center"
+                    wrapperStyle={{ fontSize: 12, paddingTop: 4 }}
+                    iconType="circle"
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
 
@@ -782,63 +898,70 @@ export function AnalyticsView() {
             <CardTitle className="text-base">Вероятность рисков (столбчатая)</CardTitle>
           </CardHeader>
           <CardContent className="h-[280px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={byProbability}
-                layout="vertical"
-                margin={{ top: 8, right: 16, left: 4, bottom: 4 }}
-              >
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke="hsl(var(--border))"
-                  horizontal={false}
-                />
-                <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
-                <YAxis
-                  dataKey="name"
-                  type="category"
-                  width={92}
-                  tick={{ fontSize: 11 }}
-                />
-                <Tooltip
-                  cursor={{ fill: 'hsl(var(--muted) / 0.25)' }}
-                  content={<AnalyticsTooltip />}
-                />
-                <Bar
-                  dataKey="value"
-                  radius={[0, 4, 4, 0]}
-                  maxBarSize={28}
-                  isAnimationActive
+            {filteredRisks.length === 0 ? (
+              <ChartEmptyState
+                title={chartEmptyCopy.title}
+                hint={chartEmptyCopy.hint}
+              />
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={byProbability}
+                  layout="vertical"
+                  margin={{ top: 8, right: 16, left: 4, bottom: 4 }}
                 >
-                  {byProbability.map((row) => (
-                    <Cell
-                      key={row.name}
-                      fill={probabilityBarColor(row.name)}
-                    />
-                  ))}
-                </Bar>
-                <Legend
-                  verticalAlign="bottom"
-                  align="center"
-                  content={() => (
-                    <ul className="flex flex-wrap justify-center gap-x-5 gap-y-2 pt-2 text-xs text-muted-foreground">
-                      {byProbability.map((row) => (
-                        <li key={row.name} className="flex items-center gap-2">
-                          <span
-                            className="h-2.5 w-7 rounded-sm"
-                            style={{
-                              backgroundColor: probabilityBarColor(row.name)
-                            }}
-                            aria-hidden
-                          />
-                          <span className="text-foreground">{row.name}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                />
-              </BarChart>
-            </ResponsiveContainer>
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="hsl(var(--border))"
+                    horizontal={false}
+                  />
+                  <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
+                  <YAxis
+                    dataKey="name"
+                    type="category"
+                    width={92}
+                    tick={{ fontSize: 11 }}
+                  />
+                  <Tooltip
+                    cursor={{ fill: 'hsl(var(--muted) / 0.25)' }}
+                    content={<AnalyticsTooltip />}
+                  />
+                  <Bar
+                    dataKey="value"
+                    radius={[0, 4, 4, 0]}
+                    maxBarSize={28}
+                    isAnimationActive
+                  >
+                    {byProbability.map((row) => (
+                      <Cell
+                        key={row.name}
+                        fill={probabilityBarColor(row.name)}
+                      />
+                    ))}
+                  </Bar>
+                  <Legend
+                    verticalAlign="bottom"
+                    align="center"
+                    content={() => (
+                      <ul className="flex flex-wrap justify-center gap-x-5 gap-y-2 pt-2 text-xs text-muted-foreground">
+                        {byProbability.map((row) => (
+                          <li key={row.name} className="flex items-center gap-2">
+                            <span
+                              className="h-2.5 w-7 rounded-sm"
+                              style={{
+                                backgroundColor: probabilityBarColor(row.name)
+                              }}
+                              aria-hidden
+                            />
+                            <span className="text-foreground">{row.name}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
       </div>

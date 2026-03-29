@@ -3,10 +3,8 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useTheme } from 'next-themes'
-import { toast } from 'sonner'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
 import {
   Select,
@@ -15,36 +13,21 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
 import { useLocale, type AppLocale } from '@/contexts/locale-context'
-
-const NOTIFICATION_PREFS_KEY = 'riskhub_notification_prefs'
-
-interface NotificationPrefs {
-  email: boolean
-  inApp: boolean
-}
-
-function readNotificationPrefs(): NotificationPrefs {
-  if (typeof window === 'undefined') return { email: false, inApp: false }
-  try {
-    const raw = localStorage.getItem(NOTIFICATION_PREFS_KEY)
-    if (!raw) return { email: false, inApp: false }
-    const parsed = JSON.parse(raw) as Partial<NotificationPrefs>
-    return {
-      email: !!parsed.email,
-      inApp: !!parsed.inApp
-    }
-  } catch {
-    return { email: false, inApp: false }
-  }
-}
+import { toast } from '@/lib/app-toast'
+import {
+  readNotificationPrefs,
+  writeNotificationPrefs,
+  type NotificationPrefs
+} from '@/lib/notification-prefs'
 
 export function SystemSettingsView() {
   const { theme, setTheme } = useTheme()
   const { locale, setLocale } = useLocale()
   const [notifPrefs, setNotifPrefs] = useState<NotificationPrefs>({
     email: false,
-    inApp: false
+    inApp: true
   })
 
   useEffect(() => {
@@ -53,7 +36,7 @@ export function SystemSettingsView() {
 
   const persistNotif = (next: NotificationPrefs) => {
     setNotifPrefs(next)
-    localStorage.setItem(NOTIFICATION_PREFS_KEY, JSON.stringify(next))
+    writeNotificationPrefs(next)
   }
 
   const themeValue = theme === 'dark' ? 'dark' : 'light'
@@ -112,27 +95,31 @@ export function SystemSettingsView() {
         <CardHeader>
           <CardTitle className="text-base">Другое</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="space-y-4">
           <p className="text-sm font-medium">Уведомления</p>
-          <div className="flex flex-col gap-3">
-            <label className="flex cursor-pointer items-center gap-2 text-sm">
-              <Checkbox
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center justify-between gap-4 text-sm">
+              <span className="text-foreground">
+                Получать уведомления на Email
+              </span>
+              <Switch
                 checked={notifPrefs.email}
                 onCheckedChange={(v) =>
-                  persistNotif({ ...notifPrefs, email: !!v })
+                  persistNotif({ ...notifPrefs, email: v })
                 }
+                aria-label="Получать уведомления на Email"
               />
-              Получать уведомления на Email
-            </label>
-            <label className="flex cursor-pointer items-center gap-2 text-sm">
-              <Checkbox
+            </div>
+            <div className="flex items-center justify-between gap-4 text-sm">
+              <span className="text-foreground">Встроенные уведомления</span>
+              <Switch
                 checked={notifPrefs.inApp}
                 onCheckedChange={(v) =>
-                  persistNotif({ ...notifPrefs, inApp: !!v })
+                  persistNotif({ ...notifPrefs, inApp: v })
                 }
+                aria-label="Встроенные уведомления"
               />
-              Встроенные оповещения
-            </label>
+            </div>
           </div>
         </CardContent>
       </Card>

@@ -18,6 +18,56 @@ const STORES = {
   invitations: 'projectInvitations'
 } as const
 
+/** Приглашения общие для всех аккаунтов (приглашающий и приглашённый видят одну запись). */
+const INVITATIONS_LS_KEY = 'riskhub_project_invitations_v1'
+
+const INVITATIONS_IDB_SINGLETON_BOOTSTRAP_KEY =
+  'riskhub_invitations_bootstrapped_from_idb'
+
+function loadInvitationsLs(): ProjectInvitationRecord[] {
+  if (typeof window === 'undefined') return []
+  try {
+    const raw = localStorage.getItem(INVITATIONS_LS_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw) as unknown
+    if (!Array.isArray(parsed)) return []
+    return parsed as ProjectInvitationRecord[]
+  } catch {
+    return []
+  }
+}
+
+function saveInvitationsLs(rows: ProjectInvitationRecord[]) {
+  if (typeof window === 'undefined') return
+  localStorage.setItem(INVITATIONS_LS_KEY, JSON.stringify(rows))
+}
+
+/**
+ * Однократно подтягивает приглашения из старого общего IndexedDB в localStorage.
+ */
+export async function maybeBootstrapInvitationsFromLegacySingletonIdb(): Promise<void> {
+  if (typeof window === 'undefined') return
+  if (localStorage.getItem(INVITATIONS_IDB_SINGLETON_BOOTSTRAP_KEY)) return
+
+  try {
+    const legacyDb = await openDatabase(LEGACY_SINGLETON_DB_NAME)
+    const legacyInv = await new Promise<ProjectInvitationRecord[]>(
+      (resolve, reject) => {
+        const tx = legacyDb.transaction(STORES.invitations, 'readonly')
+        const req = tx.objectStore(STORES.invitations).getAll()
+        req.onsuccess = () =>
+          resolve((req.result as ProjectInvitationRecord[]) ?? [])
+        req.onerror = () => reject(req.error)
+      }
+    )
+    for (const inv of legacyInv) await dbPutInvitation(inv)
+  } catch {
+    /* нет старой БД */
+  }
+
+  localStorage.setItem(INVITATIONS_IDB_SINGLETON_BOOTSTRAP_KEY, '1')
+}
+
 function getProjectsDbName(): string {
   const uid = getSession()?.userId
   if (!uid) throw new Error('Требуется сессия для базы проектов')
@@ -227,18 +277,13 @@ export async function dbEnsureAllProjectCodes(): Promise<void> {
 
 export async function dbDeleteProjectCascade(projectId: string): Promise<void> {
   const members = await dbGetMembersForProject(projectId)
-  const allInv = await dbGetAllInvitations()
-  const invToDel = allInv.filter((i) => i.projectId === projectId)
+  const allInv = loadInvitationsLs()
+  saveInvitationsLs(allInv.filter((i) => i.projectId !== projectId))
   const db = await openDb()
-  const tx = db.transaction(
-    [STORES.members, STORES.invitations, STORES.projects],
-    'readwrite'
-  )
+  const tx = db.transaction([STORES.members, STORES.projects], 'readwrite')
   const mStore = tx.objectStore(STORES.members)
-  const iStore = tx.objectStore(STORES.invitations)
   const pStore = tx.objectStore(STORES.projects)
   for (const m of members) mStore.delete(m.id)
-  for (const i of invToDel) iStore.delete(i.id)
   pStore.delete(projectId)
   await txDone(tx)
 }
@@ -300,30 +345,19 @@ export async function dbPutMember(row: ProjectMemberRecord): Promise<void> {
 }
 
 export async function dbPutInvitation(row: ProjectInvitationRecord): Promise<void> {
-  const db = await openDb()
-  const tx = db.transaction(STORES.invitations, 'readwrite')
-  tx.objectStore(STORES.invitations).put(row)
-  await txDone(tx)
+  const all = loadInvitationsLs()
+  const idx = all.findIndex((i) => i.id === row.id)
+  const next =
+    idx >= 0 ? all.map((i, j) => (j === idx ? row : i)) : [...all, row]
+  saveInvitationsLs(next)
 }
 
 export async function dbGetInvitation(id: string): Promise<ProjectInvitationRecord | undefined> {
-  const db = await openDb()
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORES.invitations, 'readonly')
-    const req = tx.objectStore(STORES.invitations).get(id)
-    req.onsuccess = () => resolve(req.result as ProjectInvitationRecord | undefined)
-    req.onerror = () => reject(req.error)
-  })
+  return loadInvitationsLs().find((i) => i.id === id)
 }
 
 export async function dbGetAllInvitations(): Promise<ProjectInvitationRecord[]> {
-  const db = await openDb()
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORES.invitations, 'readonly')
-    const req = tx.objectStore(STORES.invitations).getAll()
-    req.onsuccess = () => resolve((req.result as ProjectInvitationRecord[]) ?? [])
-    req.onerror = () => reject(req.error)
-  })
+  return loadInvitationsLs()
 }
 
 export async function dbGetPendingInvitationsForEmail(

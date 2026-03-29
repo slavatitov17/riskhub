@@ -5,6 +5,7 @@ import {
   dbGetAllProjects,
   dbPutProject,
   dbUpgradeProjectShapesIfNeeded,
+  maybeBootstrapInvitationsFromLegacySingletonIdb,
   maybeMigrateLegacySingletonProjectsDb
 } from '@/lib/projects-db'
 import type { RiskRecord } from '@/lib/risk-types'
@@ -24,6 +25,7 @@ export async function migrateLegacyRisksToProjects(): Promise<void> {
   const session = getSession()
   if (!session?.userId) return
 
+  await maybeBootstrapInvitationsFromLegacySingletonIdb()
   await maybeMigrateLegacySingletonProjectsDb()
   await dbUpgradeProjectShapesIfNeeded()
   const existing = await dbGetAllProjects()

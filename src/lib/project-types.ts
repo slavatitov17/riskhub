@@ -8,6 +8,8 @@ export interface ProjectRecord {
   /** Человекочитаемый код, например P-001 */
   code: string
   name: string
+  /** Категория проекта (произвольная строка или пресет) */
+  category: string
   ownerUserId: string
   createdAt: string
   updatedAt: string
@@ -20,12 +22,17 @@ export interface ProjectRecord {
 
 export type ProjectRecordInput = Omit<
   ProjectRecord,
-  'status' | 'description' | 'updatedAt' | 'activityLog' | 'code'
+  'status' | 'description' | 'updatedAt' | 'activityLog' | 'code' | 'category'
 > &
   Partial<
     Pick<
       ProjectRecord,
-      'status' | 'description' | 'updatedAt' | 'activityLog' | 'code'
+      | 'status'
+      | 'description'
+      | 'updatedAt'
+      | 'activityLog'
+      | 'code'
+      | 'category'
     >
   >
 
@@ -41,9 +48,12 @@ export function normalizeProjectRecord(raw: ProjectRecordInput): ProjectRecord {
     }
   ]
   const codeRaw = typeof raw.code === 'string' ? raw.code.trim() : ''
+  const categoryRaw =
+    typeof raw.category === 'string' ? raw.category.trim() : ''
   return {
     ...raw,
     code: PROJECT_CODE_RE.test(codeRaw) ? codeRaw : '',
+    category: categoryRaw,
     status: raw.status === 'Завершен' ? 'Завершен' : 'Активен',
     description: typeof raw.description === 'string' ? raw.description : '',
     updatedAt: raw.updatedAt ?? created,

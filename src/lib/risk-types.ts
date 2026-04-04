@@ -70,6 +70,11 @@ export const RISK_CATEGORIES = [
   'Прочее'
 ] as const
 
+/** Пресеты для выбора в формах; «Прочее» заменено на создание своей категории */
+export const RISK_CATEGORY_PRESETS = RISK_CATEGORIES.filter(
+  (c) => c !== 'Прочее'
+) as readonly Exclude<(typeof RISK_CATEGORIES)[number], 'Прочее'>[]
+
 export const RISK_STATUSES = [
   'Активный',
   'В работе',

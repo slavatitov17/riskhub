@@ -32,20 +32,32 @@ export function saveUsers(users: StoredUser[]) {
   localStorage.setItem(USERS_KEY, JSON.stringify(users))
 }
 
-/** Создаёт демо-пользователя в локальном хранилище без автоматического входа. */
+const DEMO_USER_ID = 'demo_user'
+const DEMO_EMAIL = 'demo@mail.ru'
+const DEMO_PASSWORD = '123456qwertyQ'
+
+export function getDemoCredentials() {
+  return { email: DEMO_EMAIL, password: DEMO_PASSWORD, userId: DEMO_USER_ID }
+}
+
+/** Создаёт или обновляет демо-пользователя в локальном хранилище без автоматического входа. */
 export function ensureDemoUser() {
   if (typeof window === 'undefined') return
-  const users = getUsers()
-  if (users.some((u) => u.email === 'demo@riskhub.local')) return
-  saveUsers([
-    ...users,
-    {
-      id: 'demo_user',
-      name: 'Демо пользователь',
-      email: 'demo@riskhub.local',
-      password: 'demo123'
-    }
-  ])
+  const withoutLegacy = getUsers().filter(
+    (u) => u.email.toLowerCase() !== 'demo@riskhub.local'
+  )
+  const others = withoutLegacy.filter(
+    (u) =>
+      u.id !== DEMO_USER_ID &&
+      u.email.toLowerCase() !== DEMO_EMAIL.toLowerCase()
+  )
+  const demo: StoredUser = {
+    id: DEMO_USER_ID,
+    name: 'Демо Аккаунт',
+    email: DEMO_EMAIL,
+    password: DEMO_PASSWORD
+  }
+  saveUsers([...others, demo])
 }
 
 export function registerUser(input: {
@@ -55,6 +67,12 @@ export function registerUser(input: {
   password: string
 }): { ok: true; user: StoredUser } | { ok: false; error: string } {
   const email = input.email.trim().toLowerCase()
+  if (email === DEMO_EMAIL.toLowerCase()) {
+    return {
+      ok: false,
+      error: 'Этот email зарезервирован для демо-аккаунта'
+    }
+  }
   const users = getUsers()
   if (users.some((u) => u.email.toLowerCase() === email)) {
     return { ok: false, error: 'Пользователь с таким email уже зарегистрирован' }

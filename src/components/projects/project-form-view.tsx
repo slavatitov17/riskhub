@@ -7,6 +7,7 @@ import { motion } from 'framer-motion'
 import { Plus, X } from 'lucide-react'
 import { toast } from '@/lib/app-toast'
 
+import { SearchableCategoryField } from '@/components/forms/searchable-category-field'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -18,6 +19,7 @@ export function ProjectFormView() {
   const router = useRouter()
   const { createProject } = useProjects()
   const [name, setName] = useState('')
+  const [category, setCategory] = useState('')
   const [description, setDescription] = useState('')
   const [inviteRows, setInviteRows] = useState<string[]>([''])
   const [submitting, setSubmitting] = useState(false)
@@ -29,6 +31,7 @@ export function ProjectFormView() {
     try {
       const res = await createProject({
         name,
+        category,
         description,
         inviteEmails: inviteRows
       })
@@ -62,6 +65,11 @@ export function ProjectFormView() {
                 required
               />
             </div>
+            <SearchableCategoryField
+              value={category}
+              onChange={setCategory}
+              id="project-category"
+            />
             <div className="space-y-2">
               <Label htmlFor="project-desc">Описание проекта</Label>
               <Textarea

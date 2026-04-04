@@ -21,10 +21,12 @@ import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   ensureDemoUser,
+  getDemoCredentials,
   getSession,
   loginUser,
   registerUser
 } from '@/lib/auth-storage'
+import { ensureDemoWorldSeeded } from '@/lib/demo-world-seed'
 import { initProfileForNewUser } from '@/lib/user-profile-storage'
 
 export function AuthPage() {
@@ -40,8 +42,25 @@ export function AuthPage() {
 
   useEffect(() => {
     ensureDemoUser()
+    void ensureDemoWorldSeeded()
     if (getSession()) router.replace('/panel')
   }, [router])
+
+  const handleUseDemoAccount = () => {
+    const { email, password } = getDemoCredentials()
+    setLoginEmail(email)
+    setLoginPassword(password)
+    toast.neutral('Вы используете демо-аккаунт')
+    window.setTimeout(() => {
+      const res = loginUser({ email, password })
+      if (!res.ok) {
+        toast.error(res.error)
+        return
+      }
+      router.push('/panel')
+      router.refresh()
+    }, 2000)
+  }
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault()
@@ -192,6 +211,14 @@ export function AuthPage() {
                   </div>
                   <Button type="submit" className="w-full">
                     Войти
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full border-dashed text-muted-foreground"
+                    onClick={handleUseDemoAccount}
+                  >
+                    Использовать демо-аккаунт
                   </Button>
                 </form>
               </TabsContent>

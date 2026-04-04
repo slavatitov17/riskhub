@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { SearchableCategoryField } from '@/components/forms/searchable-category-field'
 import {
   Select,
   SelectContent,
@@ -32,7 +33,6 @@ import { useRisks } from '@/contexts/risks-context'
 import {
   IMPACTS,
   LEVELS,
-  RISK_CATEGORIES,
   RISK_STATUSES,
   type RiskRecord
 } from '@/lib/risk-types'
@@ -215,7 +215,7 @@ export function RiskFormView({
       toast.error('Укажите название риска')
       return
     }
-    if (!category) {
+    if (!category.trim()) {
       toast.error('Выберите категорию')
       return
     }
@@ -232,7 +232,7 @@ export function RiskFormView({
       addRisk({
         name: name.trim(),
         description: description.trim(),
-        category,
+        category: category.trim(),
         probability,
         impact,
         status,
@@ -248,7 +248,7 @@ export function RiskFormView({
       updateRisk(initial.id, {
         name: name.trim(),
         description: description.trim(),
-        category,
+        category: category.trim(),
         probability,
         impact,
         status,
@@ -295,24 +295,11 @@ export function RiskFormView({
               />
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Категория</Label>
-                <Select
-                  value={category || undefined}
-                  onValueChange={setCategory}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Выберите категорию" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {RISK_CATEGORIES.map((c) => (
-                      <SelectItem key={c} value={c}>
-                        {c}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <SearchableCategoryField
+                value={category}
+                onChange={setCategory}
+                id="risk-category"
+              />
               <SearchableProjectSelect
                 value={projectId}
                 onChange={setProjectId}

@@ -12,6 +12,14 @@ function guard<T>(fn: () => T): T | string {
 export const toast = {
   message: (msg: Msg, data?: ExternalToast) =>
     guard(() => sonnerToast.message(msg, data)),
+  neutral: (msg: Msg, data?: ExternalToast) =>
+    guard(() =>
+      sonnerToast.message(msg, {
+        className:
+          '!border !border-border !bg-white !text-foreground shadow-md dark:!bg-white dark:!text-foreground',
+        ...data
+      })
+    ),
   success: (msg: Msg, data?: ExternalToast) =>
     guard(() => sonnerToast.success(msg, data)),
   error: (msg: Msg, data?: ExternalToast) =>

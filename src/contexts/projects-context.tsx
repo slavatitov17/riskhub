@@ -9,7 +9,12 @@ import {
   useState
 } from 'react'
 
-import { getSession, type SessionPayload } from '@/lib/auth-storage'
+import {
+  getDemoCredentials,
+  getSession,
+  type SessionPayload
+} from '@/lib/auth-storage'
+import { ensureDemoWorldSeeded } from '@/lib/demo-world-seed'
 import {
   nextProjectCode,
   type ProjectInvitationRecord,
@@ -41,12 +46,15 @@ interface ProjectsContextValue {
   getProjectDisplayName: (projectId: string | undefined, fallbackName: string) => string
   createProject: (input: {
     name: string
+    category: string
     description?: string
     inviteEmails?: string[]
   }) => Promise<{ ok: true } | { ok: false; error: string }>
   updateProject: (
     projectId: string,
-    patch: Partial<Pick<ProjectRecord, 'status' | 'description' | 'name'>>
+    patch: Partial<
+      Pick<ProjectRecord, 'status' | 'description' | 'name' | 'category'>
+    >
   ) => Promise<{ ok: true } | { ok: false; error: string }>
   inviteToProject: (
     projectId: string,
@@ -122,7 +130,9 @@ async function createPendingInvitations(
 
 function projectActivityFromPatch(
   prev: ProjectRecord,
-  patch: Partial<Pick<ProjectRecord, 'status' | 'description' | 'name'>>,
+  patch: Partial<
+    Pick<ProjectRecord, 'status' | 'description' | 'name' | 'category'>
+  >,
   at: string
 ): RiskActivityLogEntry[] {
   const out: RiskActivityLogEntry[] = []
@@ -131,6 +141,8 @@ function projectActivityFromPatch(
 
   if (patch.name !== undefined && patch.name !== prev.name)
     push(`Название изменено на «${patch.name}»`)
+  if (patch.category !== undefined && patch.category !== prev.category)
+    push(`Категория изменена на «${patch.category}»`)
   if (patch.status !== undefined && patch.status !== prev.status)
     push(`Статус изменён на «${patch.status}»`)
   if (
@@ -193,6 +205,14 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   useEffect(() => {
+    const s = getSession()
+    if (s?.userId !== getDemoCredentials().userId) return
+    void ensureDemoWorldSeeded().then(() => {
+      void refresh()
+    })
+  }, [sessionTick, refresh])
+
+  useEffect(() => {
     let alive = true
     const s = getSession()
     if (!s?.userId) {
@@ -253,6 +273,7 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
   const createProject = useCallback(
     async (input: {
       name: string
+      category: string
       description?: string
       inviteEmails?: string[]
     }) => {
@@ -260,6 +281,9 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
       if (!s) return { ok: false as const, error: 'Войдите в систему' }
       const name = input.name.trim()
       if (!name) return { ok: false as const, error: 'Укажите название проекта' }
+      const category = input.category.trim()
+      if (!category)
+        return { ok: false as const, error: 'Выберите категорию проекта' }
 
       const emails = input.inviteEmails ?? []
       for (const raw of emails) {
@@ -278,6 +302,7 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
         id,
         code,
         name,
+        category,
         ownerUserId: s.userId,
         createdAt: now,
         updatedAt: now,
@@ -325,7 +350,9 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
   const updateProject = useCallback(
     async (
       projectId: string,
-      patch: Partial<Pick<ProjectRecord, 'status' | 'description' | 'name'>>
+      patch: Partial<
+        Pick<ProjectRecord, 'status' | 'description' | 'name' | 'category'>
+      >
     ) => {
       const s = getSession()
       if (!s) return { ok: false as const, error: 'Войдите в систему' }
@@ -340,6 +367,11 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
       if (patch.name !== undefined && !nextName)
         return { ok: false as const, error: 'Название не может быть пустым' }
 
+      const nextCategory =
+        patch.category !== undefined ? patch.category.trim() : prev.category
+      if (patch.category !== undefined && !nextCategory)
+        return { ok: false as const, error: 'Категория не может быть пустой' }
+
       let status: ProjectStatus = prev.status
       if (patch.status !== undefined) {
         if (patch.status !== 'Активен' && patch.status !== 'Завершен')
@@ -351,11 +383,17 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
         patch.description !== undefined ? patch.description : prev.description
 
       const now = new Date().toISOString()
-      const extraLog = projectActivityFromPatch(prev, patch, now)
+      const logPatch = {
+        ...patch,
+        ...(patch.name !== undefined ? { name: nextName } : {}),
+        ...(patch.category !== undefined ? { category: nextCategory } : {})
+      }
+      const extraLog = projectActivityFromPatch(prev, logPatch, now)
 
       await dbPutProject({
         ...prev,
         name: nextName,
+        category: nextCategory,
         status,
         description,
         updatedAt: now,

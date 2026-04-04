@@ -271,6 +271,12 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
               <div className="flex flex-wrap gap-2">
                 {metaOutlineTag(
                   <>
+                    {p.registry.category}:{' '}
+                    {project.category?.trim() || '—'}
+                  </>
+                )}
+                {metaOutlineTag(
+                  <>
                     {p.projectDetail.owner}: {ownerDisplayName(project.ownerUserId)}
                   </>
                 )}

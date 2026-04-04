@@ -92,9 +92,11 @@ export function ProjectsRegistryTable() {
       if (search.trim()) {
         const q = search.toLowerCase()
         const desc = (p.description ?? '').toLowerCase()
+        const cat = (p.category ?? '').toLowerCase()
         if (
           !p.name.toLowerCase().includes(q) &&
           !desc.includes(q) &&
+          !cat.includes(q) &&
           !projectDisplayCode(p).toLowerCase().includes(q)
         )
           return false
@@ -255,7 +257,7 @@ export function ProjectsRegistryTable() {
           </div>
 
           <div className="risk-table-scroll w-full overflow-x-auto overflow-y-hidden">
-            <Table className="min-w-[720px]">
+            <Table className="min-w-[820px]">
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-12 whitespace-nowrap">
@@ -274,6 +276,9 @@ export function ProjectsRegistryTable() {
                   <TableHead className="min-w-[200px] whitespace-nowrap">
                     {p.registry.colName}
                   </TableHead>
+                  <TableHead className="min-w-[120px] whitespace-nowrap">
+                    {p.registry.colCategory}
+                  </TableHead>
                   <TableHead className="whitespace-nowrap">{p.registry.colCreated}</TableHead>
                   <TableHead className="whitespace-nowrap">{p.registry.colStatus}</TableHead>
                   <TableHead className="whitespace-nowrap">{p.registry.colMembers}</TableHead>
@@ -286,7 +291,7 @@ export function ProjectsRegistryTable() {
                 {!ready ? (
                   <TableRow>
                     <TableCell
-                      colSpan={7}
+                      colSpan={8}
                       className="text-muted-foreground"
                     >
                       {p.registry.loading}
@@ -295,7 +300,7 @@ export function ProjectsRegistryTable() {
                 ) : filtered.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={7}
+                      colSpan={8}
                       className="text-muted-foreground"
                     >
                       {myProjects.length === 0
@@ -334,6 +339,9 @@ export function ProjectsRegistryTable() {
                       </TableCell>
                       <TableCell className="whitespace-nowrap font-medium">
                         {row.name}
+                      </TableCell>
+                      <TableCell className="max-w-[200px] truncate text-sm text-muted-foreground">
+                        {row.category?.trim() || '—'}
                       </TableCell>
                       <TableCell className="whitespace-nowrap text-sm text-muted-foreground">
                         {formatDisplayDate(row.createdAt, locale)}

@@ -45,6 +45,7 @@ export async function migrateLegacyRisksToProjects(): Promise<void> {
     const row = normalizeProjectRecord({
       id,
       name,
+      category: '',
       ownerUserId: ownerFallback,
       createdAt: now,
       updatedAt: now,

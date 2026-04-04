@@ -7,6 +7,7 @@ import { motion } from 'framer-motion'
 import { Save, X } from 'lucide-react'
 import { toast } from '@/lib/app-toast'
 
+import { SearchableCategoryField } from '@/components/forms/searchable-category-field'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -30,6 +31,7 @@ export function ProjectEditFormView({ project }: ProjectEditFormViewProps) {
   const router = useRouter()
   const { updateProject } = useProjects()
   const [name, setName] = useState(project.name)
+  const [category, setCategory] = useState(project.category ?? '')
   const [description, setDescription] = useState(project.description)
   const [status, setStatus] = useState<ProjectStatus>(project.status)
   const [submitting, setSubmitting] = useState(false)
@@ -41,6 +43,7 @@ export function ProjectEditFormView({ project }: ProjectEditFormViewProps) {
     try {
       const res = await updateProject(project.id, {
         name: name.trim(),
+        category: category.trim(),
         description,
         status
       })
@@ -76,6 +79,11 @@ export function ProjectEditFormView({ project }: ProjectEditFormViewProps) {
                 required
               />
             </div>
+            <SearchableCategoryField
+              value={category}
+              onChange={setCategory}
+              id="edit-project-category"
+            />
             <div className="space-y-2">
               <Label htmlFor="edit-project-desc">Описание проекта</Label>
               <Textarea

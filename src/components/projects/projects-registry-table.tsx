@@ -71,7 +71,7 @@ export function ProjectsRegistryTable() {
   const risks = useVisibleRisks()
   const [filterOpen, setFilterOpen] = useState(false)
   const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<string[]>([])
+  const [statusFilter, setStatusFilter] = useState('all')
   const [createdFrom, setCreatedFrom] = useState('')
   const [createdTo, setCreatedTo] = useState('')
   const [selected, setSelected] = useState<Record<string, boolean>>({})
@@ -97,7 +97,7 @@ export function ProjectsRegistryTable() {
 
   const filtered = useMemo(() => {
     return myProjects.filter((p) => {
-      if (statusFilter.length && !statusFilter.includes(p.status)) return false
+      if (statusFilter !== 'all' && p.status !== statusFilter) return false
       if (createdFrom && p.createdAt < createdFrom) return false
       if (createdTo && p.createdAt > createdTo) return false
       if (search.trim()) {
@@ -142,7 +142,7 @@ export function ProjectsRegistryTable() {
   const paged = filtered.slice(pageStart, pageStart + pageSize)
 
   const appliedFilters =
-    statusFilter.length + (createdFrom ? 1 : 0) + (createdTo ? 1 : 0)
+    (statusFilter !== 'all' ? 1 : 0) + (createdFrom ? 1 : 0) + (createdTo ? 1 : 0)
 
   const toggleAll = (checked: boolean) => {
     const next: Record<string, boolean> = {}
@@ -233,7 +233,7 @@ export function ProjectsRegistryTable() {
                   variant="link"
                   className="h-auto whitespace-nowrap p-0 text-primary"
                   onClick={() => {
-                    setStatusFilter([])
+                    setStatusFilter('all')
                     setCreatedFrom('')
                     setCreatedTo('')
                     toast.message(p.registry.filtersResetToast)
@@ -487,21 +487,19 @@ export function ProjectsRegistryTable() {
           <div className="space-y-4">
             <div>
               <p className="mb-2 text-sm font-medium">{p.registry.status}</p>
-              <div className="flex flex-col gap-2">
-                {PROJECT_STATUSES.map((s) => (
-                  <label key={s} className="flex items-center gap-2 text-sm">
-                    <Checkbox
-                      checked={statusFilter.includes(s)}
-                      onCheckedChange={(v) => {
-                        setStatusFilter((prev) =>
-                          v ? [...prev, s] : prev.filter((x) => x !== s)
-                        )
-                      }}
-                    />
-                    {s}
-                  </label>
-                ))}
-              </div>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{p.analytics.all}</SelectItem>
+                  {PROJECT_STATUSES.map((status) => (
+                    <SelectItem key={status} value={status}>
+                      {status}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <p className="mb-2 text-sm font-medium">{p.registry.rowsPerPage}</p>

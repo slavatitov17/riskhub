@@ -824,24 +824,6 @@ export function AnalyticsView() {
           </Button>
         </div>
         <div className="flex flex-wrap gap-2">
-          <div className="mr-2 flex items-center gap-1 rounded-md border border-border p-1">
-            <Button
-              type="button"
-              size="sm"
-              variant={isRiskMode ? 'default' : 'ghost'}
-              onClick={() => setMode('risks')}
-            >
-              {p.analytics.modeRisks}
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant={!isRiskMode ? 'default' : 'ghost'}
-              onClick={() => setMode('projects')}
-            >
-              {p.analytics.modeProjects}
-            </Button>
-          </div>
           <Button
             type="button"
             variant="outline"
@@ -864,8 +846,26 @@ export function AnalyticsView() {
       </div>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
           <CardTitle className="text-base">{p.analytics.filtersTitle}</CardTitle>
+          <div className="flex items-center gap-1 rounded-md border border-border p-1">
+            <Button
+              type="button"
+              size="sm"
+              variant={isRiskMode ? 'default' : 'ghost'}
+              onClick={() => setMode('risks')}
+            >
+              {p.analytics.modeRisks}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={!isRiskMode ? 'default' : 'ghost'}
+              onClick={() => setMode('projects')}
+            >
+              {p.analytics.modeProjects}
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           <div className="space-y-2 md:col-span-2 lg:col-span-3">

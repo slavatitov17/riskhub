@@ -61,17 +61,18 @@ export function RisksRegistryTable() {
   const router = useRouter()
   const { locale } = useLocale()
   const p = getPageCopy(locale)
+  const allOption = p.analytics.all
   const { removeRisk, updateRisk } = useRisks()
   const risks = useVisibleRisks()
   const { getProjectDisplayName, ready: projectsReady } = useProjects()
   const [filterOpen, setFilterOpen] = useState(false)
   const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState<string[]>([])
-  const [catFilter, setCatFilter] = useState<string[]>([])
-  const [probabilityFilter, setProbabilityFilter] = useState<string[]>([])
-  const [impactFilter, setImpactFilter] = useState<string[]>([])
-  const [projectFilter, setProjectFilter] = useState<string[]>([])
-  const [authorFilter, setAuthorFilter] = useState<string[]>([])
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [catFilter, setCatFilter] = useState('all')
+  const [probabilityFilter, setProbabilityFilter] = useState('all')
+  const [impactFilter, setImpactFilter] = useState('all')
+  const [projectFilter, setProjectFilter] = useState('all')
+  const [authorFilter, setAuthorFilter] = useState('all')
   const [createdFrom, setCreatedFrom] = useState('')
   const [createdTo, setCreatedTo] = useState('')
   const [updatedFrom, setUpdatedFrom] = useState('')
@@ -114,17 +115,17 @@ export function RisksRegistryTable() {
 
   const filtered = useMemo(() => {
     return risks.filter((r) => {
-      if (statusFilter.length && !statusFilter.includes(r.status)) return false
-      if (catFilter.length && !catFilter.includes(r.category)) return false
-      if (probabilityFilter.length && !probabilityFilter.includes(r.probability))
+      if (statusFilter !== 'all' && r.status !== statusFilter) return false
+      if (catFilter !== 'all' && r.category !== catFilter) return false
+      if (probabilityFilter !== 'all' && r.probability !== probabilityFilter)
         return false
-      if (impactFilter.length && !impactFilter.includes(r.impact)) return false
+      if (impactFilter !== 'all' && r.impact !== impactFilter) return false
       if (
-        projectFilter.length &&
-        !projectFilter.includes(getProjectDisplayName(r.projectId, r.project))
+        projectFilter !== 'all' &&
+        getProjectDisplayName(r.projectId, r.project) !== projectFilter
       )
         return false
-      if (authorFilter.length && !authorFilter.includes(r.author))
+      if (authorFilter !== 'all' && r.author !== authorFilter)
         return false
       if (createdFrom && r.created < createdFrom) return false
       if (createdTo && r.created > createdTo) return false
@@ -157,12 +158,12 @@ export function RisksRegistryTable() {
   ])
 
   const appliedFilters =
-    statusFilter.length +
-    catFilter.length +
-    probabilityFilter.length +
-    impactFilter.length +
-    projectFilter.length +
-    authorFilter.length +
+    (statusFilter !== 'all' ? 1 : 0) +
+    (catFilter !== 'all' ? 1 : 0) +
+    (probabilityFilter !== 'all' ? 1 : 0) +
+    (impactFilter !== 'all' ? 1 : 0) +
+    (projectFilter !== 'all' ? 1 : 0) +
+    (authorFilter !== 'all' ? 1 : 0) +
     (createdFrom ? 1 : 0) +
     (createdTo ? 1 : 0) +
     (updatedFrom ? 1 : 0) +
@@ -277,12 +278,12 @@ export function RisksRegistryTable() {
                   variant="link"
                   className="h-auto whitespace-nowrap p-0 text-primary"
                   onClick={() => {
-                    setStatusFilter([])
-                    setCatFilter([])
-                    setProbabilityFilter([])
-                    setImpactFilter([])
-                    setProjectFilter([])
-                    setAuthorFilter([])
+                    setStatusFilter('all')
+                    setCatFilter('all')
+                    setProbabilityFilter('all')
+                    setImpactFilter('all')
+                    setProjectFilter('all')
+                    setAuthorFilter('all')
                     setCreatedFrom('')
                     setCreatedTo('')
                     setUpdatedFrom('')
@@ -580,151 +581,99 @@ export function RisksRegistryTable() {
             </div>
             <div>
               <p className="mb-2 text-sm font-medium">{p.registry.category}</p>
-              <div className="flex flex-col gap-2">
-                {categories.map((c) => (
-                  <label key={c} className="flex items-center gap-2 text-sm">
-                    <Checkbox
-                      checked={catFilter.includes(c)}
-                      onCheckedChange={(v) => {
-                        setCatFilter((prev) =>
-                          v ? [...prev, c] : prev.filter((x) => x !== c)
-                        )
-                      }}
-                    />
-                    {c}
-                  </label>
-                ))}
-              </div>
+              <Select value={catFilter} onValueChange={setCatFilter}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{allOption}</SelectItem>
+                  {categories.map((category) => (
+                    <SelectItem key={category} value={category}>
+                      {category}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <p className="mb-2 text-sm font-medium">{p.registry.probability}</p>
-              <div className="flex flex-col gap-2">
-                {probabilities.map((p) => (
-                  <label key={p} className="flex items-center gap-2 text-sm">
-                    <Checkbox
-                      checked={probabilityFilter.includes(p)}
-                      onCheckedChange={(v) => {
-                        setProbabilityFilter((prev) =>
-                          v ? [...prev, p] : prev.filter((x) => x !== p)
-                        )
-                      }}
-                    />
-                    {p}
-                  </label>
-                ))}
-              </div>
+              <Select value={probabilityFilter} onValueChange={setProbabilityFilter}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{allOption}</SelectItem>
+                  {probabilities.map((probability) => (
+                    <SelectItem key={probability} value={probability}>
+                      {probability}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <p className="mb-2 text-sm font-medium">{p.registry.impact}</p>
-              <div className="flex flex-col gap-2">
-                {impacts.map((i) => (
-                  <label key={i} className="flex items-center gap-2 text-sm">
-                    <Checkbox
-                      checked={impactFilter.includes(i)}
-                      onCheckedChange={(v) => {
-                        setImpactFilter((prev) =>
-                          v ? [...prev, i] : prev.filter((x) => x !== i)
-                        )
-                      }}
-                    />
-                    {i}
-                  </label>
-                ))}
-              </div>
+              <Select value={impactFilter} onValueChange={setImpactFilter}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{allOption}</SelectItem>
+                  {impacts.map((impact) => (
+                    <SelectItem key={impact} value={impact}>
+                      {impact}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <p className="mb-2 text-sm font-medium">{p.registry.status}</p>
-              <div className="flex flex-col gap-2">
-                {statuses.map((s) => (
-                  <label key={s} className="flex items-center gap-2 text-sm">
-                    <Checkbox
-                      checked={statusFilter.includes(s)}
-                      onCheckedChange={(v) => {
-                        setStatusFilter((prev) =>
-                          v ? [...prev, s] : prev.filter((x) => x !== s)
-                        )
-                      }}
-                    />
-                    {s}
-                  </label>
-                ))}
-              </div>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{allOption}</SelectItem>
+                  {statuses.map((status) => (
+                    <SelectItem key={status} value={status}>
+                      {status}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <p className="mb-2 text-sm font-medium">{p.registry.project}</p>
-              <div className="flex flex-col gap-2">
-                <label className="flex cursor-pointer items-center gap-2 text-sm">
-                  <Checkbox
-                    checked={projectFilter.length === 0}
-                    onCheckedChange={(v) => {
-                      if (v) setProjectFilter([])
-                    }}
-                  />
-                  {p.registry.allProjects}
-                </label>
-                {projects.map((project) => (
-                  <label
-                    key={project}
-                    className="flex cursor-pointer items-center gap-2 text-sm"
-                  >
-                    <Checkbox
-                      checked={
-                        projectFilter.length > 0 && projectFilter.includes(project)
-                      }
-                      onCheckedChange={(v) => {
-                        if (v) {
-                          setProjectFilter((prev) =>
-                            prev.length === 0
-                              ? [project]
-                              : Array.from(new Set([...prev, project]))
-                          )
-                        } else {
-                          setProjectFilter((prev) => prev.filter((x) => x !== project))
-                        }
-                      }}
-                    />
-                    {project}
-                  </label>
-                ))}
-              </div>
+              <Select value={projectFilter} onValueChange={setProjectFilter}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{p.registry.allProjects}</SelectItem>
+                  {projects.map((project) => (
+                    <SelectItem key={project} value={project}>
+                      {project}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <p className="mb-2 text-sm font-medium">{p.registry.author}</p>
-              <div className="flex flex-col gap-2">
-                <label className="flex cursor-pointer items-center gap-2 text-sm">
-                  <Checkbox
-                    checked={authorFilter.length === 0}
-                    onCheckedChange={(v) => {
-                      if (v) setAuthorFilter([])
-                    }}
-                  />
-                  {p.registry.allAuthors}
-                </label>
-                {authors.map((author) => (
-                  <label
-                    key={author}
-                    className="flex cursor-pointer items-center gap-2 text-sm"
-                  >
-                    <Checkbox
-                      checked={
-                        authorFilter.length > 0 && authorFilter.includes(author)
-                      }
-                      onCheckedChange={(v) => {
-                        if (v) {
-                          setAuthorFilter((prev) =>
-                            prev.length === 0
-                              ? [author]
-                              : Array.from(new Set([...prev, author]))
-                          )
-                        } else {
-                          setAuthorFilter((prev) => prev.filter((x) => x !== author))
-                        }
-                      }}
-                    />
-                    {author}
-                  </label>
-                ))}
-              </div>
+              <Select value={authorFilter} onValueChange={setAuthorFilter}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">{p.registry.allAuthors}</SelectItem>
+                  {authors.map((author) => (
+                    <SelectItem key={author} value={author}>
+                      {author}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <p className="mb-2 text-sm font-medium">{p.registry.colCreated}</p>

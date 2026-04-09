@@ -291,6 +291,13 @@ export interface PageCopy {
     emptyNoRisksHint: string
     emptyFilteredTitle: string
     emptyFilteredHint: string
+    pdfReportTitle: string
+    pdfBrandLine: string
+    pdfGeneratedLabel: string
+    pdfFiltersHeading: string
+    pdfModePrefix: string
+    pdfExportSuccess: string
+    pdfExportError: string
   }
   legal: {
     about: { sections: { title: string; body: string }[] }
@@ -612,7 +619,14 @@ const RU: PageCopy = {
     emptyNoRisksTitle: 'Нет данных для графиков',
     emptyNoRisksHint: 'Добавьте риски и здесь появится аналитика',
     emptyFilteredTitle: 'Нет данных по фильтрам',
-    emptyFilteredHint: 'Измените период или фильтры отчёта'
+    emptyFilteredHint: 'Измените период или фильтры отчёта',
+    pdfReportTitle: 'Аналитический отчёт',
+    pdfBrandLine: 'RiskHub',
+    pdfGeneratedLabel: 'Дата формирования',
+    pdfFiltersHeading: 'Применённые фильтры',
+    pdfModePrefix: 'Режим',
+    pdfExportSuccess: 'PDF сохранён',
+    pdfExportError: 'Не удалось сформировать PDF'
   },
   legal: {
     about: {
@@ -1019,7 +1033,14 @@ const EN: PageCopy = {
     emptyNoRisksTitle: 'No chart data',
     emptyNoRisksHint: 'Add risks to see analytics',
     emptyFilteredTitle: 'No data for current filters',
-    emptyFilteredHint: 'Change the period or report filters'
+    emptyFilteredHint: 'Change the period or report filters',
+    pdfReportTitle: 'Analytics report',
+    pdfBrandLine: 'RiskHub',
+    pdfGeneratedLabel: 'Generated',
+    pdfFiltersHeading: 'Applied filters',
+    pdfModePrefix: 'Mode',
+    pdfExportSuccess: 'PDF saved',
+    pdfExportError: 'Could not generate PDF'
   },
   legal: {
     about: {

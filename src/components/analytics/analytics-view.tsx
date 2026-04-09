@@ -35,6 +35,11 @@ import { useLocale } from '@/contexts/locale-context'
 import { useProjects } from '@/contexts/projects-context'
 import { useRisks } from '@/contexts/risks-context'
 import { useVisibleRisks } from '@/hooks/use-visible-risks'
+import {
+  exportAnalyticsPdfDocument,
+  formatProjectPdfFilterLines,
+  formatRiskPdfFilterLines
+} from '@/lib/analytics-pdf-export'
 import { getPageCopy } from '@/lib/page-copy'
 import type { ProjectRecord } from '@/lib/project-types'
 import type { RiskRecord } from '@/lib/risk-types'
@@ -143,7 +148,7 @@ export type ReportFilters = {
 
 type AnalyticsMode = 'risks' | 'projects'
 
-type ProjectReportFilters = {
+export type ProjectReportFilters = {
   periodFrom: string
   periodTo: string
   status: string[]
@@ -575,6 +580,17 @@ function ReportFilterSearchableMultiSelect({
   )
 }
 
+type AnalyticsChartCaptureKey =
+  | 'riskByCategory'
+  | 'riskTimeline'
+  | 'riskPieCategory'
+  | 'riskByStatus'
+  | 'riskProbability'
+  | 'projByCategory'
+  | 'projTimeline'
+  | 'projByStatus'
+  | 'projParticipants'
+
 export function AnalyticsView() {
   const { locale } = useLocale()
   const p = getPageCopy(locale)
@@ -599,6 +615,15 @@ export function AnalyticsView() {
   const [projectMemberCounts, setProjectMemberCounts] = useState<
     Record<string, number>
   >({})
+  const [isExportingPdf, setIsExportingPdf] = useState(false)
+  const coverPdfRef = useRef<HTMLDivElement>(null)
+  const chartCaptureRef = useRef<
+    Partial<Record<AnalyticsChartCaptureKey, HTMLDivElement | null>>
+  >({})
+
+  const setChartCaptureRef = (key: AnalyticsChartCaptureKey) => (node: HTMLDivElement | null) => {
+    chartCaptureRef.current[key] = node
+  }
 
   const riskCodes = useMemo(
     () => Array.from(new Set(risks.map((r) => r.code))).sort(),
@@ -766,6 +791,12 @@ export function AnalyticsView() {
   )
 
   const isRiskMode = mode === 'risks'
+
+  const pdfFilterLines = useMemo(() => {
+    if (mode === 'risks') return formatRiskPdfFilterLines(p.analytics, applied)
+    return formatProjectPdfFilterLines(p.analytics, appliedProject)
+  }, [mode, p.analytics, applied, appliedProject])
+
   const chartEmptyCopy =
     (isRiskMode ? risks.length : myProjects.length) === 0
       ? {
@@ -795,6 +826,46 @@ export function AnalyticsView() {
       return
     }
     setAppliedProject({ ...draftProject })
+  }
+
+  const handleExportPdf = async () => {
+    const cover = coverPdfRef.current
+    if (!cover) {
+      toast.error(p.analytics.pdfExportError)
+      return
+    }
+    setIsExportingPdf(true)
+    try {
+      await new Promise((r) => window.setTimeout(r, 450))
+      const order: AnalyticsChartCaptureKey[] =
+        mode === 'risks'
+          ? [
+              'riskByCategory',
+              'riskTimeline',
+              'riskPieCategory',
+              'riskByStatus',
+              'riskProbability'
+            ]
+          : ['projByCategory', 'projTimeline', 'projByStatus', 'projParticipants']
+      const chartEls = order
+        .map((k) => chartCaptureRef.current[k])
+        .filter((n): n is HTMLDivElement => Boolean(n))
+      if (chartEls.length !== order.length) {
+        toast.error(p.analytics.pdfExportError)
+        return
+      }
+      const slides = [{ element: cover }, ...chartEls.map((element) => ({ element }))]
+      const stamp = new Date().toISOString().slice(0, 10)
+      await exportAnalyticsPdfDocument({
+        slides,
+        fileName: `riskhub-analytics-${stamp}.pdf`
+      })
+      toast.success(p.analytics.pdfExportSuccess)
+    } catch {
+      toast.error(p.analytics.pdfExportError)
+    } finally {
+      setIsExportingPdf(false)
+    }
   }
 
   return (
@@ -837,7 +908,9 @@ export function AnalyticsView() {
             type="button"
             variant="outline"
             className="gap-2"
-            onClick={() => toast.success(p.analytics.exportPdfDemo)}
+            disabled={isExportingPdf}
+            aria-busy={isExportingPdf}
+            onClick={() => void handleExportPdf()}
           >
             <Download className="h-4 w-4" />
             {p.analytics.exportPdfButton}
@@ -1025,6 +1098,7 @@ export function AnalyticsView() {
       <div className="grid gap-4 lg:grid-cols-2">
         {isRiskMode ? (
           <>
+        <div ref={setChartCaptureRef('riskByCategory')}>
         <Card className="min-h-[340px]">
           <CardHeader>
             <CardTitle className="text-base">{p.analytics.chartByCategory}</CardTitle>
@@ -1079,7 +1153,9 @@ export function AnalyticsView() {
             )}
           </CardContent>
         </Card>
+        </div>
 
+        <div ref={setChartCaptureRef('riskTimeline')}>
         <Card className="min-h-[340px]">
           <CardHeader>
             <CardTitle className="text-base">{p.analytics.chartTimeline}</CardTitle>
@@ -1134,7 +1210,9 @@ export function AnalyticsView() {
             )}
           </CardContent>
         </Card>
+        </div>
 
+        <div ref={setChartCaptureRef('riskPieCategory')}>
         <Card className="min-h-[340px]">
           <CardHeader>
             <CardTitle className="text-base">{p.analytics.chartPieCategory}</CardTitle>
@@ -1185,7 +1263,9 @@ export function AnalyticsView() {
             )}
           </CardContent>
         </Card>
+        </div>
 
+        <div ref={setChartCaptureRef('riskByStatus')}>
         <Card className="min-h-[340px]">
           <CardHeader>
             <CardTitle className="text-base">{p.analytics.chartByStatus}</CardTitle>
@@ -1237,8 +1317,10 @@ export function AnalyticsView() {
             )}
           </CardContent>
         </Card>
+        </div>
 
-            <Card className="min-h-[320px] lg:col-span-2">
+            <div ref={setChartCaptureRef('riskProbability')} className="lg:col-span-2">
+            <Card className="min-h-[320px]">
           <CardHeader>
             <CardTitle className="text-base">{p.analytics.chartProbability}</CardTitle>
           </CardHeader>
@@ -1311,9 +1393,11 @@ export function AnalyticsView() {
             )}
           </CardContent>
             </Card>
+            </div>
           </>
         ) : (
           <>
+            <div ref={setChartCaptureRef('projByCategory')}>
             <Card className="min-h-[340px]">
               <CardHeader>
                 <CardTitle className="text-base">
@@ -1339,7 +1423,9 @@ export function AnalyticsView() {
                 )}
               </CardContent>
             </Card>
+            </div>
 
+            <div ref={setChartCaptureRef('projTimeline')}>
             <Card className="min-h-[340px]">
               <CardHeader>
                 <CardTitle className="text-base">
@@ -1367,7 +1453,9 @@ export function AnalyticsView() {
                 )}
               </CardContent>
             </Card>
+            </div>
 
+            <div ref={setChartCaptureRef('projByStatus')}>
             <Card className="min-h-[340px]">
               <CardHeader>
                 <CardTitle className="text-base">
@@ -1395,7 +1483,9 @@ export function AnalyticsView() {
                 )}
               </CardContent>
             </Card>
+            </div>
 
+            <div ref={setChartCaptureRef('projParticipants')}>
             <Card className="min-h-[340px]">
               <CardHeader>
                 <CardTitle className="text-base">
@@ -1421,8 +1511,41 @@ export function AnalyticsView() {
                 )}
               </CardContent>
             </Card>
+            </div>
           </>
         )}
+      </div>
+
+      <div
+        ref={coverPdfRef}
+        aria-hidden
+        className="pointer-events-none fixed left-[-12000px] top-0 z-[-1] box-border w-[794px] max-w-[794px] bg-white p-10 text-left text-slate-900"
+        style={{ fontFamily: 'system-ui, "Segoe UI", Roboto, sans-serif' }}
+      >
+        <p className="text-sm font-medium uppercase tracking-wide text-slate-500">
+          {p.analytics.pdfBrandLine}
+        </p>
+        <h1 className="mt-2 text-3xl font-bold tracking-tight text-slate-900">
+          {p.analytics.pdfReportTitle}
+        </h1>
+        <p className="mt-8 text-xs font-semibold uppercase tracking-wide text-slate-500">
+          {p.analytics.pdfGeneratedLabel}
+        </p>
+        <p className="mt-1 text-base text-slate-800">
+          {formatLocaleDateTime(new Date().toISOString(), locale)}
+        </p>
+        <h2 className="mt-10 text-xl font-semibold text-slate-900">
+          {p.analytics.pdfFiltersHeading}
+        </h2>
+        <p className="mt-3 text-sm text-slate-800">
+          <span className="font-semibold">{p.analytics.pdfModePrefix}:</span>{' '}
+          {mode === 'risks' ? p.analytics.modeRisks : p.analytics.modeProjects}
+        </p>
+        <ul className="mt-4 list-disc space-y-2 pl-5 text-sm leading-relaxed text-slate-800">
+          {pdfFilterLines.map((line, i) => (
+            <li key={`${i}-${line.slice(0, 48)}`}>{line}</li>
+          ))}
+        </ul>
       </div>
     </motion.div>
   )

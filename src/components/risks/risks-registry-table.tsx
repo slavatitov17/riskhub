@@ -88,7 +88,7 @@ export function RisksRegistryTable() {
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [bulkAction, setBulkAction] = useState<'close' | 'delete' | null>(null)
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
+  const [pageSize, setPageSize] = useState(5)
   const [customRiskCategories, setCustomRiskCategories] = useState<string[]>([])
   const riskIds = useMemo(() => risks.map((risk) => risk.code), [risks])
   const filteredIdOptions = useMemo(() => {
@@ -629,6 +629,22 @@ export function RisksRegistryTable() {
           </DialogHeader>
           <div className="space-y-4">
             <div>
+              <p className="mb-2 text-sm font-medium">{p.registry.rowsPerPage}</p>
+              <Select
+                value={String(pageSize)}
+                onValueChange={(value) => setPageSize(Number(value))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="5">5</SelectItem>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
               <p className="mb-2 text-sm font-medium">{p.registry.colId}</p>
               <Select value={idFilter} onValueChange={setIdFilter}>
                 <SelectTrigger>
@@ -650,22 +666,6 @@ export function RisksRegistryTable() {
                       {id}
                     </SelectItem>
                   ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <p className="mb-2 text-sm font-medium">{p.registry.rowsPerPage}</p>
-              <Select
-                value={String(pageSize)}
-                onValueChange={(value) => setPageSize(Number(value))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="5">5</SelectItem>
-                  <SelectItem value="10">10</SelectItem>
-                  <SelectItem value="50">50</SelectItem>
                 </SelectContent>
               </Select>
             </div>

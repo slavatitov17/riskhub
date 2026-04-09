@@ -83,7 +83,7 @@ export function ProjectsRegistryTable() {
   const [bulkAction, setBulkAction] = useState<'close' | 'delete' | null>(null)
   const [counts, setCounts] = useState<Record<string, number>>({})
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(10)
+  const [pageSize, setPageSize] = useState(5)
   const projectIds = useMemo(
     () => myProjects.map((project) => projectDisplayCode(project)),
     [myProjects]
@@ -539,6 +539,22 @@ export function ProjectsRegistryTable() {
           </DialogHeader>
           <div className="space-y-4">
             <div>
+              <p className="mb-2 text-sm font-medium">{p.registry.rowsPerPage}</p>
+              <Select
+                value={String(pageSize)}
+                onValueChange={(value) => setPageSize(Number(value))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="5">5</SelectItem>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
               <p className="mb-2 text-sm font-medium">{p.registry.colId}</p>
               <Select value={idFilter} onValueChange={setIdFilter}>
                 <SelectTrigger>
@@ -601,22 +617,6 @@ export function ProjectsRegistryTable() {
                       {category}
                     </SelectItem>
                   ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <p className="mb-2 text-sm font-medium">{p.registry.rowsPerPage}</p>
-              <Select
-                value={String(pageSize)}
-                onValueChange={(value) => setPageSize(Number(value))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="5">5</SelectItem>
-                  <SelectItem value="10">10</SelectItem>
-                  <SelectItem value="50">50</SelectItem>
                 </SelectContent>
               </Select>
             </div>

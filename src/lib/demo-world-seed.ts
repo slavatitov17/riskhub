@@ -42,6 +42,29 @@ function hashTopic(s: string) {
   return Math.abs(h).toString(36).slice(0, 10)
 }
 
+/** Минуты с полуночи: 08:30–17:00 в календарный день даты риска (локальное время). */
+function commentAtWorkdayMinutes(
+  startIso: string,
+  index: number,
+  total: number
+): string {
+  const base = new Date(startIso)
+  const y = base.getFullYear()
+  const mo = base.getMonth()
+  const d = base.getDate()
+  const workStartMin = 8 * 60 + 30
+  const workEndMin = 17 * 60
+  const span = workEndMin - workStartMin
+  const totalSafe = Math.max(1, total)
+  const minuteOfDay =
+    totalSafe <= 1
+      ? workStartMin + Math.floor(span / 2)
+      : workStartMin + Math.round((span * index) / (totalSafe - 1))
+  const hh = Math.floor(minuteOfDay / 60)
+  const mm = minuteOfDay % 60
+  return new Date(y, mo, d, hh, mm, 0, 0).toISOString()
+}
+
 function makeThread(riskTitle: string, startIso: string): RiskComment[] {
   const bodies = [
     `Коллеги, по «${riskTitle}» нужно зафиксировать владельца и крайний срок анализа`,
@@ -57,10 +80,9 @@ function makeThread(riskTitle: string, startIso: string): RiskComment[] {
     'После встречи с ключевыми пользователями уточним приоритет, скорость ввода или полнота функций',
     'Фиксирую итог, переводим в работу, меры с чек листом и еженедельным контролем'
   ]
-  const t0 = Date.parse(startIso)
   return bodies.map((text, i) => ({
     id: `cm_${hashTopic(riskTitle)}_${i}`,
-    at: new Date(t0 + i * 43_200_000 + i * 97_000).toISOString(),
+    at: commentAtWorkdayMinutes(startIso, i, bodies.length),
     authorName: AUTHORS[i % AUTHORS.length],
     text
   }))

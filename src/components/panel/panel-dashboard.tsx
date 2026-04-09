@@ -29,8 +29,10 @@ export function PanelDashboard() {
     (r) => r.impact === 'Высокое' && r.probability === 'Высокая'
   ).length
 
-  const recentRisks = risks.slice(0, 3)
-  const unreadNotifications = notifications.filter((n) => !n.isRead)
+  const recentRisks = [...risks]
+    .sort((a, b) => Date.parse(b.created) - Date.parse(a.created))
+    .slice(0, 3)
+  const unreadNotifications = notifications.filter((n) => !n.isRead).slice(0, 3)
 
   return (
     <motion.div

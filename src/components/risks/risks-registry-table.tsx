@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Check, Eye, Filter, Pencil, Search, Trash2 } from 'lucide-react'
 import { toast } from '@/lib/app-toast'
@@ -27,6 +27,13 @@ import {
   DialogTitle
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
 import {
   Table,
   TableBody,
@@ -72,6 +79,8 @@ export function RisksRegistryTable() {
   const [selected, setSelected] = useState<Record<string, boolean>>({})
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [bulkAction, setBulkAction] = useState<'close' | 'delete' | null>(null)
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
 
   const categories = useMemo(
     () => Array.from(new Set(risks.map((r) => r.category))),
@@ -159,9 +168,31 @@ export function RisksRegistryTable() {
     (updatedFrom ? 1 : 0) +
     (updatedTo ? 1 : 0)
 
+  useEffect(() => {
+    setPage(1)
+  }, [
+    search,
+    statusFilter,
+    catFilter,
+    probabilityFilter,
+    impactFilter,
+    projectFilter,
+    authorFilter,
+    createdFrom,
+    createdTo,
+    updatedFrom,
+    updatedTo,
+    pageSize
+  ])
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
+  const safePage = Math.min(page, totalPages)
+  const pageStart = (safePage - 1) * pageSize
+  const paged = filtered.slice(pageStart, pageStart + pageSize)
+
   const toggleAll = (checked: boolean) => {
     const next: Record<string, boolean> = {}
-    if (checked) filtered.forEach((r) => (next[r.id] = true))
+    if (checked) paged.forEach((r) => (next[r.id] = true))
     setSelected(next)
   }
 
@@ -320,8 +351,8 @@ export function RisksRegistryTable() {
                     <div className="flex items-center gap-2">
                       <Checkbox
                         checked={
-                          filtered.length > 0 &&
-                          filtered.every((r) => selected[r.id])
+                          paged.length > 0 &&
+                          paged.every((r) => selected[r.id])
                         }
                         onCheckedChange={(v) => toggleAll(!!v)}
                         aria-label={p.registry.selectAll}
@@ -361,7 +392,7 @@ export function RisksRegistryTable() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filtered.map((row) => (
+                  paged.map((row) => (
                   <TableRow
                     key={row.id}
                     className="cursor-pointer hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
@@ -493,9 +524,34 @@ export function RisksRegistryTable() {
               </TableBody>
             </Table>
           </div>
-          <div className="px-4 py-4 text-sm md:px-6">
-            <span className="text-muted-foreground">{p.registry.totalRecords} </span>
-            <span className="text-foreground">{filtered.length}</span>
+          <div className="flex flex-col gap-3 px-4 py-4 text-sm md:flex-row md:items-center md:justify-between md:px-6">
+            <div>
+              <span className="text-muted-foreground">{p.registry.totalRecords} </span>
+              <span className="text-foreground">{filtered.length}</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-muted-foreground">
+                {p.registry.pageLabel.replace('{current}', String(safePage)).replace('{total}', String(totalPages))}
+              </span>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={safePage <= 1}
+                onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+              >
+                {p.registry.prevPage}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={safePage >= totalPages}
+                onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+              >
+                {p.registry.nextPage}
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -506,6 +562,22 @@ export function RisksRegistryTable() {
             <DialogTitle>{p.registry.dialogFilters}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
+            <div>
+              <p className="mb-2 text-sm font-medium">{p.registry.rowsPerPage}</p>
+              <Select
+                value={String(pageSize)}
+                onValueChange={(value) => setPageSize(Number(value))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="5">5</SelectItem>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <div>
               <p className="mb-2 text-sm font-medium">{p.registry.category}</p>
               <div className="flex flex-col gap-2">

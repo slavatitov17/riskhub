@@ -100,6 +100,10 @@ export interface PageCopy {
     selectAll: string
     loading: string
     totalRecords: string
+    rowsPerPage: string
+    pageLabel: string
+    prevPage: string
+    nextPage: string
     dialogFilters: string
     apply: string
     filtersApplied: string
@@ -237,6 +241,8 @@ export interface PageCopy {
     attachmentLabel: string
   }
   analytics: {
+    modeRisks: string
+    modeProjects: string
     exportExcelButton: string
     exportPdfButton: string
     exportExcelDemo: string
@@ -254,6 +260,10 @@ export interface PageCopy {
     riskId: string
     riskCategory: string
     project: string
+    projectCategory: string
+    projectStatus: string
+    projectId: string
+    participants: string
     keywords: string
     keywordsPlaceholder: string
     reset: string
@@ -262,12 +272,17 @@ export interface PageCopy {
     notFound: string
     searchRiskId: string
     searchProject: string
+    searchProjectId: string
     chartByCategory: string
     chartTimeline: string
     chartShareCategory: string
     chartPieCategory: string
     chartByStatus: string
     chartProbability: string
+    chartProjectByCategory: string
+    chartProjectTimeline: string
+    chartProjectByStatus: string
+    chartProjectParticipants: string
     legendCount: string
     tooltipValues: string
     timelineActive: string
@@ -394,6 +409,10 @@ const RU: PageCopy = {
     selectAll: 'Выбрать все',
     loading: 'Загрузка…',
     totalRecords: 'Всего записей:',
+    rowsPerPage: 'Записей на странице',
+    pageLabel: 'Страница {current} из {total}',
+    prevPage: 'Назад',
+    nextPage: 'Вперёд',
     dialogFilters: 'Фильтры',
     apply: 'Применить',
     filtersApplied: 'Фильтры применены',
@@ -544,6 +563,8 @@ const RU: PageCopy = {
     attachmentLabel: 'Вложение'
   },
   analytics: {
+    modeRisks: 'Риски',
+    modeProjects: 'Проекты',
     exportExcelButton: 'Выгрузить в Excel',
     exportPdfButton: 'Выгрузить в PDF',
     exportExcelDemo: 'Выгрузка в Excel (демо)',
@@ -561,6 +582,10 @@ const RU: PageCopy = {
     riskId: 'ID риска',
     riskCategory: 'Категория риска',
     project: 'Проект',
+    projectCategory: 'Категория проекта',
+    projectStatus: 'Статус проекта',
+    projectId: 'ID проекта',
+    participants: 'Участники',
     keywords: 'Ключевые слова',
     keywordsPlaceholder: 'Поиск по названию или описанию...',
     reset: 'Сбросить',
@@ -569,12 +594,17 @@ const RU: PageCopy = {
     notFound: 'Не найдено',
     searchRiskId: 'Поиск по ID…',
     searchProject: 'Поиск по проекту…',
+    searchProjectId: 'Поиск по ID проекта…',
     chartByCategory: 'Количество рисков по категориям',
     chartTimeline: 'Динамика рисков по времени',
     chartShareCategory: 'Количество рисков',
     chartPieCategory: 'Доля рисков по категориям',
     chartByStatus: 'Распределение по статусам',
     chartProbability: 'Вероятность рисков',
+    chartProjectByCategory: 'Количество проектов по категориям',
+    chartProjectTimeline: 'Динамика проектов по времени',
+    chartProjectByStatus: 'Распределение проектов по статусам',
+    chartProjectParticipants: 'Участники в проектах',
     legendCount: 'Количество рисков',
     tooltipValues: 'значений',
     timelineActive: 'Активные',
@@ -795,6 +825,10 @@ const EN: PageCopy = {
     selectAll: 'Select all',
     loading: 'Loading…',
     totalRecords: 'Total records:',
+    rowsPerPage: 'Rows per page',
+    pageLabel: 'Page {current} of {total}',
+    prevPage: 'Previous',
+    nextPage: 'Next',
     dialogFilters: 'Filters',
     apply: 'Apply',
     filtersApplied: 'Filters applied',
@@ -936,6 +970,8 @@ const EN: PageCopy = {
     attachmentLabel: 'Attachment'
   },
   analytics: {
+    modeRisks: 'Risks',
+    modeProjects: 'Projects',
     exportExcelButton: 'Export to Excel',
     exportPdfButton: 'Export to PDF',
     exportExcelDemo: 'Export to Excel (demo)',
@@ -953,6 +989,10 @@ const EN: PageCopy = {
     riskId: 'Risk ID',
     riskCategory: 'Risk category',
     project: 'Project',
+    projectCategory: 'Project category',
+    projectStatus: 'Project status',
+    projectId: 'Project ID',
+    participants: 'Participants',
     keywords: 'Keywords',
     keywordsPlaceholder: 'Search by name or description...',
     reset: 'Reset',
@@ -961,12 +1001,17 @@ const EN: PageCopy = {
     notFound: 'No matches',
     searchRiskId: 'Search by risk ID…',
     searchProject: 'Search by project…',
+    searchProjectId: 'Search by project ID…',
     chartByCategory: 'Risks by category',
     chartTimeline: 'Risk trend over time',
     chartShareCategory: 'Risk count',
     chartPieCategory: 'Share of risks by category',
     chartByStatus: 'Distribution by status',
     chartProbability: 'Risk probability',
+    chartProjectByCategory: 'Projects by category',
+    chartProjectTimeline: 'Project trend over time',
+    chartProjectByStatus: 'Distribution of projects by status',
+    chartProjectParticipants: 'Participants per project',
     legendCount: 'Risk count',
     tooltipValues: 'values',
     timelineActive: 'Active',

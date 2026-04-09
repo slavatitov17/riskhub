@@ -26,6 +26,13 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
+import {
   Table,
   TableBody,
   TableCell,
@@ -35,6 +42,7 @@ import {
 } from '@/components/ui/table'
 import { useLocale } from '@/contexts/locale-context'
 import { useProjects } from '@/contexts/projects-context'
+import { useVisibleRisks } from '@/hooks/use-visible-risks'
 import { PROJECT_STATUSES, type ProjectRecord } from '@/lib/project-types'
 import {
   projectStatusBadgeClass,
@@ -60,6 +68,7 @@ export function ProjectsRegistryTable() {
     deleteProject,
     refresh
   } = useProjects()
+  const risks = useVisibleRisks()
   const [filterOpen, setFilterOpen] = useState(false)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string[]>([])
@@ -69,6 +78,8 @@ export function ProjectsRegistryTable() {
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [bulkAction, setBulkAction] = useState<'close' | 'delete' | null>(null)
   const [counts, setCounts] = useState<Record<string, number>>({})
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(10)
 
   useEffect(() => {
     let alive = true
@@ -105,12 +116,37 @@ export function ProjectsRegistryTable() {
     })
   }, [myProjects, statusFilter, createdFrom, createdTo, search])
 
+  const riskParticipantsByProject = useMemo(() => {
+    const map: Record<string, number> = {}
+    for (const risk of risks) {
+      if (!risk.projectId) continue
+      const set = new Set<string>()
+      const author = risk.author.trim()
+      if (author) set.add(author)
+      for (const comment of risk.comments ?? []) {
+        const name = comment.authorName.trim()
+        if (name) set.add(name)
+      }
+      map[risk.projectId] = Math.max(map[risk.projectId] ?? 0, set.size)
+    }
+    return map
+  }, [risks])
+
+  useEffect(() => {
+    setPage(1)
+  }, [search, statusFilter, createdFrom, createdTo, pageSize])
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
+  const safePage = Math.min(page, totalPages)
+  const pageStart = (safePage - 1) * pageSize
+  const paged = filtered.slice(pageStart, pageStart + pageSize)
+
   const appliedFilters =
     statusFilter.length + (createdFrom ? 1 : 0) + (createdTo ? 1 : 0)
 
   const toggleAll = (checked: boolean) => {
     const next: Record<string, boolean> = {}
-    if (checked) filtered.forEach((p) => (next[p.id] = true))
+    if (checked) paged.forEach((p) => (next[p.id] = true))
     setSelected(next)
   }
 
@@ -264,8 +300,8 @@ export function ProjectsRegistryTable() {
                     <div className="flex items-center gap-2">
                       <Checkbox
                         checked={
-                          filtered.length > 0 &&
-                          filtered.every((p) => selected[p.id])
+                          paged.length > 0 &&
+                          paged.every((p) => selected[p.id])
                         }
                         onCheckedChange={(v) => toggleAll(!!v)}
                         aria-label={p.registry.selectAll}
@@ -309,7 +345,7 @@ export function ProjectsRegistryTable() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filtered.map((row) => (
+                  paged.map((row) => (
                     <TableRow
                       key={row.id}
                       className="cursor-pointer hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
@@ -357,7 +393,10 @@ export function ProjectsRegistryTable() {
                         </span>
                       </TableCell>
                       <TableCell className="whitespace-nowrap">
-                        {counts[row.id] ?? '—'}
+                        {Math.max(
+                          counts[row.id] ?? 0,
+                          riskParticipantsByProject[row.id] ?? 0
+                        ) || '—'}
                       </TableCell>
                       <TableCell
                         className="whitespace-nowrap text-left"
@@ -405,9 +444,36 @@ export function ProjectsRegistryTable() {
             </Table>
           </div>
           {ready && (
-            <div className="px-4 py-4 text-sm md:px-6">
-              <span className="text-muted-foreground">{p.registry.totalRecords} </span>
-              <span className="text-foreground">{filtered.length}</span>
+            <div className="flex flex-col gap-3 px-4 py-4 text-sm md:flex-row md:items-center md:justify-between md:px-6">
+              <div>
+                <span className="text-muted-foreground">{p.registry.totalRecords} </span>
+                <span className="text-foreground">{filtered.length}</span>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-muted-foreground">
+                  {p.registry.pageLabel.replace('{current}', String(safePage)).replace('{total}', String(totalPages))}
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={safePage <= 1}
+                  onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                >
+                  {p.registry.prevPage}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={safePage >= totalPages}
+                  onClick={() =>
+                    setPage((prev) => Math.min(totalPages, prev + 1))
+                  }
+                >
+                  {p.registry.nextPage}
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>
@@ -436,6 +502,22 @@ export function ProjectsRegistryTable() {
                   </label>
                 ))}
               </div>
+            </div>
+            <div>
+              <p className="mb-2 text-sm font-medium">{p.registry.rowsPerPage}</p>
+              <Select
+                value={String(pageSize)}
+                onValueChange={(value) => setPageSize(Number(value))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="5">5</SelectItem>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <p className="mb-2 text-sm font-medium">{p.registry.colCreated}</p>

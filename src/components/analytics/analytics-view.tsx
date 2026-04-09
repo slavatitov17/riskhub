@@ -36,6 +36,7 @@ import { useProjects } from '@/contexts/projects-context'
 import { useRisks } from '@/contexts/risks-context'
 import { useVisibleRisks } from '@/hooks/use-visible-risks'
 import { getPageCopy } from '@/lib/page-copy'
+import type { ProjectRecord } from '@/lib/project-types'
 import type { RiskRecord } from '@/lib/risk-types'
 import { formatLocaleDateTime, riskDateKey } from '@/lib/risks-storage'
 import {
@@ -140,6 +141,18 @@ export type ReportFilters = {
   keywords: string
 }
 
+type AnalyticsMode = 'risks' | 'projects'
+
+type ProjectReportFilters = {
+  periodFrom: string
+  periodTo: string
+  status: string[]
+  category: string[]
+  projectId: string[]
+  participants: string[]
+  keywords: string
+}
+
 function isoDate(d: Date): string {
   return d.toISOString().slice(0, 10)
 }
@@ -158,6 +171,22 @@ function defaultReportFilters(): ReportFilters {
     riskId: [],
     category: [],
     project: [],
+    keywords: ''
+  }
+}
+
+function defaultProjectReportFilters(): ProjectReportFilters {
+  const to = new Date()
+  to.setHours(12, 0, 0, 0)
+  const from = new Date(to)
+  from.setDate(from.getDate() - 6)
+  return {
+    periodFrom: isoDate(from),
+    periodTo: isoDate(to),
+    status: [],
+    category: [],
+    projectId: [],
+    participants: [],
     keywords: ''
   }
 }
@@ -286,6 +315,76 @@ function matchesReportFilters(
       return false
   }
   return true
+}
+
+function matchesProjectReportFilters(
+  project: ProjectRecord,
+  filters: ProjectReportFilters,
+  participantsCount: number
+) {
+  const createdDay = riskDateKey(project.createdAt)
+  if (filters.periodFrom && createdDay < filters.periodFrom) return false
+  if (filters.periodTo && createdDay > filters.periodTo) return false
+  if (filters.status.length && !filters.status.includes(project.status)) return false
+  if (filters.category.length && !filters.category.includes(project.category))
+    return false
+  if (filters.projectId.length && !filters.projectId.includes(project.code)) return false
+  if (filters.participants.length) {
+    const participantLabel = String(participantsCount)
+    if (!filters.participants.includes(participantLabel)) return false
+  }
+  if (filters.keywords.trim()) {
+    const query = filters.keywords.toLowerCase().trim()
+    const text = `${project.name} ${project.description} ${project.category}`.toLowerCase()
+    if (!text.includes(query)) return false
+  }
+  return true
+}
+
+function buildProjectTimeline(
+  periodFrom: string,
+  periodTo: string,
+  filteredProjects: ProjectRecord[],
+  activeKey: string,
+  doneKey: string,
+  monthLabels: readonly string[]
+) {
+  let fromD = parseYmd(periodFrom)
+  let toD = parseYmd(periodTo)
+  if (!fromD || !toD || fromD > toD) {
+    toD = new Date()
+    toD.setHours(12, 0, 0, 0)
+    fromD = new Date(toD)
+    fromD.setDate(fromD.getDate() - 6)
+  }
+
+  const days = eachDateInInclusiveRange(fromD, toD)
+  if (days.length <= 45) {
+    return days.map((d) => {
+      const key = isoDate(d)
+      const inDay = filteredProjects.filter((project) => riskDateKey(project.createdAt) === key)
+      return {
+        month: `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}`,
+        [activeKey]: inDay.filter((project) => project.status !== 'Завершен').length,
+        [doneKey]: inDay.filter((project) => project.status === 'Завершен').length
+      }
+    })
+  }
+
+  const out: Record<string, string | number>[] = []
+  const current = new Date(fromD.getFullYear(), fromD.getMonth(), 1)
+  const end = new Date(toD.getFullYear(), toD.getMonth(), 1)
+  while (current <= end) {
+    const ym = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}`
+    const inMonth = filteredProjects.filter((project) => project.createdAt.slice(0, 7) === ym)
+    out.push({
+      month: monthLabels[current.getMonth()] ?? ym,
+      [activeKey]: inMonth.filter((project) => project.status !== 'Завершен').length,
+      [doneKey]: inMonth.filter((project) => project.status === 'Завершен').length
+    })
+    current.setMonth(current.getMonth() + 1)
+  }
+  return out
 }
 
 function ReportFilterMultiSelect({
@@ -486,10 +585,20 @@ export function AnalyticsView() {
 
   const { refresh } = useRisks()
   const risks = useVisibleRisks()
-  const { getProjectDisplayName } = useProjects()
+  const { getProjectDisplayName, myProjects, memberCount } = useProjects()
+  const [mode, setMode] = useState<AnalyticsMode>('risks')
   const [lastUpdated, setLastUpdated] = useState(() => new Date())
   const [draft, setDraft] = useState<ReportFilters>(() => defaultReportFilters())
   const [applied, setApplied] = useState<ReportFilters>(() => defaultReportFilters())
+  const [draftProject, setDraftProject] = useState<ProjectReportFilters>(() =>
+    defaultProjectReportFilters()
+  )
+  const [appliedProject, setAppliedProject] = useState<ProjectReportFilters>(() =>
+    defaultProjectReportFilters()
+  )
+  const [projectMemberCounts, setProjectMemberCounts] = useState<
+    Record<string, number>
+  >({})
 
   const riskCodes = useMemo(
     () => Array.from(new Set(risks.map((r) => r.code))).sort(),
@@ -505,6 +614,20 @@ export function AnalyticsView() {
     [risks, getProjectDisplayName]
   )
 
+  useEffect(() => {
+    let alive = true
+    ;(async () => {
+      const next: Record<string, number> = {}
+      for (const project of myProjects) {
+        next[project.id] = await memberCount(project.id)
+      }
+      if (alive) setProjectMemberCounts(next)
+    })()
+    return () => {
+      alive = false
+    }
+  }, [myProjects, memberCount])
+
   const filteredRisks = useMemo(
     () =>
       risks.filter((r) =>
@@ -515,6 +638,44 @@ export function AnalyticsView() {
         )
       ),
     [risks, applied, getProjectDisplayName]
+  )
+
+  const projectCodes = useMemo(
+    () => myProjects.map((project) => project.code).filter(Boolean).sort(),
+    [myProjects]
+  )
+  const projectCategories = useMemo(
+    () =>
+      Array.from(new Set(myProjects.map((project) => project.category)))
+        .filter(Boolean)
+        .sort(),
+    [myProjects]
+  )
+  const projectStatuses = useMemo(
+    () =>
+      Array.from(new Set(myProjects.map((project) => project.status))).sort(),
+    [myProjects]
+  )
+  const projectParticipantOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          myProjects.map((project) => String(projectMemberCounts[project.id] ?? 0))
+        )
+      ).sort((a, b) => Number(a) - Number(b)),
+    [myProjects, projectMemberCounts]
+  )
+
+  const filteredProjects = useMemo(
+    () =>
+      myProjects.filter((project) =>
+        matchesProjectReportFilters(
+          project,
+          appliedProject,
+          projectMemberCounts[project.id] ?? 0
+        )
+      ),
+    [myProjects, appliedProject, projectMemberCounts]
   )
 
   const byCategory = useMemo(() => {
@@ -557,8 +718,56 @@ export function AnalyticsView() {
     ]
   )
 
+  const projectsByCategory = useMemo(() => {
+    const map = new Map<string, number>()
+    filteredProjects.forEach((project) =>
+      map.set(project.category, (map.get(project.category) ?? 0) + 1)
+    )
+    return Array.from(map.entries()).map(([name, value]) => ({ name, value }))
+  }, [filteredProjects])
+
+  const projectsByStatus = useMemo(() => {
+    const map = new Map<string, number>()
+    filteredProjects.forEach((project) =>
+      map.set(project.status, (map.get(project.status) ?? 0) + 1)
+    )
+    return Array.from(map.entries()).map(([name, value]) => ({ name, value }))
+  }, [filteredProjects])
+
+  const projectsByParticipants = useMemo(
+    () =>
+      filteredProjects
+        .map((project) => ({
+          name: project.code,
+          value: projectMemberCounts[project.id] ?? 0
+        }))
+        .sort((a, b) => b.value - a.value),
+    [filteredProjects, projectMemberCounts]
+  )
+
+  const projectTimeline = useMemo(
+    () =>
+      buildProjectTimeline(
+        appliedProject.periodFrom,
+        appliedProject.periodTo,
+        filteredProjects,
+        p.analytics.timelineActive,
+        p.analytics.timelineClosed,
+        monthLabels
+      ),
+    [
+      appliedProject.periodFrom,
+      appliedProject.periodTo,
+      filteredProjects,
+      p.analytics.timelineActive,
+      p.analytics.timelineClosed,
+      monthLabels
+    ]
+  )
+
+  const isRiskMode = mode === 'risks'
   const chartEmptyCopy =
-    risks.length === 0
+    (isRiskMode ? risks.length : myProjects.length) === 0
       ? {
           title: p.analytics.emptyNoRisksTitle,
           hint: p.analytics.emptyNoRisksHint
@@ -569,13 +778,23 @@ export function AnalyticsView() {
         }
 
   const handleResetFilters = () => {
-    const next = defaultReportFilters()
-    setDraft(next)
-    setApplied(next)
+    if (isRiskMode) {
+      const next = defaultReportFilters()
+      setDraft(next)
+      setApplied(next)
+      return
+    }
+    const next = defaultProjectReportFilters()
+    setDraftProject(next)
+    setAppliedProject(next)
   }
 
   const handleApplyFilters = () => {
-    setApplied({ ...draft })
+    if (isRiskMode) {
+      setApplied({ ...draft })
+      return
+    }
+    setAppliedProject({ ...draftProject })
   }
 
   return (
@@ -605,6 +824,24 @@ export function AnalyticsView() {
           </Button>
         </div>
         <div className="flex flex-wrap gap-2">
+          <div className="mr-2 flex items-center gap-1 rounded-md border border-border p-1">
+            <Button
+              type="button"
+              size="sm"
+              variant={isRiskMode ? 'default' : 'ghost'}
+              onClick={() => setMode('risks')}
+            >
+              {p.analytics.modeRisks}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={!isRiskMode ? 'default' : 'ghost'}
+              onClick={() => setMode('projects')}
+            >
+              {p.analytics.modeProjects}
+            </Button>
+          </div>
           <Button
             type="button"
             variant="outline"
@@ -640,89 +877,136 @@ export function AnalyticsView() {
               <Input
                 type="date"
                 className="calendar-input accent-primary"
-                value={draft.periodFrom}
+                value={isRiskMode ? draft.periodFrom : draftProject.periodFrom}
                 onChange={(e) =>
-                  setDraft((d) => ({ ...d, periodFrom: e.target.value }))
+                  isRiskMode
+                    ? setDraft((d) => ({ ...d, periodFrom: e.target.value }))
+                    : setDraftProject((d) => ({ ...d, periodFrom: e.target.value }))
                 }
                 aria-label={p.analytics.periodFrom}
               />
               <Input
                 type="date"
                 className="calendar-input accent-primary"
-                value={draft.periodTo}
-                onChange={(e) => setDraft((d) => ({ ...d, periodTo: e.target.value }))}
+                value={isRiskMode ? draft.periodTo : draftProject.periodTo}
+                onChange={(e) =>
+                  isRiskMode
+                    ? setDraft((d) => ({ ...d, periodTo: e.target.value }))
+                    : setDraftProject((d) => ({ ...d, periodTo: e.target.value }))
+                }
                 aria-label={p.analytics.periodTo}
               />
             </div>
           </div>
 
-          <ReportFilterMultiSelect
-            label={p.analytics.riskProbability}
-            allLabel={p.analytics.all}
-            options={LEVELS}
-            selected={draft.probability}
-            onChange={(probability) => setDraft((d) => ({ ...d, probability }))}
-            formatSelected={formatSelected}
-          />
-
-          <ReportFilterMultiSelect
-            label={p.analytics.riskImpact}
-            allLabel={p.analytics.all}
-            options={IMPACTS}
-            selected={draft.impact}
-            onChange={(impact) => setDraft((d) => ({ ...d, impact }))}
-            formatSelected={formatSelected}
-          />
-
-          <ReportFilterMultiSelect
-            label={p.analytics.riskStatus}
-            allLabel={p.analytics.all}
-            options={RISK_STATUSES}
-            selected={draft.status}
-            onChange={(status) => setDraft((d) => ({ ...d, status }))}
-            formatSelected={formatSelected}
-          />
-
-          <ReportFilterSearchableMultiSelect
-            label={p.analytics.riskId}
-            allLabel={p.analytics.all}
-            options={riskCodes}
-            selected={draft.riskId}
-            onChange={(riskId) => setDraft((d) => ({ ...d, riskId }))}
-            searchPlaceholder={p.analytics.searchRiskId}
-            formatSelected={formatSelected}
-            notFoundLabel={p.analytics.notFound}
-            searchAriaPrefix={searchAriaPrefix}
-          />
-
-          <ReportFilterMultiSelect
-            label={p.analytics.riskCategory}
-            allLabel={p.analytics.allCategories}
-            options={RISK_CATEGORIES}
-            selected={draft.category}
-            onChange={(category) => setDraft((d) => ({ ...d, category }))}
-            formatSelected={formatSelected}
-          />
-
-          <ReportFilterSearchableMultiSelect
-            label={p.analytics.project}
-            allLabel={p.analytics.allProjects}
-            options={projects}
-            selected={draft.project}
-            onChange={(project) => setDraft((d) => ({ ...d, project }))}
-            searchPlaceholder={p.analytics.searchProject}
-            formatSelected={formatSelected}
-            notFoundLabel={p.analytics.notFound}
-            searchAriaPrefix={searchAriaPrefix}
-          />
+          {isRiskMode ? (
+            <>
+              <ReportFilterMultiSelect
+                label={p.analytics.riskProbability}
+                allLabel={p.analytics.all}
+                options={LEVELS}
+                selected={draft.probability}
+                onChange={(probability) => setDraft((d) => ({ ...d, probability }))}
+                formatSelected={formatSelected}
+              />
+              <ReportFilterMultiSelect
+                label={p.analytics.riskImpact}
+                allLabel={p.analytics.all}
+                options={IMPACTS}
+                selected={draft.impact}
+                onChange={(impact) => setDraft((d) => ({ ...d, impact }))}
+                formatSelected={formatSelected}
+              />
+              <ReportFilterMultiSelect
+                label={p.analytics.riskStatus}
+                allLabel={p.analytics.all}
+                options={RISK_STATUSES}
+                selected={draft.status}
+                onChange={(status) => setDraft((d) => ({ ...d, status }))}
+                formatSelected={formatSelected}
+              />
+              <ReportFilterSearchableMultiSelect
+                label={p.analytics.riskId}
+                allLabel={p.analytics.all}
+                options={riskCodes}
+                selected={draft.riskId}
+                onChange={(riskId) => setDraft((d) => ({ ...d, riskId }))}
+                searchPlaceholder={p.analytics.searchRiskId}
+                formatSelected={formatSelected}
+                notFoundLabel={p.analytics.notFound}
+                searchAriaPrefix={searchAriaPrefix}
+              />
+              <ReportFilterMultiSelect
+                label={p.analytics.riskCategory}
+                allLabel={p.analytics.allCategories}
+                options={RISK_CATEGORIES}
+                selected={draft.category}
+                onChange={(category) => setDraft((d) => ({ ...d, category }))}
+                formatSelected={formatSelected}
+              />
+              <ReportFilterSearchableMultiSelect
+                label={p.analytics.project}
+                allLabel={p.analytics.allProjects}
+                options={projects}
+                selected={draft.project}
+                onChange={(project) => setDraft((d) => ({ ...d, project }))}
+                searchPlaceholder={p.analytics.searchProject}
+                formatSelected={formatSelected}
+                notFoundLabel={p.analytics.notFound}
+                searchAriaPrefix={searchAriaPrefix}
+              />
+            </>
+          ) : (
+            <>
+              <ReportFilterMultiSelect
+                label={p.analytics.projectStatus}
+                allLabel={p.analytics.all}
+                options={projectStatuses}
+                selected={draftProject.status}
+                onChange={(status) => setDraftProject((d) => ({ ...d, status }))}
+                formatSelected={formatSelected}
+              />
+              <ReportFilterMultiSelect
+                label={p.analytics.projectCategory}
+                allLabel={p.analytics.allCategories}
+                options={projectCategories}
+                selected={draftProject.category}
+                onChange={(category) => setDraftProject((d) => ({ ...d, category }))}
+                formatSelected={formatSelected}
+              />
+              <ReportFilterMultiSelect
+                label={p.analytics.participants}
+                allLabel={p.analytics.all}
+                options={projectParticipantOptions}
+                selected={draftProject.participants}
+                onChange={(participants) =>
+                  setDraftProject((d) => ({ ...d, participants }))
+                }
+                formatSelected={formatSelected}
+              />
+              <ReportFilterSearchableMultiSelect
+                label={p.analytics.projectId}
+                allLabel={p.analytics.all}
+                options={projectCodes}
+                selected={draftProject.projectId}
+                onChange={(projectId) => setDraftProject((d) => ({ ...d, projectId }))}
+                searchPlaceholder={p.analytics.searchProjectId}
+                formatSelected={formatSelected}
+                notFoundLabel={p.analytics.notFound}
+                searchAriaPrefix={searchAriaPrefix}
+              />
+            </>
+          )}
 
           <div className="space-y-2 md:col-span-2 lg:col-span-2">
             <Label>{p.analytics.keywords}</Label>
             <Input
               placeholder={p.analytics.keywordsPlaceholder}
-              value={draft.keywords}
+              value={isRiskMode ? draft.keywords : draftProject.keywords}
               onChange={(e) =>
-                setDraft((d) => ({ ...d, keywords: e.target.value }))
+                isRiskMode
+                  ? setDraft((d) => ({ ...d, keywords: e.target.value }))
+                  : setDraftProject((d) => ({ ...d, keywords: e.target.value }))
               }
             />
           </div>
@@ -739,6 +1023,8 @@ export function AnalyticsView() {
       </Card>
 
       <div className="grid gap-4 lg:grid-cols-2">
+        {isRiskMode ? (
+          <>
         <Card className="min-h-[340px]">
           <CardHeader>
             <CardTitle className="text-base">{p.analytics.chartByCategory}</CardTitle>
@@ -952,7 +1238,7 @@ export function AnalyticsView() {
           </CardContent>
         </Card>
 
-        <Card className="min-h-[320px] lg:col-span-2">
+            <Card className="min-h-[320px] lg:col-span-2">
           <CardHeader>
             <CardTitle className="text-base">{p.analytics.chartProbability}</CardTitle>
           </CardHeader>
@@ -1024,7 +1310,119 @@ export function AnalyticsView() {
               </ResponsiveContainer>
             )}
           </CardContent>
-        </Card>
+            </Card>
+          </>
+        ) : (
+          <>
+            <Card className="min-h-[340px]">
+              <CardHeader>
+                <CardTitle className="text-base">
+                  {p.analytics.chartProjectByCategory}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="h-[280px]">
+                {filteredProjects.length === 0 ? (
+                  <ChartEmptyState
+                    title={chartEmptyCopy.title}
+                    hint={chartEmptyCopy.hint}
+                  />
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={projectsByCategory}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis dataKey="name" tick={{ fontSize: 11 }} interval={0} height={52} />
+                      <YAxis allowDecimals={false} width={36} tick={{ fontSize: 11 }} />
+                      <Tooltip content={<AnalyticsTooltip valueSeriesLabel={p.analytics.tooltipValues} />} />
+                      <Bar dataKey="value" fill="hsl(217 91% 60%)" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="min-h-[340px]">
+              <CardHeader>
+                <CardTitle className="text-base">
+                  {p.analytics.chartProjectTimeline}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="h-[280px]">
+                {filteredProjects.length === 0 ? (
+                  <ChartEmptyState
+                    title={chartEmptyCopy.title}
+                    hint={chartEmptyCopy.hint}
+                  />
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={projectTimeline}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                      <YAxis allowDecimals={false} width={36} tick={{ fontSize: 11 }} />
+                      <Tooltip content={<AnalyticsTooltip valueSeriesLabel={p.analytics.tooltipValues} />} />
+                      <Legend />
+                      <Line type="monotone" dataKey={p.analytics.timelineActive} stroke="hsl(217 91% 52%)" strokeWidth={2} />
+                      <Line type="monotone" dataKey={p.analytics.timelineClosed} stroke="hsl(142 76% 34%)" strokeWidth={2} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="min-h-[340px]">
+              <CardHeader>
+                <CardTitle className="text-base">
+                  {p.analytics.chartProjectByStatus}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="h-[300px]">
+                {filteredProjects.length === 0 ? (
+                  <ChartEmptyState
+                    title={chartEmptyCopy.title}
+                    hint={chartEmptyCopy.hint}
+                  />
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={projectsByStatus} dataKey="value" nameKey="name" outerRadius={82}>
+                        {projectsByStatus.map((_, i) => (
+                          <Cell key={`ps-${i}`} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip content={<AnalyticsTooltip valueSeriesLabel={p.analytics.tooltipValues} />} />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="min-h-[340px]">
+              <CardHeader>
+                <CardTitle className="text-base">
+                  {p.analytics.chartProjectParticipants}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="h-[300px]">
+                {filteredProjects.length === 0 ? (
+                  <ChartEmptyState
+                    title={chartEmptyCopy.title}
+                    hint={chartEmptyCopy.hint}
+                  />
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={projectsByParticipants} layout="vertical">
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
+                      <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
+                      <YAxis dataKey="name" type="category" width={64} tick={{ fontSize: 11 }} />
+                      <Tooltip content={<AnalyticsTooltip valueSeriesLabel={p.analytics.tooltipValues} />} />
+                      <Bar dataKey="value" fill="hsl(142 76% 36%)" radius={[0, 4, 4, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </CardContent>
+            </Card>
+          </>
+        )}
       </div>
     </motion.div>
   )

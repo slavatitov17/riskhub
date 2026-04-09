@@ -12,6 +12,7 @@ import {
   Paperclip,
   Pencil,
   Send,
+  Sparkles,
   Trash2,
   X
 } from 'lucide-react'
@@ -616,6 +617,25 @@ export function RiskDetailView({ risk }: RiskDetailViewProps) {
                   </p>
                 </div>
               ))}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">{p.aiAnalysis.riskTitle}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                {p.aiAnalysis.riskBody}
+              </p>
+              <Button
+                type="button"
+                className="gap-2"
+                onClick={() => toast.message(p.aiAnalysis.toastSoon)}
+              >
+                <Sparkles className="h-4 w-4" aria-hidden />
+                {p.aiAnalysis.cta}
+              </Button>
             </CardContent>
           </Card>
         </div>

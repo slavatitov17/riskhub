@@ -11,6 +11,7 @@ import {
   Pencil,
   Plus,
   Send,
+  Sparkles,
   Trash2
 } from 'lucide-react'
 import { toast } from '@/lib/app-toast'
@@ -293,6 +294,35 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
                   </>
                 )}
               </div>
+              {(project.documentationFiles?.length ?? 0) > 0 ? (
+                <>
+                  <Separator />
+                  <div>
+                    <p className="mb-2 text-sm font-medium text-foreground">
+                      {p.projectDetail.documentationTitle}
+                    </p>
+                    <ul className="space-y-2">
+                      {project.documentationFiles!.map((f) => (
+                        <li key={f.id}>
+                          {f.dataUrl ? (
+                            <a
+                              href={f.dataUrl}
+                              download={f.name}
+                              className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+                            >
+                              {f.name}
+                            </a>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">
+                              {f.name}
+                            </span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </>
+              ) : null}
             </CardContent>
           </Card>
 
@@ -443,6 +473,25 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
                   </p>
                 </div>
               ))}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">{p.aiAnalysis.projectTitle}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                {p.aiAnalysis.projectBody}
+              </p>
+              <Button
+                type="button"
+                className="gap-2"
+                onClick={() => toast.message(p.aiAnalysis.toastSoon)}
+              >
+                <Sparkles className="h-4 w-4" aria-hidden />
+                {p.aiAnalysis.cta}
+              </Button>
             </CardContent>
           </Card>
         </div>

@@ -160,6 +160,33 @@ export interface PageCopy {
     searchFound: string
   }
   filterCount: (n: number) => string
+  projectForm: {
+    documentationLabel: string
+    documentationDrop: string
+    documentationOr: string
+    documentationBrowse: string
+    documentationRemove: string
+    documentationTooLarge: string
+    documentationMaxFiles: string
+  }
+  aiAssistant: {
+    fabAria: string
+    title: string
+    subtitle: string
+    placeholder: string
+    send: string
+    close: string
+    hint: string
+    modelPending: string
+  }
+  aiAnalysis: {
+    projectTitle: string
+    projectBody: string
+    riskTitle: string
+    riskBody: string
+    cta: string
+    toastSoon: string
+  }
   projectDetail: {
     noAccess: string
     toProjects: string
@@ -201,6 +228,7 @@ export interface PageCopy {
     department: string
     position: string
     about: string
+    documentationTitle: string
   }
   riskDetail: {
     back: string
@@ -487,6 +515,36 @@ const RU: PageCopy = {
     if (n >= 2 && n <= 4) return `${n} фильтра`
     return `${n} фильтров`
   },
+  projectForm: {
+    documentationLabel: 'Проектная документация',
+    documentationDrop: 'Перетащите файлы сюда',
+    documentationOr: 'или',
+    documentationBrowse: 'Загрузить',
+    documentationRemove: 'Удалить',
+    documentationTooLarge: 'Файл «{name}» слишком большой (макс. 2 МБ)',
+    documentationMaxFiles: 'Не более 8 файлов'
+  },
+  aiAssistant: {
+    fabAria: 'Открыть ИИ-ассистента',
+    title: 'ИИ-ассистент',
+    subtitle: 'RiskHub',
+    placeholder: 'Задайте вопрос о системе, проектах или рисках…',
+    send: 'Отправить',
+    close: 'Закрыть',
+    hint: 'Вы можете спросить о работе в RiskHub, текущих проектах ({projects}) и рисках ({risks}). Ответы появятся после подключения языковой модели.',
+    modelPending:
+      'Подключение языковой модели запланировано. Пока ответы недоступны — спасибо за терпение.'
+  },
+  aiAnalysis: {
+    projectTitle: 'Анализ рисков с ИИ',
+    projectBody:
+      'Попросите систему оценить проект и выявить потенциальные риски на основе данных проекта и реестра.',
+    riskTitle: 'Анализ с ИИ',
+    riskBody:
+      'Получите подсказки по контексту риска и связанному проекту для выявления дополнительных рисков.',
+    cta: 'Запустить анализ',
+    toastSoon: 'Функция появится после подключения модели ИИ.'
+  },
   projectDetail: {
     noAccess: 'Нет доступа',
     toProjects: 'К проектам',
@@ -529,7 +587,8 @@ const RU: PageCopy = {
     workplace: 'Место работы',
     department: 'Отдел',
     position: 'Должность',
-    about: 'О себе'
+    about: 'О себе',
+    documentationTitle: 'Проектная документация'
   },
   riskDetail: {
     back: 'Назад',
@@ -902,6 +961,36 @@ const EN: PageCopy = {
     searchFound: 'Search: “{q}” — {n} found'
   },
   filterCount: (n: number) => `${n} ${n === 1 ? 'filter' : 'filters'}`,
+  projectForm: {
+    documentationLabel: 'Project documentation',
+    documentationDrop: 'Drag and drop files here',
+    documentationOr: 'or',
+    documentationBrowse: 'Upload',
+    documentationRemove: 'Remove',
+    documentationTooLarge: 'File “{name}” is too large (max 2 MB)',
+    documentationMaxFiles: 'No more than 8 files'
+  },
+  aiAssistant: {
+    fabAria: 'Open AI assistant',
+    title: 'AI assistant',
+    subtitle: 'RiskHub',
+    placeholder: 'Ask about the app, projects, or risks…',
+    send: 'Send',
+    close: 'Close',
+    hint: 'You can ask about RiskHub, your current projects ({projects}), and risks ({risks}). Answers will be available once the language model is connected.',
+    modelPending:
+      'The language model is not connected yet. Replies are unavailable for now — thank you for your patience.'
+  },
+  aiAnalysis: {
+    projectTitle: 'AI risk analysis',
+    projectBody:
+      'Ask the system to review this project and surface potential risks using project data and the registry.',
+    riskTitle: 'AI analysis',
+    riskBody:
+      'Get contextual hints for this risk and its project to uncover related risks.',
+    cta: 'Run analysis',
+    toastSoon: 'This will be available after the AI model is connected.'
+  },
   projectDetail: {
     noAccess: 'No access',
     toProjects: 'Back to projects',
@@ -943,7 +1032,8 @@ const EN: PageCopy = {
     workplace: 'Workplace',
     department: 'Department',
     position: 'Job title',
-    about: 'About'
+    about: 'About',
+    documentationTitle: 'Project documentation'
   },
   riskDetail: {
     back: 'Back',

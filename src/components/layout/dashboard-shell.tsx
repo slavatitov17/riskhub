@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { Menu } from 'lucide-react'
 
+import { AiAssistantDock } from '@/components/ai/ai-assistant-dock'
 import { AppHeader } from '@/components/layout/app-header'
 import { AppSidebar } from '@/components/layout/app-sidebar'
 import { Button } from '@/components/ui/button'
@@ -62,6 +63,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
           {children}
         </main>
       </div>
+      <AiAssistantDock />
     </div>
   )
 }

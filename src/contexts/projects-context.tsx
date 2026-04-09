@@ -17,6 +17,7 @@ import {
 import { ensureDemoWorldSeeded } from '@/lib/demo-world-seed'
 import {
   nextProjectCode,
+  type ProjectDocumentationFile,
   type ProjectInvitationRecord,
   type ProjectMemberRecord,
   type ProjectRecord,
@@ -49,6 +50,7 @@ interface ProjectsContextValue {
     category: string
     description?: string
     inviteEmails?: string[]
+    documentationFiles?: ProjectDocumentationFile[]
   }) => Promise<{ ok: true } | { ok: false; error: string }>
   updateProject: (
     projectId: string,
@@ -276,6 +278,7 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
       category: string
       description?: string
       inviteEmails?: string[]
+      documentationFiles?: ProjectDocumentationFile[]
     }) => {
       const s = getSession()
       if (!s) return { ok: false as const, error: 'Войдите в систему' }
@@ -298,6 +301,7 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
       const now = new Date().toISOString()
       const existing = await dbGetAllProjects()
       const code = nextProjectCode(existing)
+      const docs = input.documentationFiles?.filter(Boolean) ?? []
       const row: ProjectRecord = {
         id,
         code,
@@ -311,7 +315,8 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
         description: (input.description ?? '').trim(),
         activityLog: [
           { id: `${id}-created`, at: now, message: 'Проект создан' }
-        ]
+        ],
+        documentationFiles: docs.length > 0 ? docs : undefined
       }
       await dbPutProject(row)
       await dbPutMember({

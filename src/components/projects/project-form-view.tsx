@@ -7,20 +7,29 @@ import { motion } from 'framer-motion'
 import { Plus, X } from 'lucide-react'
 import { toast } from '@/lib/app-toast'
 
+import { ProjectDocumentationField } from '@/components/forms/project-documentation-field'
 import { SearchableCategoryField } from '@/components/forms/searchable-category-field'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { useLocale } from '@/contexts/locale-context'
 import { useProjects } from '@/contexts/projects-context'
 import { saveCustomCategory } from '@/lib/custom-categories-storage'
+import { getPageCopy } from '@/lib/page-copy'
+import type { ProjectDocumentationFile } from '@/lib/project-types'
 
 export function ProjectFormView() {
   const router = useRouter()
+  const { locale } = useLocale()
+  const p = getPageCopy(locale)
   const { createProject } = useProjects()
   const [name, setName] = useState('')
   const [category, setCategory] = useState('')
+  const [documentationFiles, setDocumentationFiles] = useState<
+    ProjectDocumentationFile[]
+  >([])
   const [description, setDescription] = useState('')
   const [inviteRows, setInviteRows] = useState<string[]>([''])
   const [submitting, setSubmitting] = useState(false)
@@ -34,7 +43,8 @@ export function ProjectFormView() {
         name,
         category,
         description,
-        inviteEmails: inviteRows
+        inviteEmails: inviteRows,
+        documentationFiles
       })
       if (!res.ok) {
         toast.error(res.error)
@@ -72,6 +82,20 @@ export function ProjectFormView() {
               onChange={setCategory}
               kind="project"
               id="project-category"
+            />
+            <ProjectDocumentationField
+              id="project-documentation"
+              files={documentationFiles}
+              onChange={setDocumentationFiles}
+              labels={{
+                label: p.projectForm.documentationLabel,
+                dropPrimary: p.projectForm.documentationDrop,
+                dropOr: p.projectForm.documentationOr,
+                browse: p.projectForm.documentationBrowse,
+                remove: p.projectForm.documentationRemove,
+                tooLarge: p.projectForm.documentationTooLarge,
+                maxFiles: p.projectForm.documentationMaxFiles
+              }}
             />
             <div className="space-y-2">
               <Label htmlFor="project-desc">Описание проекта</Label>

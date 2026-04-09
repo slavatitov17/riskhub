@@ -78,8 +78,8 @@ function buildDemoRiskNotifications(
     const riskTitle = r.name.trim() || '—'
     const body =
       locale === 'en'
-        ? `${r.author} created risk «${riskTitle}» in project «${projectTitle}».`
-        : `${r.author} создал риск «${riskTitle}» в проекте «${projectTitle}».`
+        ? `${r.author} created risk «${riskTitle}» in project «${projectTitle}»`
+        : `${r.author} создал риск «${riskTitle}» в проекте «${projectTitle}»`
     return {
       id: `demo_risk_${r.id}`,
       kind: 'demo' as const,
@@ -116,8 +116,8 @@ function mapInvitePendingToItems(
     title: locale === 'en' ? 'Project invitation' : 'Приглашение в проект',
     body:
       locale === 'en'
-        ? `${inv.inviterName} invited you to the project «${inv.projectName}».`
-        : `${inv.inviterName} пригласил вас в проект «${inv.projectName}».`,
+        ? `${inv.inviterName} invited you to the project «${inv.projectName}»`
+        : `${inv.inviterName} пригласил вас в проект «${inv.projectName}»`,
     tone: 'default' as const,
     actionHref: '/projects',
     invitationId: inv.invitationId,
@@ -143,11 +143,11 @@ function mapInviteResolvedToItems(
     body:
       inv.status === 'accepted'
         ? locale === 'en'
-          ? `You joined the project «${inv.projectName}».`
-          : `Вы вступили в проект «${inv.projectName}».`
+          ? `You joined the project «${inv.projectName}»`
+          : `Вы вступили в проект «${inv.projectName}»`
         : locale === 'en'
-          ? `You declined the invitation to «${inv.projectName}».`
-          : `Вы отклонили приглашение в проект «${inv.projectName}».`,
+          ? `You declined the invitation to «${inv.projectName}»`
+          : `Вы отклонили приглашение в проект «${inv.projectName}»`,
     tone: 'default' as const,
     actionHref: '/projects',
     projectId: inv.projectId

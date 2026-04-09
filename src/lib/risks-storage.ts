@@ -59,10 +59,18 @@ function defaultActivityLog(r: RiskRecord): RiskActivityLogEntry[] {
   ]
 }
 
+function stripTrailingDot(value: string) {
+  const trimmed = value.trim()
+  return trimmed.endsWith('.') ? trimmed.slice(0, -1).trimEnd() : trimmed
+}
+
 export function normalizeRiskRecord(r: RiskRecord): RiskRecord {
   return {
     ...r,
-    comments: r.comments ?? [],
+    comments: (r.comments ?? []).map((comment) => ({
+      ...comment,
+      text: stripTrailingDot(comment.text)
+    })),
     responseMeasures: r.responseMeasures ?? [],
     activityLog: r.activityLog?.length ? r.activityLog : defaultActivityLog(r)
   }

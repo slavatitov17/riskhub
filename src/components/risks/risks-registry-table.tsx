@@ -69,12 +69,14 @@ export function RisksRegistryTable() {
   const { getProjectDisplayName, ready: projectsReady } = useProjects()
   const [filterOpen, setFilterOpen] = useState(false)
   const [search, setSearch] = useState('')
+  const [idFilter, setIdFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
   const [catFilter, setCatFilter] = useState('all')
   const [probabilityFilter, setProbabilityFilter] = useState('all')
   const [impactFilter, setImpactFilter] = useState('all')
   const [projectFilter, setProjectFilter] = useState('all')
   const [authorFilter, setAuthorFilter] = useState('all')
+  const [idSearch, setIdSearch] = useState('')
   const [categorySearch, setCategorySearch] = useState('')
   const [projectSearch, setProjectSearch] = useState('')
   const [authorSearch, setAuthorSearch] = useState('')
@@ -88,6 +90,12 @@ export function RisksRegistryTable() {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
   const [customRiskCategories, setCustomRiskCategories] = useState<string[]>([])
+  const riskIds = useMemo(() => risks.map((risk) => risk.code), [risks])
+  const filteredIdOptions = useMemo(() => {
+    const query = idSearch.trim().toLowerCase()
+    if (!query) return riskIds
+    return riskIds.filter((item) => item.toLowerCase().includes(query))
+  }, [riskIds, idSearch])
 
   useEffect(() => {
     setCustomRiskCategories(getCustomCategories('risk'))
@@ -157,6 +165,7 @@ export function RisksRegistryTable() {
 
   const filtered = useMemo(() => {
     return risks.filter((r) => {
+      if (idFilter !== 'all' && r.code !== idFilter) return false
       if (statusFilter !== 'all' && r.status !== statusFilter) return false
       if (catFilter !== 'all' && r.category !== catFilter) return false
       if (probabilityFilter !== 'all' && r.probability !== probabilityFilter)
@@ -185,6 +194,7 @@ export function RisksRegistryTable() {
     })
   }, [
     risks,
+    idFilter,
     statusFilter,
     catFilter,
     probabilityFilter,
@@ -200,6 +210,7 @@ export function RisksRegistryTable() {
   ])
 
   const appliedFilters =
+    (idFilter !== 'all' ? 1 : 0) +
     (statusFilter !== 'all' ? 1 : 0) +
     (catFilter !== 'all' ? 1 : 0) +
     (probabilityFilter !== 'all' ? 1 : 0) +
@@ -215,6 +226,7 @@ export function RisksRegistryTable() {
     setPage(1)
   }, [
     search,
+    idFilter,
     statusFilter,
     catFilter,
     probabilityFilter,
@@ -321,6 +333,7 @@ export function RisksRegistryTable() {
                   className="h-auto whitespace-nowrap p-0 text-primary"
                   onClick={() => {
                     setStatusFilter('all')
+                    setIdFilter('all')
                     setCatFilter('all')
                     setProbabilityFilter('all')
                     setImpactFilter('all')
@@ -604,6 +617,7 @@ export function RisksRegistryTable() {
         onOpenChange={(open) => {
           setFilterOpen(open)
           if (open) return
+          setIdSearch('')
           setCategorySearch('')
           setProjectSearch('')
           setAuthorSearch('')
@@ -614,6 +628,31 @@ export function RisksRegistryTable() {
             <DialogTitle>{p.registry.dialogFilters}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
+            <div>
+              <p className="mb-2 text-sm font-medium">{p.registry.colId}</p>
+              <Select value={idFilter} onValueChange={setIdFilter}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <div className="p-2">
+                    <Input
+                      value={idSearch}
+                      onChange={(e) => setIdSearch(e.target.value)}
+                      placeholder={p.registry.searchPlaceholder}
+                      className="h-8"
+                      onKeyDown={(e) => e.stopPropagation()}
+                    />
+                  </div>
+                  <SelectItem value="all">{allOption}</SelectItem>
+                  {filteredIdOptions.map((id) => (
+                    <SelectItem key={id} value={id}>
+                      {id}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div>
               <p className="mb-2 text-sm font-medium">{p.registry.rowsPerPage}</p>
               <Select

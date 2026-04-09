@@ -51,15 +51,13 @@ export function AuthPage() {
     setLoginEmail(email)
     setLoginPassword(password)
     toast.neutral('Вы используете демо-аккаунт')
-    window.setTimeout(() => {
-      const res = loginUser({ email, password })
-      if (!res.ok) {
-        toast.error(res.error)
-        return
-      }
-      router.push('/panel')
-      router.refresh()
-    }, 2000)
+    const res = loginUser({ email, password })
+    if (!res.ok) {
+      toast.error(res.error)
+      return
+    }
+    router.push('/panel')
+    router.refresh()
   }
 
   const handleLogin = (e: React.FormEvent) => {

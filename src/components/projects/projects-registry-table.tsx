@@ -71,7 +71,11 @@ export function ProjectsRegistryTable() {
   const risks = useVisibleRisks()
   const [filterOpen, setFilterOpen] = useState(false)
   const [search, setSearch] = useState('')
+  const [idFilter, setIdFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
+  const [categoryFilter, setCategoryFilter] = useState('all')
+  const [idSearch, setIdSearch] = useState('')
+  const [categorySearch, setCategorySearch] = useState('')
   const [createdFrom, setCreatedFrom] = useState('')
   const [createdTo, setCreatedTo] = useState('')
   const [selected, setSelected] = useState<Record<string, boolean>>({})
@@ -80,6 +84,31 @@ export function ProjectsRegistryTable() {
   const [counts, setCounts] = useState<Record<string, number>>({})
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
+  const projectIds = useMemo(
+    () => myProjects.map((project) => projectDisplayCode(project)),
+    [myProjects]
+  )
+  const projectCategories = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          myProjects
+            .map((project) => project.category.trim())
+            .filter(Boolean)
+        )
+      ),
+    [myProjects]
+  )
+  const filteredIdOptions = useMemo(() => {
+    const query = idSearch.trim().toLowerCase()
+    if (!query) return projectIds
+    return projectIds.filter((item) => item.toLowerCase().includes(query))
+  }, [projectIds, idSearch])
+  const filteredCategoryOptions = useMemo(() => {
+    const query = categorySearch.trim().toLowerCase()
+    if (!query) return projectCategories
+    return projectCategories.filter((item) => item.toLowerCase().includes(query))
+  }, [projectCategories, categorySearch])
 
   useEffect(() => {
     let alive = true
@@ -97,7 +126,9 @@ export function ProjectsRegistryTable() {
 
   const filtered = useMemo(() => {
     return myProjects.filter((p) => {
+      if (idFilter !== 'all' && projectDisplayCode(p) !== idFilter) return false
       if (statusFilter !== 'all' && p.status !== statusFilter) return false
+      if (categoryFilter !== 'all' && p.category !== categoryFilter) return false
       if (createdFrom && p.createdAt < createdFrom) return false
       if (createdTo && p.createdAt > createdTo) return false
       if (search.trim()) {
@@ -114,7 +145,15 @@ export function ProjectsRegistryTable() {
       }
       return true
     })
-  }, [myProjects, statusFilter, createdFrom, createdTo, search])
+  }, [
+    myProjects,
+    idFilter,
+    statusFilter,
+    categoryFilter,
+    createdFrom,
+    createdTo,
+    search
+  ])
 
   const riskParticipantsByProject = useMemo(() => {
     const map: Record<string, number> = {}
@@ -134,7 +173,7 @@ export function ProjectsRegistryTable() {
 
   useEffect(() => {
     setPage(1)
-  }, [search, statusFilter, createdFrom, createdTo, pageSize])
+  }, [search, idFilter, statusFilter, categoryFilter, createdFrom, createdTo, pageSize])
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
   const safePage = Math.min(page, totalPages)
@@ -142,7 +181,11 @@ export function ProjectsRegistryTable() {
   const paged = filtered.slice(pageStart, pageStart + pageSize)
 
   const appliedFilters =
-    (statusFilter !== 'all' ? 1 : 0) + (createdFrom ? 1 : 0) + (createdTo ? 1 : 0)
+    (idFilter !== 'all' ? 1 : 0) +
+    (statusFilter !== 'all' ? 1 : 0) +
+    (categoryFilter !== 'all' ? 1 : 0) +
+    (createdFrom ? 1 : 0) +
+    (createdTo ? 1 : 0)
 
   const toggleAll = (checked: boolean) => {
     const next: Record<string, boolean> = {}
@@ -233,7 +276,9 @@ export function ProjectsRegistryTable() {
                   variant="link"
                   className="h-auto whitespace-nowrap p-0 text-primary"
                   onClick={() => {
+                    setIdFilter('all')
                     setStatusFilter('all')
+                    setCategoryFilter('all')
                     setCreatedFrom('')
                     setCreatedTo('')
                     toast.message(p.registry.filtersResetToast)
@@ -479,12 +524,45 @@ export function ProjectsRegistryTable() {
         </CardContent>
       </Card>
 
-      <Dialog open={filterOpen} onOpenChange={setFilterOpen}>
+      <Dialog
+        open={filterOpen}
+        onOpenChange={(open) => {
+          setFilterOpen(open)
+          if (open) return
+          setIdSearch('')
+          setCategorySearch('')
+        }}
+      >
         <DialogContent className="risk-filter-scroll max-h-[90vh] overflow-y-auto sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{p.registry.dialogFilters}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
+            <div>
+              <p className="mb-2 text-sm font-medium">{p.registry.colId}</p>
+              <Select value={idFilter} onValueChange={setIdFilter}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <div className="p-2">
+                    <Input
+                      value={idSearch}
+                      onChange={(e) => setIdSearch(e.target.value)}
+                      placeholder={p.registry.searchPlaceholder}
+                      className="h-8"
+                      onKeyDown={(e) => e.stopPropagation()}
+                    />
+                  </div>
+                  <SelectItem value="all">{p.analytics.all}</SelectItem>
+                  {filteredIdOptions.map((id) => (
+                    <SelectItem key={id} value={id}>
+                      {id}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div>
               <p className="mb-2 text-sm font-medium">{p.registry.status}</p>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -496,6 +574,31 @@ export function ProjectsRegistryTable() {
                   {PROJECT_STATUSES.map((status) => (
                     <SelectItem key={status} value={status}>
                       {status}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <p className="mb-2 text-sm font-medium">{p.registry.colCategory}</p>
+              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <div className="p-2">
+                    <Input
+                      value={categorySearch}
+                      onChange={(e) => setCategorySearch(e.target.value)}
+                      placeholder={p.registry.searchPlaceholder}
+                      className="h-8"
+                      onKeyDown={(e) => e.stopPropagation()}
+                    />
+                  </div>
+                  <SelectItem value="all">{p.analytics.all}</SelectItem>
+                  {filteredCategoryOptions.map((category) => (
+                    <SelectItem key={category} value={category}>
+                      {category}
                     </SelectItem>
                   ))}
                 </SelectContent>

@@ -40,6 +40,7 @@ import {
   formatProjectPdfFilterLines,
   formatRiskPdfFilterLines
 } from '@/lib/analytics-pdf-export'
+import { getUsers } from '@/lib/auth-storage'
 import { getPageCopy } from '@/lib/page-copy'
 import type { ProjectRecord } from '@/lib/project-types'
 import type { RiskRecord } from '@/lib/risk-types'
@@ -80,6 +81,8 @@ const MONTH_LABELS_EN = [
   'Nov',
   'Dec'
 ] as const
+
+const PROJECT_STATUS_CHART_BLUE = 'hsl(217 91% 60%)'
 
 const PIE_COLORS = [
   'hsl(217 91% 60%)',
@@ -322,21 +325,29 @@ function matchesReportFilters(
   return true
 }
 
+function projectStatusMatchesFilter(projectStatus: string, selected: string[]) {
+  return selected.some((sel) => {
+    if (sel === 'Закрыт') return projectStatus === 'Завершен'
+    return sel === projectStatus
+  })
+}
+
 function matchesProjectReportFilters(
   project: ProjectRecord,
   filters: ProjectReportFilters,
-  participantsCount: number
+  participantDisplayNames: readonly string[]
 ) {
   const createdDay = riskDateKey(project.createdAt)
   if (filters.periodFrom && createdDay < filters.periodFrom) return false
   if (filters.periodTo && createdDay > filters.periodTo) return false
-  if (filters.status.length && !filters.status.includes(project.status)) return false
+  if (filters.status.length && !projectStatusMatchesFilter(project.status, filters.status))
+    return false
   if (filters.category.length && !filters.category.includes(project.category))
     return false
   if (filters.projectId.length && !filters.projectId.includes(project.code)) return false
   if (filters.participants.length) {
-    const participantLabel = String(participantsCount)
-    if (!filters.participants.includes(participantLabel)) return false
+    const hit = filters.participants.some((sel) => participantDisplayNames.includes(sel))
+    if (!hit) return false
   }
   if (filters.keywords.trim()) {
     const query = filters.keywords.toLowerCase().trim()
@@ -600,7 +611,7 @@ export function AnalyticsView() {
 
   const { refresh } = useRisks()
   const risks = useVisibleRisks()
-  const { getProjectDisplayName, myProjects, memberCount } = useProjects()
+  const { getProjectDisplayName, listProjectMembers, myProjects } = useProjects()
   const [mode, setMode] = useState<AnalyticsMode>('risks')
   const [lastUpdated, setLastUpdated] = useState(() => new Date())
   const [draft, setDraft] = useState<ReportFilters>(() => defaultReportFilters())
@@ -611,9 +622,9 @@ export function AnalyticsView() {
   const [appliedProject, setAppliedProject] = useState<ProjectReportFilters>(() =>
     defaultProjectReportFilters()
   )
-  const [projectMemberCounts, setProjectMemberCounts] = useState<
-    Record<string, number>
-  >({})
+  const [projectParticipantNamesByProject, setProjectParticipantNamesByProject] =
+    useState<Record<string, string[]>>({})
+  const [participantNameOptions, setParticipantNameOptions] = useState<string[]>([])
   const [isExportingPdf, setIsExportingPdf] = useState(false)
   const coverPdfRef = useRef<HTMLDivElement>(null)
   const chartCaptureRef = useRef<
@@ -641,16 +652,34 @@ export function AnalyticsView() {
   useEffect(() => {
     let alive = true
     ;(async () => {
-      const next: Record<string, number> = {}
+      const users = getUsers()
+      const idToName = new Map(users.map((u) => [u.id, u.name]))
+      const byProject: Record<string, string[]> = {}
+      const allNames = new Set<string>()
       for (const project of myProjects) {
-        next[project.id] = await memberCount(project.id)
+        const set = new Set<string>()
+        const ownerName = idToName.get(project.ownerUserId)
+        if (ownerName) {
+          set.add(ownerName)
+          allNames.add(ownerName)
+        }
+        const members = await listProjectMembers(project.id)
+        for (const m of members) {
+          const label = idToName.get(m.userId) ?? m.email
+          set.add(label)
+          allNames.add(label)
+        }
+        byProject[project.id] = Array.from(set)
       }
-      if (alive) setProjectMemberCounts(next)
+      if (alive) {
+        setProjectParticipantNamesByProject(byProject)
+        setParticipantNameOptions(Array.from(allNames).sort((a, b) => a.localeCompare(b)))
+      }
     })()
     return () => {
       alive = false
     }
-  }, [myProjects, memberCount])
+  }, [myProjects, listProjectMembers])
 
   const filteredRisks = useMemo(
     () =>
@@ -675,20 +704,16 @@ export function AnalyticsView() {
         .sort(),
     [myProjects]
   )
-  const projectStatuses = useMemo(
-    () =>
-      Array.from(new Set(myProjects.map((project) => project.status))).sort(),
-    [myProjects]
-  )
-  const projectParticipantOptions = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          myProjects.map((project) => String(projectMemberCounts[project.id] ?? 0))
-        )
-      ).sort((a, b) => Number(a) - Number(b)),
-    [myProjects, projectMemberCounts]
-  )
+  const projectStatusFilterOptions = useMemo(() => {
+    const set = new Set<string>(myProjects.map((project) => project.status))
+    set.add('Закрыт')
+    return Array.from(set).sort((a, b) => {
+      const rank = (s: string) =>
+        s === 'Активен' ? 0 : s === 'Завершен' ? 1 : s === 'Закрыт' ? 2 : 3
+      const d = rank(a) - rank(b)
+      return d !== 0 ? d : a.localeCompare(b)
+    })
+  }, [myProjects])
 
   const filteredProjects = useMemo(
     () =>
@@ -696,10 +721,10 @@ export function AnalyticsView() {
         matchesProjectReportFilters(
           project,
           appliedProject,
-          projectMemberCounts[project.id] ?? 0
+          projectParticipantNamesByProject[project.id] ?? []
         )
       ),
-    [myProjects, appliedProject, projectMemberCounts]
+    [myProjects, appliedProject, projectParticipantNamesByProject]
   )
 
   const byCategory = useMemo(() => {
@@ -750,12 +775,13 @@ export function AnalyticsView() {
     return Array.from(map.entries()).map(([name, value]) => ({ name, value }))
   }, [filteredProjects])
 
-  const projectsByStatus = useMemo(() => {
-    const map = new Map<string, number>()
-    filteredProjects.forEach((project) =>
-      map.set(project.status, (map.get(project.status) ?? 0) + 1)
-    )
-    return Array.from(map.entries()).map(([name, value]) => ({ name, value }))
+  const projectsByStatusForChart = useMemo(() => {
+    const active = filteredProjects.filter((p) => p.status === 'Активен').length
+    const closed = filteredProjects.filter((p) => p.status === 'Завершен').length
+    return [
+      { name: 'Активен', value: active },
+      { name: 'Закрыт', value: closed }
+    ]
   }, [filteredProjects])
 
   const projectTimeline = useMemo(
@@ -988,13 +1014,16 @@ export function AnalyticsView() {
                 notFoundLabel={p.analytics.notFound}
                 searchAriaPrefix={searchAriaPrefix}
               />
-              <ReportFilterMultiSelect
+              <ReportFilterSearchableMultiSelect
                 label={p.analytics.riskCategory}
                 allLabel={p.analytics.allCategories}
                 options={RISK_CATEGORIES}
                 selected={draft.category}
                 onChange={(category) => setDraft((d) => ({ ...d, category }))}
+                searchPlaceholder={p.analytics.searchRiskCategory}
                 formatSelected={formatSelected}
+                notFoundLabel={p.analytics.notFound}
+                searchAriaPrefix={searchAriaPrefix}
               />
               <ReportFilterSearchableMultiSelect
                 label={p.analytics.project}
@@ -1013,28 +1042,34 @@ export function AnalyticsView() {
               <ReportFilterMultiSelect
                 label={p.analytics.projectStatus}
                 allLabel={p.analytics.all}
-                options={projectStatuses}
+                options={projectStatusFilterOptions}
                 selected={draftProject.status}
                 onChange={(status) => setDraftProject((d) => ({ ...d, status }))}
                 formatSelected={formatSelected}
               />
-              <ReportFilterMultiSelect
+              <ReportFilterSearchableMultiSelect
                 label={p.analytics.projectCategory}
                 allLabel={p.analytics.allCategories}
                 options={projectCategories}
                 selected={draftProject.category}
                 onChange={(category) => setDraftProject((d) => ({ ...d, category }))}
+                searchPlaceholder={p.analytics.searchProjectCategory}
                 formatSelected={formatSelected}
+                notFoundLabel={p.analytics.notFound}
+                searchAriaPrefix={searchAriaPrefix}
               />
-              <ReportFilterMultiSelect
+              <ReportFilterSearchableMultiSelect
                 label={p.analytics.participants}
                 allLabel={p.analytics.all}
-                options={projectParticipantOptions}
+                options={participantNameOptions}
                 selected={draftProject.participants}
                 onChange={(participants) =>
                   setDraftProject((d) => ({ ...d, participants }))
                 }
+                searchPlaceholder={p.analytics.searchParticipants}
                 formatSelected={formatSelected}
+                notFoundLabel={p.analytics.notFound}
+                searchAriaPrefix={searchAriaPrefix}
               />
               <ReportFilterSearchableMultiSelect
                 label={p.analytics.projectId}
@@ -1477,37 +1512,52 @@ export function AnalyticsView() {
                 ) : (
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart
-                      data={projectsByStatus}
-                      margin={{ top: 8, right: 8, left: -8, bottom: 4 }}
+                      data={projectsByStatusForChart}
+                      layout="vertical"
+                      margin={{ top: 8, right: 16, left: 4, bottom: 4 }}
                     >
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                      <XAxis
-                        dataKey="name"
-                        tick={{ fontSize: 11 }}
-                        interval={0}
-                        height={52}
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        stroke="hsl(var(--border))"
+                        horizontal={false}
                       />
-                      <YAxis allowDecimals={false} width={36} tick={{ fontSize: 11 }} />
+                      <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
+                      <YAxis
+                        dataKey="name"
+                        type="category"
+                        width={88}
+                        tick={{ fontSize: 11 }}
+                      />
                       <Tooltip
-                        cursor={{ fill: 'hsl(var(--muted) / 0.35)' }}
+                        cursor={{ fill: 'hsl(var(--muted) / 0.25)' }}
                         content={
                           <AnalyticsTooltip valueSeriesLabel={p.analytics.tooltipValues} />
                         }
                       />
                       <Bar
                         dataKey="value"
-                        fill="hsl(217 91% 60%)"
-                        radius={[4, 4, 0, 0]}
-                        maxBarSize={52}
+                        fill={PROJECT_STATUS_CHART_BLUE}
+                        radius={[0, 4, 4, 0]}
+                        maxBarSize={28}
                         isAnimationActive
                       />
                       <Legend
                         verticalAlign="bottom"
                         align="center"
-                        height={28}
-                        wrapperStyle={{ fontSize: 12, paddingTop: 6 }}
-                        formatter={() => p.analytics.chartShareProject}
-                        iconType="square"
+                        content={() => (
+                          <ul className="flex flex-wrap justify-center gap-x-5 gap-y-2 pt-2 text-xs text-muted-foreground">
+                            {projectsByStatusForChart.map((row) => (
+                              <li key={row.name} className="flex items-center gap-2">
+                                <span
+                                  className="h-2.5 w-7 rounded-sm"
+                                  style={{ backgroundColor: PROJECT_STATUS_CHART_BLUE }}
+                                  aria-hidden
+                                />
+                                <span className="text-foreground">{row.name}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
                       />
                     </BarChart>
                   </ResponsiveContainer>

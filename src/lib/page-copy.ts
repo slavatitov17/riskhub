@@ -268,8 +268,11 @@ export interface PageCopy {
     selectedCount: string
     notFound: string
     searchRiskId: string
+    searchRiskCategory: string
     searchProject: string
+    searchProjectCategory: string
     searchProjectId: string
+    searchParticipants: string
     chartByCategory: string
     chartTimeline: string
     chartShareCategory: string
@@ -594,8 +597,11 @@ const RU: PageCopy = {
     selectedCount: 'Выбрано: {n}',
     notFound: 'Не найдено',
     searchRiskId: 'Поиск по ID…',
+    searchRiskCategory: 'Поиск по категории…',
     searchProject: 'Поиск по проекту…',
+    searchProjectCategory: 'Поиск по категории…',
     searchProjectId: 'Поиск по ID проекта…',
+    searchParticipants: 'Поиск по участнику…',
     chartByCategory: 'Количество рисков по категориям',
     chartTimeline: 'Динамика рисков по времени',
     chartShareCategory: 'Количество рисков',
@@ -1005,8 +1011,11 @@ const EN: PageCopy = {
     selectedCount: 'Selected: {n}',
     notFound: 'No matches',
     searchRiskId: 'Search by risk ID…',
+    searchRiskCategory: 'Search by category…',
     searchProject: 'Search by project…',
+    searchProjectCategory: 'Search by category…',
     searchProjectId: 'Search by project ID…',
+    searchParticipants: 'Search by participant…',
     chartByCategory: 'Risks by category',
     chartTimeline: 'Risk trend over time',
     chartShareCategory: 'Risk count',

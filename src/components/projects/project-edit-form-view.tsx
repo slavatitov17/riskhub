@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { useProjects } from '@/contexts/projects-context'
+import { saveCustomCategory } from '@/lib/custom-categories-storage'
 import type { ProjectRecord, ProjectStatus } from '@/lib/project-types'
 
 interface ProjectEditFormViewProps {
@@ -51,6 +52,7 @@ export function ProjectEditFormView({ project }: ProjectEditFormViewProps) {
         toast.error(res.error)
         return
       }
+      saveCustomCategory('project', category)
       toast.success('Изменения сохранены')
       router.push(`/projects/${project.id}`)
     } finally {
@@ -82,6 +84,7 @@ export function ProjectEditFormView({ project }: ProjectEditFormViewProps) {
             <SearchableCategoryField
               value={category}
               onChange={setCategory}
+              kind="project"
               id="edit-project-category"
             />
             <div className="space-y-2">

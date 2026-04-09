@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { useProjects } from '@/contexts/projects-context'
+import { saveCustomCategory } from '@/lib/custom-categories-storage'
 
 export function ProjectFormView() {
   const router = useRouter()
@@ -39,6 +40,7 @@ export function ProjectFormView() {
         toast.error(res.error)
         return
       }
+      saveCustomCategory('project', category)
       toast.success('Проект создан')
       router.push('/projects')
     } finally {
@@ -68,6 +70,7 @@ export function ProjectFormView() {
             <SearchableCategoryField
               value={category}
               onChange={setCategory}
+              kind="project"
               id="project-category"
             />
             <div className="space-y-2">

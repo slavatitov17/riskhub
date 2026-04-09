@@ -56,7 +56,7 @@ export function PanelDashboard() {
                   </p>
                 </div>
                 <Button variant="outline" size="icon" className="mt-3 h-8 w-8" asChild>
-                  <Link href="/risks" aria-label={p.openRiskList}>
+                  <Link href="/risks?status=Активный" aria-label={p.openRiskList}>
                     <ArrowRight className="h-4 w-4" />
                   </Link>
                 </Button>
@@ -76,7 +76,7 @@ export function PanelDashboard() {
                   </p>
                 </div>
                 <Button variant="outline" size="icon" className="mt-3 h-8 w-8" asChild>
-                  <Link href="/risks" aria-label={p.openRiskList}>
+                  <Link href="/risks?status=Закрыт" aria-label={p.openRiskList}>
                     <ArrowRight className="h-4 w-4" />
                   </Link>
                 </Button>
@@ -96,7 +96,10 @@ export function PanelDashboard() {
                   </p>
                 </div>
                 <Button variant="outline" size="icon" className="mt-3 h-8 w-8" asChild>
-                  <Link href="/risks" aria-label={p.openRiskList}>
+                  <Link
+                    href="/risks?probability=Высокая&impact=Высокое"
+                    aria-label={p.openRiskList}
+                  >
                     <ArrowRight className="h-4 w-4" />
                   </Link>
                 </Button>

@@ -13,11 +13,16 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  getCustomCategories,
+  saveCustomCategory
+} from '@/lib/custom-categories-storage'
 import { RISK_CATEGORY_PRESETS } from '@/lib/risk-types'
 
 interface SearchableCategoryFieldProps {
   value: string
   onChange: (v: string) => void
+  kind?: 'risk' | 'project'
   label?: string
   placeholder?: string
   searchPlaceholder?: string
@@ -27,6 +32,7 @@ interface SearchableCategoryFieldProps {
 export function SearchableCategoryField({
   value,
   onChange,
+  kind = 'risk',
   label = 'Категория',
   placeholder = 'Выберите категорию',
   searchPlaceholder = 'Поиск по категориям…',
@@ -38,14 +44,26 @@ export function SearchableCategoryField({
   const [query, setQuery] = useState('')
   const [createMode, setCreateMode] = useState(false)
   const [draft, setDraft] = useState('')
+  const [customCategories, setCustomCategories] = useState<string[]>([])
+
+  useEffect(() => {
+    setCustomCategories(getCustomCategories(kind))
+  }, [kind])
 
   const q = query.trim().toLowerCase()
   const presetOptions = useMemo((): string[] => {
-    const base: string[] = [...RISK_CATEGORY_PRESETS]
+    const base: string[] =
+      kind === 'risk' ? [...RISK_CATEGORY_PRESETS] : ['Технологический', 'Организационный', 'Финансовый', 'Операционный', 'Внешний']
+    const seen = new Set(base.map((item) => item.toLowerCase()))
+    for (const custom of customCategories) {
+      if (seen.has(custom.toLowerCase())) continue
+      base.push(custom)
+      seen.add(custom.toLowerCase())
+    }
     const v = value.trim()
     if (v && !base.includes(v)) base.unshift(v)
     return base
-  }, [value])
+  }, [kind, customCategories, value])
 
   const filteredPresets = useMemo(() => {
     let list = presetOptions.filter((c) => c.toLowerCase().includes(q))
@@ -74,6 +92,8 @@ export function SearchableCategoryField({
   const commitCustom = () => {
     const t = draft.trim()
     if (!t) return
+    saveCustomCategory(kind, t)
+    setCustomCategories(getCustomCategories(kind))
     onChange(t)
     setOpen(false)
   }

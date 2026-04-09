@@ -30,6 +30,7 @@ import { Slider } from '@/components/ui/slider'
 import { Textarea } from '@/components/ui/textarea'
 import { useProjects } from '@/contexts/projects-context'
 import { useRisks } from '@/contexts/risks-context'
+import { saveCustomCategory } from '@/lib/custom-categories-storage'
 import {
   IMPACTS,
   LEVELS,
@@ -37,11 +38,30 @@ import {
   type RiskRecord
 } from '@/lib/risk-types'
 import { getCurrentUserDisplayName } from '@/lib/user-display'
+import { cn } from '@/lib/utils'
 
 const levelToIndex = (v: string) =>
   Math.max(0, LEVELS.indexOf(v as (typeof LEVELS)[number]))
 const impactToIndex = (v: string) =>
   Math.max(0, IMPACTS.indexOf(v as (typeof IMPACTS)[number]))
+
+function sliderToneClass(index: number) {
+  if (index <= 0) return '[--slider-color:theme(colors.emerald.500)] text-emerald-600'
+  if (index === 1) return '[--slider-color:theme(colors.amber.500)] text-amber-600'
+  return '[--slider-color:theme(colors.red.500)] text-red-600'
+}
+
+function probabilityToneLabel(index: number) {
+  if (index <= 0) return 'Низкая'
+  if (index === 1) return 'Средняя'
+  return 'Высокая'
+}
+
+function impactToneLabel(index: number) {
+  if (index <= 0) return 'Низкое'
+  if (index === 1) return 'Среднее'
+  return 'Высокое'
+}
 
 interface RiskFormViewProps {
   mode: 'new' | 'edit'
@@ -229,6 +249,7 @@ export function RiskFormView({
       return
     }
     if (mode === 'new') {
+      saveCustomCategory('risk', category)
       addRisk({
         name: name.trim(),
         description: description.trim(),
@@ -245,6 +266,7 @@ export function RiskFormView({
       return
     }
     if (initial) {
+      saveCustomCategory('risk', category)
       updateRisk(initial.id, {
         name: name.trim(),
         description: description.trim(),
@@ -298,6 +320,7 @@ export function RiskFormView({
               <SearchableCategoryField
                 value={category}
                 onChange={setCategory}
+                kind="risk"
                 id="risk-category"
               />
               <SearchableProjectSelect
@@ -322,22 +345,30 @@ export function RiskFormView({
               <div className="space-y-3">
                 <Label>Вероятность</Label>
                 <Slider
+                  className={sliderToneClass(probIdx)}
                   value={[probIdx]}
                   min={0}
                   max={LEVELS.length - 1}
                   step={1}
                   onValueChange={(v) => setProbIdx(v[0] ?? 0)}
                 />
+                <p className={cn('text-xs font-medium', sliderToneClass(probIdx))}>
+                  {probabilityToneLabel(probIdx)}
+                </p>
               </div>
               <div className="space-y-3">
                 <Label>Воздействие</Label>
                 <Slider
+                  className={sliderToneClass(impactIdx)}
                   value={[impactIdx]}
                   min={0}
                   max={IMPACTS.length - 1}
                   step={1}
                   onValueChange={(v) => setImpactIdx(v[0] ?? 0)}
                 />
+                <p className={cn('text-xs font-medium', sliderToneClass(impactIdx))}>
+                  {impactToneLabel(impactIdx)}
+                </p>
               </div>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">

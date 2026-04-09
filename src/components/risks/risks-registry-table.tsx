@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Check, Eye, Filter, Pencil, Search, Trash2 } from 'lucide-react'
 import { toast } from '@/lib/app-toast'
 
@@ -56,9 +56,11 @@ import { getPageCopy } from '@/lib/page-copy'
 import { formatDisplayDate } from '@/lib/risks-storage'
 import { isCurrentUserRiskAuthor } from '@/lib/user-display'
 import { cn } from '@/lib/utils'
+import { getCustomCategories } from '@/lib/custom-categories-storage'
 
 export function RisksRegistryTable() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { locale } = useLocale()
   const p = getPageCopy(locale)
   const allOption = p.analytics.all
@@ -73,6 +75,9 @@ export function RisksRegistryTable() {
   const [impactFilter, setImpactFilter] = useState('all')
   const [projectFilter, setProjectFilter] = useState('all')
   const [authorFilter, setAuthorFilter] = useState('all')
+  const [categorySearch, setCategorySearch] = useState('')
+  const [projectSearch, setProjectSearch] = useState('')
+  const [authorSearch, setAuthorSearch] = useState('')
   const [createdFrom, setCreatedFrom] = useState('')
   const [createdTo, setCreatedTo] = useState('')
   const [updatedFrom, setUpdatedFrom] = useState('')
@@ -82,11 +87,23 @@ export function RisksRegistryTable() {
   const [bulkAction, setBulkAction] = useState<'close' | 'delete' | null>(null)
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
+  const [customRiskCategories, setCustomRiskCategories] = useState<string[]>([])
 
-  const categories = useMemo(
-    () => Array.from(new Set(risks.map((r) => r.category))),
-    [risks]
-  )
+  useEffect(() => {
+    setCustomRiskCategories(getCustomCategories('risk'))
+  }, [])
+
+  const categories = useMemo(() => {
+    const fromRisks = Array.from(new Set(risks.map((r) => r.category)))
+    const merged = [...fromRisks]
+    const seen = new Set(fromRisks.map((item) => item.toLowerCase()))
+    for (const item of customRiskCategories) {
+      if (seen.has(item.toLowerCase())) continue
+      merged.push(item)
+      seen.add(item.toLowerCase())
+    }
+    return merged
+  }, [risks, customRiskCategories])
   const statuses = useMemo(
     () => Array.from(new Set(risks.map((r) => r.status))),
     [risks]
@@ -112,6 +129,31 @@ export function RisksRegistryTable() {
     () => Array.from(new Set(risks.map((r) => r.author))),
     [risks]
   )
+  const filteredCategoryOptions = useMemo(() => {
+    const query = categorySearch.trim().toLowerCase()
+    if (!query) return categories
+    return categories.filter((item) => item.toLowerCase().includes(query))
+  }, [categories, categorySearch])
+  const filteredProjectOptions = useMemo(() => {
+    const query = projectSearch.trim().toLowerCase()
+    if (!query) return projects
+    return projects.filter((item) => item.toLowerCase().includes(query))
+  }, [projects, projectSearch])
+  const filteredAuthorOptions = useMemo(() => {
+    const query = authorSearch.trim().toLowerCase()
+    if (!query) return authors
+    return authors.filter((item) => item.toLowerCase().includes(query))
+  }, [authors, authorSearch])
+
+  useEffect(() => {
+    const status = searchParams.get('status')
+    const probability = searchParams.get('probability')
+    const impact = searchParams.get('impact')
+    if (status && statuses.includes(status)) setStatusFilter(status)
+    if (probability && probabilities.includes(probability))
+      setProbabilityFilter(probability)
+    if (impact && impacts.includes(impact)) setImpactFilter(impact)
+  }, [searchParams, statuses, probabilities, impacts])
 
   const filtered = useMemo(() => {
     return risks.filter((r) => {
@@ -557,7 +599,16 @@ export function RisksRegistryTable() {
         </CardContent>
       </Card>
 
-      <Dialog open={filterOpen} onOpenChange={setFilterOpen}>
+      <Dialog
+        open={filterOpen}
+        onOpenChange={(open) => {
+          setFilterOpen(open)
+          if (open) return
+          setCategorySearch('')
+          setProjectSearch('')
+          setAuthorSearch('')
+        }}
+      >
         <DialogContent className="risk-filter-scroll max-h-[90vh] overflow-y-auto sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{p.registry.dialogFilters}</DialogTitle>
@@ -586,8 +637,17 @@ export function RisksRegistryTable() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <div className="p-2">
+                    <Input
+                      value={categorySearch}
+                      onChange={(e) => setCategorySearch(e.target.value)}
+                      placeholder={p.registry.searchPlaceholder}
+                      className="h-8"
+                      onKeyDown={(e) => e.stopPropagation()}
+                    />
+                  </div>
                   <SelectItem value="all">{allOption}</SelectItem>
-                  {categories.map((category) => (
+                  {filteredCategoryOptions.map((category) => (
                     <SelectItem key={category} value={category}>
                       {category}
                     </SelectItem>
@@ -650,8 +710,17 @@ export function RisksRegistryTable() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <div className="p-2">
+                    <Input
+                      value={projectSearch}
+                      onChange={(e) => setProjectSearch(e.target.value)}
+                      placeholder={p.registry.searchPlaceholder}
+                      className="h-8"
+                      onKeyDown={(e) => e.stopPropagation()}
+                    />
+                  </div>
                   <SelectItem value="all">{p.registry.allProjects}</SelectItem>
-                  {projects.map((project) => (
+                  {filteredProjectOptions.map((project) => (
                     <SelectItem key={project} value={project}>
                       {project}
                     </SelectItem>
@@ -666,8 +735,17 @@ export function RisksRegistryTable() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <div className="p-2">
+                    <Input
+                      value={authorSearch}
+                      onChange={(e) => setAuthorSearch(e.target.value)}
+                      placeholder={p.registry.searchPlaceholder}
+                      className="h-8"
+                      onKeyDown={(e) => e.stopPropagation()}
+                    />
+                  </div>
                   <SelectItem value="all">{p.registry.allAuthors}</SelectItem>
-                  {authors.map((author) => (
+                  {filteredAuthorOptions.map((author) => (
                     <SelectItem key={author} value={author}>
                       {author}
                     </SelectItem>

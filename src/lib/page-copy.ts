@@ -243,10 +243,7 @@ export interface PageCopy {
   analytics: {
     modeRisks: string
     modeProjects: string
-    exportExcelButton: string
     exportPdfButton: string
-    exportExcelDemo: string
-    exportPdfDemo: string
     all: string
     allCategories: string
     allProjects: string
@@ -276,13 +273,13 @@ export interface PageCopy {
     chartByCategory: string
     chartTimeline: string
     chartShareCategory: string
+    chartShareProject: string
     chartPieCategory: string
     chartByStatus: string
     chartProbability: string
     chartProjectByCategory: string
     chartProjectTimeline: string
     chartProjectByStatus: string
-    chartProjectParticipants: string
     legendCount: string
     tooltipValues: string
     timelineActive: string
@@ -572,10 +569,7 @@ const RU: PageCopy = {
   analytics: {
     modeRisks: 'Риски',
     modeProjects: 'Проекты',
-    exportExcelButton: 'Выгрузить в Excel',
     exportPdfButton: 'Выгрузить в PDF',
-    exportExcelDemo: 'Выгрузка в Excel (демо)',
-    exportPdfDemo: 'Выгрузка в PDF (демо)',
     all: 'Все',
     allCategories: 'Все категории',
     allProjects: 'Все проекты',
@@ -605,13 +599,13 @@ const RU: PageCopy = {
     chartByCategory: 'Количество рисков по категориям',
     chartTimeline: 'Динамика рисков по времени',
     chartShareCategory: 'Количество рисков',
+    chartShareProject: 'Количество проектов',
     chartPieCategory: 'Доля рисков по категориям',
     chartByStatus: 'Распределение по статусам',
     chartProbability: 'Вероятность рисков',
     chartProjectByCategory: 'Количество проектов по категориям',
     chartProjectTimeline: 'Динамика проектов по времени',
     chartProjectByStatus: 'Распределение проектов по статусам',
-    chartProjectParticipants: 'Участники в проектах',
     legendCount: 'Количество рисков',
     tooltipValues: 'значений',
     timelineActive: 'Активные',
@@ -625,7 +619,7 @@ const RU: PageCopy = {
     pdfGeneratedLabel: 'Дата формирования',
     pdfFiltersHeading: 'Применённые фильтры',
     pdfModePrefix: 'Режим',
-    pdfExportSuccess: 'PDF сохранён',
+    pdfExportSuccess: 'Отчет выгружен в PDF',
     pdfExportError: 'Не удалось сформировать PDF'
   },
   legal: {
@@ -986,10 +980,7 @@ const EN: PageCopy = {
   analytics: {
     modeRisks: 'Risks',
     modeProjects: 'Projects',
-    exportExcelButton: 'Export to Excel',
     exportPdfButton: 'Export to PDF',
-    exportExcelDemo: 'Export to Excel (demo)',
-    exportPdfDemo: 'Export to PDF (demo)',
     all: 'All',
     allCategories: 'All categories',
     allProjects: 'All projects',
@@ -1019,13 +1010,13 @@ const EN: PageCopy = {
     chartByCategory: 'Risks by category',
     chartTimeline: 'Risk trend over time',
     chartShareCategory: 'Risk count',
+    chartShareProject: 'Project count',
     chartPieCategory: 'Share of risks by category',
     chartByStatus: 'Distribution by status',
     chartProbability: 'Risk probability',
     chartProjectByCategory: 'Projects by category',
     chartProjectTimeline: 'Project trend over time',
     chartProjectByStatus: 'Distribution of projects by status',
-    chartProjectParticipants: 'Participants per project',
     legendCount: 'Risk count',
     tooltipValues: 'values',
     timelineActive: 'Active',
@@ -1039,7 +1030,7 @@ const EN: PageCopy = {
     pdfGeneratedLabel: 'Generated',
     pdfFiltersHeading: 'Applied filters',
     pdfModePrefix: 'Mode',
-    pdfExportSuccess: 'PDF saved',
+    pdfExportSuccess: 'Report exported to PDF',
     pdfExportError: 'Could not generate PDF'
   },
   legal: {

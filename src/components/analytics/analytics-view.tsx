@@ -166,7 +166,7 @@ function defaultReportFilters(): ReportFilters {
   const to = new Date()
   to.setHours(12, 0, 0, 0)
   const from = new Date(to)
-  from.setDate(from.getDate() - 6)
+  from.setFullYear(from.getFullYear() - 1)
   return {
     periodFrom: isoDate(from),
     periodTo: isoDate(to),
@@ -184,7 +184,7 @@ function defaultProjectReportFilters(): ProjectReportFilters {
   const to = new Date()
   to.setHours(12, 0, 0, 0)
   const from = new Date(to)
-  from.setDate(from.getDate() - 6)
+  from.setFullYear(from.getFullYear() - 1)
   return {
     periodFrom: isoDate(from),
     periodTo: isoDate(to),
@@ -589,7 +589,6 @@ type AnalyticsChartCaptureKey =
   | 'projByCategory'
   | 'projTimeline'
   | 'projByStatus'
-  | 'projParticipants'
 
 export function AnalyticsView() {
   const { locale } = useLocale()
@@ -759,17 +758,6 @@ export function AnalyticsView() {
     return Array.from(map.entries()).map(([name, value]) => ({ name, value }))
   }, [filteredProjects])
 
-  const projectsByParticipants = useMemo(
-    () =>
-      filteredProjects
-        .map((project) => ({
-          name: project.code,
-          value: projectMemberCounts[project.id] ?? 0
-        }))
-        .sort((a, b) => b.value - a.value),
-    [filteredProjects, projectMemberCounts]
-  )
-
   const projectTimeline = useMemo(
     () =>
       buildProjectTimeline(
@@ -846,7 +834,7 @@ export function AnalyticsView() {
               'riskByStatus',
               'riskProbability'
             ]
-          : ['projByCategory', 'projTimeline', 'projByStatus', 'projParticipants']
+          : ['projByCategory', 'projTimeline', 'projByStatus']
       const chartEls = order
         .map((k) => chartCaptureRef.current[k])
         .filter((n): n is HTMLDivElement => Boolean(n))
@@ -895,15 +883,6 @@ export function AnalyticsView() {
           </Button>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            className="gap-2"
-            onClick={() => toast.success(p.analytics.exportExcelDemo)}
-          >
-            <Download className="h-4 w-4" />
-            {p.analytics.exportExcelButton}
-          </Button>
           <Button
             type="button"
             variant="outline"
@@ -1412,12 +1391,39 @@ export function AnalyticsView() {
                   />
                 ) : (
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={projectsByCategory}>
+                    <BarChart
+                      data={projectsByCategory}
+                      margin={{ top: 8, right: 8, left: -8, bottom: 4 }}
+                    >
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                      <XAxis dataKey="name" tick={{ fontSize: 11 }} interval={0} height={52} />
+                      <XAxis
+                        dataKey="name"
+                        tick={{ fontSize: 11 }}
+                        interval={0}
+                        height={52}
+                      />
                       <YAxis allowDecimals={false} width={36} tick={{ fontSize: 11 }} />
-                      <Tooltip content={<AnalyticsTooltip valueSeriesLabel={p.analytics.tooltipValues} />} />
-                      <Bar dataKey="value" fill="hsl(217 91% 60%)" radius={[4, 4, 0, 0]} />
+                      <Tooltip
+                        cursor={{ fill: 'hsl(var(--muted) / 0.35)' }}
+                        content={
+                          <AnalyticsTooltip valueSeriesLabel={p.analytics.tooltipValues} />
+                        }
+                      />
+                      <Bar
+                        dataKey="value"
+                        fill="hsl(217 91% 60%)"
+                        radius={[4, 4, 0, 0]}
+                        maxBarSize={52}
+                        isAnimationActive
+                      />
+                      <Legend
+                        verticalAlign="bottom"
+                        align="center"
+                        height={28}
+                        wrapperStyle={{ fontSize: 12, paddingTop: 6 }}
+                        formatter={() => p.analytics.chartShareProject}
+                        iconType="square"
+                      />
                     </BarChart>
                   </ResponsiveContainer>
                 )}
@@ -1462,7 +1468,7 @@ export function AnalyticsView() {
                   {p.analytics.chartProjectByStatus}
                 </CardTitle>
               </CardHeader>
-              <CardContent className="h-[300px]">
+              <CardContent className="h-[280px]">
                 {filteredProjects.length === 0 ? (
                   <ChartEmptyState
                     title={chartEmptyCopy.title}
@@ -1470,42 +1476,39 @@ export function AnalyticsView() {
                   />
                 ) : (
                   <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie data={projectsByStatus} dataKey="value" nameKey="name" outerRadius={82}>
-                        {projectsByStatus.map((_, i) => (
-                          <Cell key={`ps-${i}`} fill={PIE_COLORS[i % PIE_COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip content={<AnalyticsTooltip valueSeriesLabel={p.analytics.tooltipValues} />} />
-                      <Legend />
-                    </PieChart>
-                  </ResponsiveContainer>
-                )}
-              </CardContent>
-            </Card>
-            </div>
-
-            <div ref={setChartCaptureRef('projParticipants')}>
-            <Card className="min-h-[340px]">
-              <CardHeader>
-                <CardTitle className="text-base">
-                  {p.analytics.chartProjectParticipants}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="h-[300px]">
-                {filteredProjects.length === 0 ? (
-                  <ChartEmptyState
-                    title={chartEmptyCopy.title}
-                    hint={chartEmptyCopy.hint}
-                  />
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={projectsByParticipants} layout="vertical">
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
-                      <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
-                      <YAxis dataKey="name" type="category" width={64} tick={{ fontSize: 11 }} />
-                      <Tooltip content={<AnalyticsTooltip valueSeriesLabel={p.analytics.tooltipValues} />} />
-                      <Bar dataKey="value" fill="hsl(142 76% 36%)" radius={[0, 4, 4, 0]} />
+                    <BarChart
+                      data={projectsByStatus}
+                      margin={{ top: 8, right: 8, left: -8, bottom: 4 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis
+                        dataKey="name"
+                        tick={{ fontSize: 11 }}
+                        interval={0}
+                        height={52}
+                      />
+                      <YAxis allowDecimals={false} width={36} tick={{ fontSize: 11 }} />
+                      <Tooltip
+                        cursor={{ fill: 'hsl(var(--muted) / 0.35)' }}
+                        content={
+                          <AnalyticsTooltip valueSeriesLabel={p.analytics.tooltipValues} />
+                        }
+                      />
+                      <Bar
+                        dataKey="value"
+                        fill="hsl(217 91% 60%)"
+                        radius={[4, 4, 0, 0]}
+                        maxBarSize={52}
+                        isAnimationActive
+                      />
+                      <Legend
+                        verticalAlign="bottom"
+                        align="center"
+                        height={28}
+                        wrapperStyle={{ fontSize: 12, paddingTop: 6 }}
+                        formatter={() => p.analytics.chartShareProject}
+                        iconType="square"
+                      />
                     </BarChart>
                   </ResponsiveContainer>
                 )}

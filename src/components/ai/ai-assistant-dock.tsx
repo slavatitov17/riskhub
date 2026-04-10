@@ -14,11 +14,15 @@ import { cn } from '@/lib/utils'
 
 type ChatRole = 'user' | 'assistant'
 
+interface ChatAttachment {
+  name: string
+}
+
 interface ChatMessage {
   id: string
   role: ChatRole
   text: string
-  attachments?: string[]
+  attachments: ChatAttachment[]
   at: string
 }
 
@@ -29,11 +33,12 @@ export function AiAssistantDock() {
   const { risks } = useRisks()
   const panelId = useId()
   const listRef = useRef<HTMLDivElement>(null)
-  const attachmentInputRef = useRef<HTMLInputElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
   const [open, setOpen] = useState(false)
   const [input, setInput] = useState('')
   const [messages, setMessages] = useState<ChatMessage[]>([])
-  const [attachments, setAttachments] = useState<File[]>([])
+  const [pendingFiles, setPendingFiles] = useState<File[]>([])
 
   useEffect(() => {
     if (!open) return
@@ -44,51 +49,49 @@ export function AiAssistantDock() {
 
   const handleSend = useCallback(() => {
     const text = input.trim()
-    if (!text && attachments.length === 0) return
+    if (!text && pendingFiles.length === 0) return
+
     const userMsg: ChatMessage = {
       id: crypto.randomUUID(),
       role: 'user',
       text,
-      attachments: attachments.map((file) => file.name),
+      attachments: pendingFiles.map((f) => ({ name: f.name })),
       at: new Date().toISOString()
     }
-    setMessages((m) => [...m, userMsg])
+
+    setMessages((prev) => [...prev, userMsg])
     setInput('')
-    setAttachments([])
+    setPendingFiles([])
+
     window.setTimeout(() => {
-      setMessages((m) => [
-        ...m,
+      setMessages((prev) => [
+        ...prev,
         {
           id: crypto.randomUUID(),
           role: 'assistant',
           text: p.aiAssistant.modelPending,
+          attachments: [],
           at: new Date().toISOString()
         }
       ])
     }, 400)
-  }, [attachments, input, p.aiAssistant.modelPending])
+  }, [input, pendingFiles, p.aiAssistant.modelPending])
 
-  const handleAttachFiles = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      const selectedFiles = event.target.files
-      if (!selectedFiles?.length) return
-      setAttachments((prev) => {
-        const currentNames = new Set(prev.map((file) => file.name))
-        const nextFiles = [...prev]
-        for (const file of Array.from(selectedFiles)) {
-          if (currentNames.has(file.name)) continue
-          nextFiles.push(file)
-          currentNames.add(file.name)
-        }
-        return nextFiles
+  const handleFileSelect = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = Array.from(e.target.files ?? [])
+      e.target.value = ''
+      if (!files.length) return
+      setPendingFiles((prev) => {
+        const existing = new Set(prev.map((f) => f.name))
+        return [...prev, ...files.filter((f) => !existing.has(f.name))]
       })
-      event.target.value = ''
     },
     []
   )
 
-  const handleRemoveAttachment = useCallback((fileName: string) => {
-    setAttachments((prev) => prev.filter((file) => file.name !== fileName))
+  const handleRemoveFile = useCallback((name: string) => {
+    setPendingFiles((prev) => prev.filter((f) => f.name !== name))
   }, [])
 
   const hint = p.aiAssistant.hint
@@ -98,7 +101,7 @@ export function AiAssistantDock() {
   return (
     <div className="pointer-events-none fixed bottom-4 right-4 z-[80] flex flex-col items-end gap-3 md:bottom-6 md:right-6">
       <AnimatePresence initial={false}>
-        {open ? (
+        {open && (
           <motion.div
             key="panel"
             id={panelId}
@@ -110,7 +113,8 @@ export function AiAssistantDock() {
             transition={{ type: 'spring', stiffness: 380, damping: 28 }}
             className="pointer-events-auto flex max-h-[min(520px,72vh)] w-[min(100vw-2rem,22rem)] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-xl"
           >
-            <div className="flex items-center gap-2 border-b border-border bg-primary px-4 py-3 text-primary-foreground">
+            {/* Header */}
+            <div className="flex shrink-0 items-center gap-2 border-b border-border bg-primary px-4 py-3 text-primary-foreground">
               <Sparkles className="h-5 w-5 shrink-0 opacity-90" aria-hidden />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold">{p.aiAssistant.title}</p>
@@ -127,6 +131,8 @@ export function AiAssistantDock() {
                 <X className="h-4 w-4" />
               </Button>
             </div>
+
+            {/* Messages */}
             <div
               ref={listRef}
               className="min-h-0 flex-1 space-y-3 overflow-y-auto bg-muted/20 p-4"
@@ -145,11 +151,11 @@ export function AiAssistantDock() {
                     )}
                   >
                     {msg.text ? <p>{msg.text}</p> : null}
-                    {msg.attachments?.length ? (
+                    {msg.attachments.length > 0 && (
                       <div className={cn('space-y-1.5', msg.text ? 'mt-2' : '')}>
-                        {msg.attachments.map((name) => (
+                        {msg.attachments.map((att) => (
                           <div
-                            key={`${msg.id}-${name}`}
+                            key={`${msg.id}-${att.name}`}
                             className={cn(
                               'flex items-center gap-2 rounded-md px-2 py-1.5',
                               msg.role === 'user'
@@ -158,28 +164,30 @@ export function AiAssistantDock() {
                             )}
                           >
                             <Paperclip className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                            <span className="min-w-0 truncate text-xs">{name}</span>
+                            <span className="min-w-0 truncate text-xs">{att.name}</span>
                           </div>
                         ))}
                       </div>
-                    ) : null}
+                    )}
                   </div>
                 ))
               )}
             </div>
-            {attachments.length > 0 ? (
-              <div className="border-t border-border bg-muted/30 px-3 py-2">
+
+            {/* Pending attachments — shown above the input area */}
+            {pendingFiles.length > 0 && (
+              <div className="shrink-0 border-t border-border bg-muted/30 px-3 py-2">
                 <p className="mb-1.5 text-xs font-medium text-muted-foreground">
                   {p.aiAssistant.attachedFiles}
                 </p>
                 <div className="flex flex-wrap gap-1.5">
-                  {attachments.map((file) => (
+                  {pendingFiles.map((file) => (
                     <button
                       key={file.name}
                       type="button"
                       className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:bg-muted"
-                      onClick={() => handleRemoveAttachment(file.name)}
-                      aria-label={`${file.name}: ${p.aiAssistant.close}`}
+                      onClick={() => handleRemoveFile(file.name)}
+                      aria-label={`${p.aiAssistant.close}: ${file.name}`}
                     >
                       <Paperclip className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden />
                       <span className="max-w-[140px] truncate">{file.name}</span>
@@ -188,14 +196,18 @@ export function AiAssistantDock() {
                   ))}
                 </div>
               </div>
-            ) : null}
-            <div className="border-t border-border bg-card p-3">
+            )}
+
+            {/* Input area */}
+            <div className="shrink-0 border-t border-border bg-card p-3">
               <input
-                ref={attachmentInputRef}
+                ref={fileInputRef}
                 type="file"
                 className="sr-only"
                 multiple
-                onChange={handleAttachFiles}
+                aria-hidden
+                tabIndex={-1}
+                onChange={handleFileSelect}
               />
               <div className="flex gap-2">
                 <Textarea
@@ -217,7 +229,7 @@ export function AiAssistantDock() {
                   variant="outline"
                   className="h-11 w-11 shrink-0 self-end rounded-full"
                   aria-label={p.aiAssistant.attach}
-                  onClick={() => attachmentInputRef.current?.click()}
+                  onClick={() => fileInputRef.current?.click()}
                 >
                   <Paperclip className="h-4 w-4" />
                 </Button>
@@ -226,14 +238,14 @@ export function AiAssistantDock() {
                   size="icon"
                   className="h-11 w-11 shrink-0 self-end rounded-full"
                   aria-label={p.aiAssistant.send}
-                  onClick={() => handleSend()}
+                  onClick={handleSend}
                 >
                   <Send className="h-4 w-4" />
                 </Button>
               </div>
             </div>
           </motion.div>
-        ) : null}
+        )}
       </AnimatePresence>
 
       <Button
@@ -245,11 +257,7 @@ export function AiAssistantDock() {
         className="pointer-events-auto h-14 w-14 rounded-full shadow-lg"
         onClick={() => setOpen((v) => !v)}
       >
-        {open ? (
-          <X className="h-6 w-6" />
-        ) : (
-          <Sparkles className="h-10 w-10" />
-        )}
+        {open ? <X className="h-6 w-6" /> : <Sparkles className="h-10 w-10" />}
       </Button>
     </div>
   )

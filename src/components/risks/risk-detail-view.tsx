@@ -1,11 +1,12 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import {
   ArrowLeft,
+  AtSign,
   Download,
   MessageSquare,
   MoreHorizontal,
@@ -43,6 +44,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { useLocale } from '@/contexts/locale-context'
 import { useProjects } from '@/contexts/projects-context'
 import { useRisks } from '@/contexts/risks-context'
+import { getProfileForUser } from '@/lib/user-profile-storage'
 import {
   impactBadgeClass,
   probabilityBadgeClass,
@@ -95,19 +97,83 @@ function metaOutlineTag(children: React.ReactNode) {
   )
 }
 
+interface MentionState {
+  query: string
+  atIdx: number
+}
+
+function renderCommentText(text: string) {
+  const parts = text.split(/(@[А-ЯЁа-яё][а-яёё]+(?:\s[А-ЯЁа-яёё][а-яёё]+)?)/)
+  return (
+    <>
+      {parts.map((part, i) =>
+        part.startsWith('@') ? (
+          <span key={i} className="rounded bg-primary/10 px-0.5 font-medium text-primary">
+            {part}
+          </span>
+        ) : (
+          part
+        )
+      )}
+    </>
+  )
+}
+
 export function RiskDetailView({ risk }: RiskDetailViewProps) {
   const router = useRouter()
   const { locale } = useLocale()
   const p = getPageCopy(locale)
   const { removeRisk, updateRisk } = useRisks()
-  const { getProjectDisplayName } = useProjects()
+  const { getProjectDisplayName, listProjectMembers } = useProjects()
   const [draft, setDraft] = useState('')
   const [pendingAttachments, setPendingAttachments] = useState<
     RiskCommentAttachment[]
   >([])
   const fileInputRef = useRef<HTMLInputElement>(null)
   const documentationInputRef = useRef<HTMLInputElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [deleteOpen, setDeleteOpen] = useState(false)
+
+  const [memberNames, setMemberNames] = useState<string[]>([])
+  const [mentionState, setMentionState] = useState<MentionState | null>(null)
+
+  useEffect(() => {
+    if (!risk.projectId) return
+    void listProjectMembers(risk.projectId).then((members) => {
+      const names = members
+        .map((m) => {
+          const profile = getProfileForUser(m.userId)
+          return `${profile.firstName} ${profile.lastName}`.trim() || m.email
+        })
+        .filter(Boolean)
+      setMemberNames(names)
+    })
+  }, [risk.projectId, listProjectMembers])
+
+  const filteredMentions = mentionState
+    ? memberNames.filter((n) =>
+        n.toLowerCase().includes(mentionState.query.toLowerCase())
+      )
+    : []
+
+  const handleSelectMention = useCallback(
+    (name: string) => {
+      if (!mentionState) return
+      const before = draft.slice(0, mentionState.atIdx)
+      const after = draft.slice(mentionState.atIdx + mentionState.query.length + 1)
+      const next = `${before}@${name} ${after}`
+      setDraft(next)
+      setMentionState(null)
+      setTimeout(() => {
+        const el = textareaRef.current
+        if (!el) return
+        const pos = before.length + name.length + 2
+        el.focus()
+        el.setSelectionRange(pos, pos)
+      }, 0)
+    },
+    [draft, mentionState]
+  )
 
   const [newMeasureLabel, setNewMeasureLabel] = useState('')
   const [isAddingMeasure, setIsAddingMeasure] = useState(false)
@@ -501,7 +567,9 @@ export function RiskDetailView({ risk }: RiskDetailViewProps) {
                               </p>
                             </div>
                             {showText ? (
-                              <p className="text-sm leading-relaxed">{c.text}</p>
+                              <p className="text-sm leading-relaxed">
+                                {renderCommentText(c.text)}
+                              </p>
                             ) : null}
                             {atts.map((att, idx) => (
                               <div
@@ -548,12 +616,77 @@ export function RiskDetailView({ risk }: RiskDetailViewProps) {
                 tabIndex={-1}
                 onChange={handleFileChange}
               />
-              <Textarea
-                placeholder={p.riskDetail.commentPlaceholder}
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                aria-label={p.riskDetail.commentPlaceholder}
-              />
+              <div className="relative">
+                <Textarea
+                  ref={textareaRef}
+                  placeholder={p.riskDetail.commentPlaceholder}
+                  value={draft}
+                  onChange={(e) => {
+                    const val = e.target.value
+                    setDraft(val)
+                    const cursor = e.target.selectionStart ?? val.length
+                    const beforeCursor = val.slice(0, cursor)
+                    const atIdx = beforeCursor.lastIndexOf('@')
+                    if (atIdx !== -1) {
+                      const afterAt = beforeCursor.slice(atIdx + 1)
+                      if (!afterAt.includes(' ')) {
+                        const matches = memberNames.filter((n) =>
+                          n.toLowerCase().includes(afterAt.toLowerCase())
+                        )
+                        if (matches.length > 0) {
+                          setMentionState({ query: afterAt, atIdx })
+                          return
+                        }
+                      }
+                    }
+                    setMentionState(null)
+                  }}
+                  onKeyDown={(e) => {
+                    if (mentionState && e.key === 'Escape') {
+                      e.preventDefault()
+                      setMentionState(null)
+                    }
+                    if (mentionState && e.key === 'Enter' && filteredMentions.length > 0) {
+                      e.preventDefault()
+                      handleSelectMention(filteredMentions[0]!)
+                    }
+                  }}
+                  onBlur={() => {
+                    setTimeout(() => setMentionState(null), 150)
+                  }}
+                  aria-label={p.riskDetail.commentPlaceholder}
+                  aria-autocomplete="list"
+                  aria-expanded={mentionState !== null && filteredMentions.length > 0}
+                />
+                {mentionState !== null && filteredMentions.length > 0 && (
+                  <div
+                    role="listbox"
+                    className="absolute bottom-full left-0 z-50 mb-1 max-h-48 w-full overflow-y-auto rounded-lg border border-border bg-popover shadow-lg"
+                  >
+                    <p className="border-b border-border px-3 py-1.5 text-xs font-medium text-muted-foreground">
+                      <AtSign className="mr-1 inline-block h-3 w-3" />
+                      Участники проекта
+                    </p>
+                    {filteredMentions.map((name) => (
+                      <button
+                        key={name}
+                        type="button"
+                        role="option"
+                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground"
+                        onMouseDown={(e) => {
+                          e.preventDefault()
+                          handleSelectMention(name)
+                        }}
+                      >
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-medium text-primary">
+                          {name.charAt(0).toUpperCase()}
+                        </span>
+                        {name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
               {pendingAttachments.length > 0 ? (
                 <ul className="space-y-2">
                   {pendingAttachments.map((att, idx) => (

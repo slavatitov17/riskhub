@@ -92,6 +92,7 @@ export function ProjectFormView() {
                 dropPrimary: p.projectForm.documentationDrop,
                 dropOr: p.projectForm.documentationOr,
                 browse: p.projectForm.documentationBrowse,
+                uploaded: p.projectForm.documentationUploaded,
                 remove: p.projectForm.documentationRemove,
                 tooLarge: p.projectForm.documentationTooLarge,
                 maxFiles: p.projectForm.documentationMaxFiles

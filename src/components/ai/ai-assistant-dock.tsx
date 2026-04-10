@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { MessageCircle, Send, Sparkles, X } from 'lucide-react'
+import { Paperclip, Send, Sparkles, X } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -18,6 +18,7 @@ interface ChatMessage {
   id: string
   role: ChatRole
   text: string
+  attachments?: string[]
   at: string
 }
 
@@ -28,9 +29,11 @@ export function AiAssistantDock() {
   const { risks } = useRisks()
   const panelId = useId()
   const listRef = useRef<HTMLDivElement>(null)
+  const attachmentInputRef = useRef<HTMLInputElement>(null)
   const [open, setOpen] = useState(false)
   const [input, setInput] = useState('')
   const [messages, setMessages] = useState<ChatMessage[]>([])
+  const [attachments, setAttachments] = useState<File[]>([])
 
   useEffect(() => {
     if (!open) return
@@ -41,15 +44,17 @@ export function AiAssistantDock() {
 
   const handleSend = useCallback(() => {
     const text = input.trim()
-    if (!text) return
+    if (!text && attachments.length === 0) return
     const userMsg: ChatMessage = {
       id: crypto.randomUUID(),
       role: 'user',
-      text,
+      text: text || p.aiAssistant.attach,
+      attachments: attachments.map((file) => file.name),
       at: new Date().toISOString()
     }
     setMessages((m) => [...m, userMsg])
     setInput('')
+    setAttachments([])
     window.setTimeout(() => {
       setMessages((m) => [
         ...m,
@@ -61,7 +66,30 @@ export function AiAssistantDock() {
         }
       ])
     }, 400)
-  }, [input, p.aiAssistant.modelPending])
+  }, [attachments, input, p.aiAssistant.attach, p.aiAssistant.modelPending])
+
+  const handleAttachFiles = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const selectedFiles = event.target.files
+      if (!selectedFiles?.length) return
+      setAttachments((prev) => {
+        const currentNames = new Set(prev.map((file) => file.name))
+        const nextFiles = [...prev]
+        for (const file of Array.from(selectedFiles)) {
+          if (currentNames.has(file.name)) continue
+          nextFiles.push(file)
+          currentNames.add(file.name)
+        }
+        return nextFiles
+      })
+      event.target.value = ''
+    },
+    []
+  )
+
+  const handleRemoveAttachment = useCallback((fileName: string) => {
+    setAttachments((prev) => prev.filter((file) => file.name !== fileName))
+  }, [])
 
   const hint = p.aiAssistant.hint
     .replace('{projects}', String(myProjects.length))
@@ -122,6 +150,34 @@ export function AiAssistantDock() {
               )}
             </div>
             <div className="border-t border-border bg-card p-3">
+              <input
+                ref={attachmentInputRef}
+                type="file"
+                className="sr-only"
+                multiple
+                onChange={handleAttachFiles}
+              />
+              {attachments.length > 0 ? (
+                <div className="mb-2 space-y-1.5">
+                  <p className="text-xs font-medium text-muted-foreground">
+                    {p.aiAssistant.attachedFiles}
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {attachments.map((file) => (
+                      <button
+                        key={file.name}
+                        type="button"
+                        className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/30 px-2 py-1 text-xs"
+                        onClick={() => handleRemoveAttachment(file.name)}
+                        aria-label={`${file.name}: ${p.aiAssistant.close}`}
+                      >
+                        {file.name}
+                        <X className="h-3 w-3" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
               <div className="flex gap-2">
                 <Textarea
                   value={input}
@@ -136,6 +192,16 @@ export function AiAssistantDock() {
                     }
                   }}
                 />
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="outline"
+                  className="h-11 w-11 shrink-0 self-end rounded-full"
+                  aria-label={p.aiAssistant.attach}
+                  onClick={() => attachmentInputRef.current?.click()}
+                >
+                  <Paperclip className="h-4 w-4" />
+                </Button>
                 <Button
                   type="button"
                   size="icon"
@@ -163,7 +229,7 @@ export function AiAssistantDock() {
         {open ? (
           <X className="h-6 w-6" />
         ) : (
-          <MessageCircle className="h-6 w-6" />
+          <Sparkles className="h-6 w-6" />
         )}
       </Button>
     </div>

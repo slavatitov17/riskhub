@@ -165,6 +165,7 @@ export interface PageCopy {
     documentationDrop: string
     documentationOr: string
     documentationBrowse: string
+    documentationUploaded: string
     documentationRemove: string
     documentationTooLarge: string
     documentationMaxFiles: string
@@ -175,6 +176,8 @@ export interface PageCopy {
     subtitle: string
     placeholder: string
     send: string
+    attach: string
+    attachedFiles: string
     close: string
     hint: string
     modelPending: string
@@ -517,9 +520,10 @@ const RU: PageCopy = {
   },
   projectForm: {
     documentationLabel: 'Проектная документация',
-    documentationDrop: 'Перетащите файлы сюда',
-    documentationOr: 'или',
+    documentationDrop: 'Перетащите документы сюда',
+    documentationOr: 'или нажмите на кнопку ниже',
     documentationBrowse: 'Загрузить',
+    documentationUploaded: 'Загруженные файлы',
     documentationRemove: 'Удалить',
     documentationTooLarge: 'Файл «{name}» слишком большой (макс. 2 МБ)',
     documentationMaxFiles: 'Не более 8 файлов'
@@ -530,19 +534,21 @@ const RU: PageCopy = {
     subtitle: 'RiskHub',
     placeholder: 'Задайте вопрос о системе, проектах или рисках…',
     send: 'Отправить',
+    attach: 'Прикрепить файлы',
+    attachedFiles: 'Прикрепленные файлы',
     close: 'Закрыть',
     hint: 'Вы можете спросить о работе в RiskHub, текущих проектах ({projects}) и рисках ({risks}). Ответы появятся после подключения языковой модели.',
     modelPending:
       'Подключение языковой модели запланировано. Пока ответы недоступны — спасибо за терпение.'
   },
   aiAnalysis: {
-    projectTitle: 'Анализ рисков с ИИ',
+    projectTitle: 'Анализ проекта',
     projectBody:
-      'Попросите систему оценить проект и выявить потенциальные риски на основе данных проекта и реестра.',
-    riskTitle: 'Анализ с ИИ',
+      'Попросите ИИ-ассистента оценить проект и выявить потенциальные риски',
+    riskTitle: 'Анализ риска',
     riskBody:
-      'Получите подсказки по контексту риска и связанному проекту для выявления дополнительных рисков.',
-    cta: 'Запустить анализ',
+      'Попросите ИИ-ассистента оценить риск и дать рекомендации',
+    cta: 'Анализировать',
     toastSoon: 'Функция появится после подключения модели ИИ.'
   },
   projectDetail: {
@@ -963,9 +969,10 @@ const EN: PageCopy = {
   filterCount: (n: number) => `${n} ${n === 1 ? 'filter' : 'filters'}`,
   projectForm: {
     documentationLabel: 'Project documentation',
-    documentationDrop: 'Drag and drop files here',
-    documentationOr: 'or',
+    documentationDrop: 'Drag and drop documents here',
+    documentationOr: 'or click the button below',
     documentationBrowse: 'Upload',
+    documentationUploaded: 'Uploaded files',
     documentationRemove: 'Remove',
     documentationTooLarge: 'File “{name}” is too large (max 2 MB)',
     documentationMaxFiles: 'No more than 8 files'
@@ -976,6 +983,8 @@ const EN: PageCopy = {
     subtitle: 'RiskHub',
     placeholder: 'Ask about the app, projects, or risks…',
     send: 'Send',
+    attach: 'Attach files',
+    attachedFiles: 'Attached files',
     close: 'Close',
     hint: 'You can ask about RiskHub, your current projects ({projects}), and risks ({risks}). Answers will be available once the language model is connected.',
     modelPending:

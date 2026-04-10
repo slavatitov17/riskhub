@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useRef, useState } from 'react'
-import { CloudUpload, X } from 'lucide-react'
+import { CheckCircle2, CloudUpload, Download, X } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
@@ -17,6 +17,7 @@ export interface ProjectDocumentationFieldLabels {
   dropPrimary: string
   dropOr: string
   browse: string
+  uploaded: string
   remove: string
   tooLarge: string
   maxFiles: string
@@ -111,8 +112,8 @@ export function ProjectDocumentationField({
         role="button"
         tabIndex={0}
         className={cn(
-          'relative rounded-lg border border-dashed border-border bg-muted/30 p-6 transition-colors',
-          dragOver && 'border-primary bg-primary/5',
+          'relative rounded-lg border-2 border-dashed border-primary/45 bg-muted/30 p-6 transition-colors',
+          dragOver && 'border-primary bg-primary/10',
           busy && 'pointer-events-none opacity-70'
         )}
         onDragEnter={(e) => {
@@ -158,36 +159,49 @@ export function ProjectDocumentationField({
             type="button"
             variant="default"
             size="sm"
+            className="gap-2"
             disabled={busy}
             onClick={() => inputRef.current?.click()}
           >
+            <Download className="h-4 w-4" aria-hidden />
             {labels.browse}
           </Button>
         </div>
       </div>
       {files.length > 0 ? (
-        <ul className="space-y-2 rounded-md border border-border bg-card p-3">
-          {files.map((f) => (
-            <li
-              key={f.id}
-              className="flex items-center justify-between gap-2 text-sm"
-            >
-              <span className="min-w-0 truncate text-foreground" title={f.name}>
-                {f.name}
-              </span>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 shrink-0"
-                aria-label={`${labels.remove}: ${f.name}`}
-                onClick={() => handleRemove(f.id)}
+        <div className="space-y-2 rounded-md border border-border bg-card p-3">
+          <p className="text-xs font-medium text-muted-foreground">
+            {labels.uploaded}
+          </p>
+          <ul className="space-y-2">
+            {files.map((f) => (
+              <li
+                key={f.id}
+                className="flex items-center justify-between gap-2 text-sm"
               >
-                <X className="h-4 w-4" />
-              </Button>
-            </li>
-          ))}
-        </ul>
+                <div className="flex min-w-0 items-center gap-2">
+                  <CheckCircle2
+                    className="h-4 w-4 shrink-0 text-emerald-600"
+                    aria-hidden
+                  />
+                  <span className="min-w-0 truncate text-foreground" title={f.name}>
+                    {f.name}
+                  </span>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 shrink-0"
+                  aria-label={`${labels.remove}: ${f.name}`}
+                  onClick={() => handleRemove(f.id)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </div>
       ) : null}
     </div>
   )

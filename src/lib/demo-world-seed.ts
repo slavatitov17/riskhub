@@ -20,7 +20,7 @@ import {
 } from '@/lib/risks-storage'
 import { saveProfileForUser } from '@/lib/user-profile-storage'
 
-const DEMO_WORLD_KEY = 'riskhub_demo_l3_world_v3'
+const DEMO_WORLD_KEY = 'riskhub_demo_l3_world_v4'
 
 const AUTHORS = [
   'Демо Аккаунт',
@@ -756,7 +756,7 @@ const BPM: ProjectTpl = {
 
 const CRM: ProjectTpl = {
   id: 'proj_demo_l3_crm',
-  name: 'MES-система для планирования производственных заданий и расчёта эффективности оборудования',
+  name: 'MES-система для расчёта эффективности оборудования',
   category: 'Технологический',
   description:
     'Внедрение MES для формирования сменно-суточных заданий, расчёта показателя общей эффективности оборудования и контроля выполнения производственной программы',

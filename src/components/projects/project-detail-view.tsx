@@ -569,7 +569,7 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
           </Card>
 
           <Card>
-            <CardHeader>
+            <CardHeader className="pb-2">
               <CardTitle className="text-base">{p.aiAnalysis.projectTitle}</CardTitle>
             </CardHeader>
             <CardContent className="pt-1">

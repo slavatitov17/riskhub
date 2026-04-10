@@ -330,7 +330,36 @@ export function RiskDetailView({ risk }: RiskDetailViewProps) {
                 </span>
               </div>
               <CardTitle className="text-2xl">{risk.name}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <p className="mb-2 text-sm font-medium text-foreground">
+                  {p.riskDetail.descriptionTitle}
+                </p>
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  {risk.description || '—'}
+                </p>
+              </div>
+              <Separator />
               <div className="flex flex-wrap gap-2">
+                <span
+                  className={cn(
+                    'inline-flex items-center rounded-md border px-2.5 py-1',
+                    listUiTextClass,
+                    probabilityBadgeClass(risk.probability)
+                  )}
+                >
+                  {p.riskDetail.probability}: {risk.probability}
+                </span>
+                <span
+                  className={cn(
+                    'inline-flex items-center rounded-md border px-2.5 py-1',
+                    listUiTextClass,
+                    impactBadgeClass(risk.impact)
+                  )}
+                >
+                  {p.riskDetail.impact}: {risk.impact}
+                </span>
                 {metaOutlineTag(
                   <>
                     {p.riskDetail.category}: {risk.category}
@@ -342,16 +371,23 @@ export function RiskDetailView({ risk }: RiskDetailViewProps) {
                     {getProjectDisplayName(risk.projectId, risk.project)}
                   </>
                 )}
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <p className="mb-2 text-sm font-medium text-foreground">
-                  {p.riskDetail.descriptionTitle}
-                </p>
-                <p className="text-sm leading-relaxed text-muted-foreground">
-                  {risk.description || '—'}
-                </p>
+                {metaOutlineTag(
+                  <>
+                    {p.riskDetail.author}: {risk.author}
+                  </>
+                )}
+                {metaOutlineTag(
+                  <>
+                    {p.riskDetail.created}{' '}
+                    {formatDisplayDate(risk.created, locale)}
+                  </>
+                )}
+                {metaOutlineTag(
+                  <>
+                    {p.riskDetail.updated}{' '}
+                    {formatDisplayDate(risk.updated, locale)}
+                  </>
+                )}
               </div>
               <Separator />
               <div className="space-y-2">
@@ -411,46 +447,6 @@ export function RiskDetailView({ risk }: RiskDetailViewProps) {
                   <p className="text-sm text-muted-foreground">
                     {p.riskDetail.noDocumentation}
                   </p>
-                )}
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <span
-                  className={cn(
-                    'inline-flex items-center rounded-md border px-2.5 py-1',
-                    listUiTextClass,
-                    probabilityBadgeClass(risk.probability)
-                  )}
-                >
-                  {p.riskDetail.probability}: {risk.probability}
-                </span>
-                <span
-                  className={cn(
-                    'inline-flex items-center rounded-md border px-2.5 py-1',
-                    listUiTextClass,
-                    impactBadgeClass(risk.impact)
-                  )}
-                >
-                  {p.riskDetail.impact}: {risk.impact}
-                </span>
-              </div>
-              <Separator />
-              <div className="flex flex-wrap gap-2">
-                {metaOutlineTag(
-                  <>
-                    {p.riskDetail.author}: {risk.author}
-                  </>
-                )}
-                {metaOutlineTag(
-                  <>
-                    {p.riskDetail.created}{' '}
-                    {formatDisplayDate(risk.created, locale)}
-                  </>
-                )}
-                {metaOutlineTag(
-                  <>
-                    {p.riskDetail.updated}{' '}
-                    {formatDisplayDate(risk.updated, locale)}
-                  </>
                 )}
               </div>
             </CardContent>
@@ -716,7 +712,7 @@ export function RiskDetailView({ risk }: RiskDetailViewProps) {
           </Card>
 
           <Card>
-            <CardHeader>
+            <CardHeader className="pb-2">
               <CardTitle className="text-base">{p.aiAnalysis.riskTitle}</CardTitle>
             </CardHeader>
             <CardContent className="pt-1">

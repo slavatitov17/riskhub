@@ -167,6 +167,28 @@ export function AiAssistantDock() {
                 ))
               )}
             </div>
+            {attachments.length > 0 ? (
+              <div className="border-t border-border bg-muted/30 px-3 py-2">
+                <p className="mb-1.5 text-xs font-medium text-muted-foreground">
+                  {p.aiAssistant.attachedFiles}
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {attachments.map((file) => (
+                    <button
+                      key={file.name}
+                      type="button"
+                      className="inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+                      onClick={() => handleRemoveAttachment(file.name)}
+                      aria-label={`${file.name}: ${p.aiAssistant.close}`}
+                    >
+                      <Paperclip className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden />
+                      <span className="max-w-[140px] truncate">{file.name}</span>
+                      <X className="h-3 w-3 shrink-0 text-muted-foreground" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
             <div className="border-t border-border bg-card p-3">
               <input
                 ref={attachmentInputRef}
@@ -175,27 +197,6 @@ export function AiAssistantDock() {
                 multiple
                 onChange={handleAttachFiles}
               />
-              {attachments.length > 0 ? (
-                <div className="mb-2 space-y-1.5">
-                  <p className="text-xs font-medium text-muted-foreground">
-                    {p.aiAssistant.attachedFiles}
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {attachments.map((file) => (
-                      <button
-                        key={file.name}
-                        type="button"
-                        className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/30 px-2 py-1 text-xs"
-                        onClick={() => handleRemoveAttachment(file.name)}
-                        aria-label={`${file.name}: ${p.aiAssistant.close}`}
-                      >
-                        {file.name}
-                        <X className="h-3 w-3" />
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
               <div className="flex gap-2">
                 <Textarea
                   value={input}
@@ -247,7 +248,7 @@ export function AiAssistantDock() {
         {open ? (
           <X className="h-6 w-6" />
         ) : (
-          <Sparkles className="h-8 w-8" />
+          <Sparkles className="h-10 w-10" />
         )}
       </Button>
     </div>

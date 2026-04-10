@@ -112,6 +112,7 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
   const {
     inviteToProject,
     listProjectMembers,
+    updateProject,
     refresh,
     accessibleProjectIds,
     deleteProject

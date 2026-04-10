@@ -480,13 +480,13 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
             <CardHeader>
               <CardTitle className="text-base">{p.aiAnalysis.projectTitle}</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <p className="text-sm leading-relaxed text-muted-foreground">
+            <CardContent>
+              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
                 {p.aiAnalysis.projectBody}
               </p>
               <Button
                 type="button"
-                className="gap-2"
+                className="mt-6 gap-2"
                 onClick={() => toast.message(p.aiAnalysis.toastSoon)}
               >
                 <Sparkles className="h-4 w-4" aria-hidden />

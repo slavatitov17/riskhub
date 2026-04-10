@@ -48,7 +48,7 @@ export function AiAssistantDock() {
     const userMsg: ChatMessage = {
       id: crypto.randomUUID(),
       role: 'user',
-      text: text || p.aiAssistant.attach,
+      text,
       attachments: attachments.map((file) => file.name),
       at: new Date().toISOString()
     }
@@ -144,7 +144,25 @@ export function AiAssistantDock() {
                         : 'mr-auto border border-border bg-background text-foreground'
                     )}
                   >
-                    {msg.text}
+                    {msg.text ? <p>{msg.text}</p> : null}
+                    {msg.attachments?.length ? (
+                      <div className={cn('space-y-1.5', msg.text ? 'mt-2' : '')}>
+                        {msg.attachments.map((name) => (
+                          <div
+                            key={`${msg.id}-${name}`}
+                            className={cn(
+                              'flex items-center gap-2 rounded-md px-2 py-1.5',
+                              msg.role === 'user'
+                                ? 'bg-primary-foreground/15'
+                                : 'border border-border bg-muted/20'
+                            )}
+                          >
+                            <Paperclip className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                            <span className="min-w-0 truncate text-xs">{name}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
                 ))
               )}
@@ -229,7 +247,7 @@ export function AiAssistantDock() {
         {open ? (
           <X className="h-6 w-6" />
         ) : (
-          <Sparkles className="h-6 w-6" />
+          <Sparkles className="h-7 w-7" />
         )}
       </Button>
     </div>

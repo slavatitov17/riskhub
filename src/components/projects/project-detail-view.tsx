@@ -1,11 +1,12 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import {
   ArrowLeft,
+  Paperclip,
   Eye,
   MoreHorizontal,
   Pencil,
@@ -72,6 +73,8 @@ import { formatDisplayDate, formatLocaleDateTime } from '@/lib/risks-storage'
 import { cn } from '@/lib/utils'
 
 const listUiTextClass = 'text-sm font-normal'
+const MAX_DOC_BYTES = 2 * 1024 * 1024
+const MAX_DOC_FILES = 8
 
 function metaOutlineTag(children: React.ReactNode) {
   return (
@@ -122,6 +125,7 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
   const [profileMember, setProfileMember] = useState<ProjectMemberRecord | null>(
     null
   )
+  const docInputRef = useRef<HTMLInputElement>(null)
 
   const session = getSession()
   const canEdit =
@@ -164,6 +168,58 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
     } finally {
       setInviteSending(false)
     }
+  }
+
+  const handleProjectDocsChange = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const selected = Array.from(event.target.files ?? [])
+    event.target.value = ''
+    if (selected.length === 0) return
+    const existing = project.documentationFiles ?? []
+    if (existing.length >= MAX_DOC_FILES) {
+      toast.message('Не более 8 файлов')
+      return
+    }
+    const next = [...existing]
+    for (const file of selected) {
+      if (next.length >= MAX_DOC_FILES) break
+      if (file.size > MAX_DOC_BYTES) {
+        toast.message(`Файл «${file.name}» слишком большой (макс. 2 МБ)`)
+        continue
+      }
+      const dataUrl = await new Promise<string | undefined>((resolve) => {
+        const reader = new FileReader()
+        reader.onload = () =>
+          resolve(typeof reader.result === 'string' ? reader.result : undefined)
+        reader.onerror = () => resolve(undefined)
+        reader.readAsDataURL(file)
+      })
+      next.push({
+        id: crypto.randomUUID(),
+        name: file.name,
+        mimeType: file.type || 'application/octet-stream',
+        size: file.size,
+        uploadedAt: new Date().toISOString(),
+        dataUrl
+      })
+    }
+    const res = await updateProject(project.id, { documentationFiles: next })
+    if (!res.ok) {
+      toast.error(res.error)
+      return
+    }
+    toast.success('Документация обновлена')
+  }
+
+  const handleRemoveProjectDoc = async (fileId: string) => {
+    const next = (project.documentationFiles ?? []).filter((file) => file.id !== fileId)
+    const res = await updateProject(project.id, { documentationFiles: next })
+    if (!res.ok) {
+      toast.error(res.error)
+      return
+    }
+    toast.success('Файл удалён')
   }
 
   if (!accessibleProjectIds.has(project.id)) {
@@ -294,35 +350,70 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
                   </>
                 )}
               </div>
-              {(project.documentationFiles?.length ?? 0) > 0 ? (
-                <>
-                  <Separator />
-                  <div>
-                    <p className="mb-2 text-sm font-medium text-foreground">
-                      {p.projectDetail.documentationTitle}
-                    </p>
-                    <ul className="space-y-2">
-                      {project.documentationFiles!.map((f) => (
-                        <li key={f.id}>
-                          {f.dataUrl ? (
-                            <a
-                              href={f.dataUrl}
-                              download={f.name}
-                              className="text-sm font-medium text-primary underline-offset-4 hover:underline"
-                            >
-                              {f.name}
-                            </a>
-                          ) : (
-                            <span className="text-sm text-muted-foreground">
-                              {f.name}
-                            </span>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </>
-              ) : null}
+              <Separator />
+              <div className="space-y-2">
+                <input
+                  ref={docInputRef}
+                  type="file"
+                  className="sr-only"
+                  multiple
+                  onChange={(e) => void handleProjectDocsChange(e)}
+                />
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-medium text-foreground">
+                    {p.projectDetail.documentationTitle}
+                  </p>
+                  {canEdit ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="gap-2"
+                      onClick={() => docInputRef.current?.click()}
+                    >
+                      <Paperclip className="h-4 w-4" />
+                      {p.projectDetail.attachDocumentation}
+                    </Button>
+                  ) : null}
+                </div>
+                {(project.documentationFiles?.length ?? 0) > 0 ? (
+                  <ul className="space-y-2">
+                    {project.documentationFiles!.map((f) => (
+                      <li key={f.id} className="flex items-center gap-2">
+                        {f.dataUrl ? (
+                          <a
+                            href={f.dataUrl}
+                            download={f.name}
+                            className="min-w-0 flex-1 truncate text-sm font-medium text-primary underline-offset-4 hover:underline"
+                          >
+                            {f.name}
+                          </a>
+                        ) : (
+                          <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
+                            {f.name}
+                          </span>
+                        )}
+                        {canEdit ? (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 shrink-0"
+                            aria-label={`${p.projectForm.documentationRemove}: ${f.name}`}
+                            onClick={() => void handleRemoveProjectDoc(f.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    {p.projectDetail.noDocumentation}
+                  </p>
+                )}
+              </div>
             </CardContent>
           </Card>
 
@@ -480,13 +571,13 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
             <CardHeader>
               <CardTitle className="text-base">{p.aiAnalysis.projectTitle}</CardTitle>
             </CardHeader>
-            <CardContent>
-              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+            <CardContent className="pt-1">
+              <p className="text-sm leading-relaxed text-muted-foreground">
                 {p.aiAnalysis.projectBody}
               </p>
               <Button
                 type="button"
-                className="mt-6 gap-2"
+                className="mt-8 gap-2"
                 onClick={() => toast.message(p.aiAnalysis.toastSoon)}
               >
                 <Sparkles className="h-4 w-4" aria-hidden />

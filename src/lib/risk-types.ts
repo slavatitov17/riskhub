@@ -1,3 +1,7 @@
+import type { ProjectDocumentationFile } from '@/lib/project-types'
+
+export type RiskDocumentationFile = ProjectDocumentationFile
+
 export interface RiskCommentAttachment {
   name: string
   /** data:…;base64,… for download in browser */
@@ -46,6 +50,7 @@ export interface RiskRecord {
   /** ISO date (YYYY-MM-DD) or full ISO datetime */
   updated: string
   comments?: RiskComment[]
+  documentationFiles?: RiskDocumentationFile[]
   responseMeasures?: RiskResponseMeasure[]
   activityLog?: RiskActivityLogEntry[]
 }

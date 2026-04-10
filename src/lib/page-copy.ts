@@ -232,6 +232,8 @@ export interface PageCopy {
     position: string
     about: string
     documentationTitle: string
+    attachDocumentation: string
+    noDocumentation: string
   }
   riskDetail: {
     back: string
@@ -265,6 +267,9 @@ export interface PageCopy {
     measureUpdated: string
     measureEmpty: string
     activity: string
+    documentationTitle: string
+    attachDocumentation: string
+    noDocumentation: string
     deleteTitle: string
     deleteDescription: string
     riskDeleted: string
@@ -594,7 +599,9 @@ const RU: PageCopy = {
     department: 'Отдел',
     position: 'Должность',
     about: 'О себе',
-    documentationTitle: 'Проектная документация'
+    documentationTitle: 'Проектная документация',
+    attachDocumentation: 'Прикрепить документацию',
+    noDocumentation: 'Документация пока не прикреплена'
   },
   riskDetail: {
     back: 'Назад',
@@ -628,6 +635,9 @@ const RU: PageCopy = {
     measureUpdated: 'Мера обновлена',
     measureEmpty: 'Текст не может быть пустым',
     activity: 'Лента изменений',
+    documentationTitle: 'Документация по риску',
+    attachDocumentation: 'Прикрепить документацию',
+    noDocumentation: 'Документация по риску пока не прикреплена',
     deleteTitle: 'Удалить риск {code}?',
     deleteDescription: 'Запись будет удалена из локального хранилища.',
     riskDeleted: 'Риск удалён',
@@ -1042,7 +1052,9 @@ const EN: PageCopy = {
     department: 'Department',
     position: 'Job title',
     about: 'About',
-    documentationTitle: 'Project documentation'
+    documentationTitle: 'Project documentation',
+    attachDocumentation: 'Attach documentation',
+    noDocumentation: 'No documentation attached yet'
   },
   riskDetail: {
     back: 'Back',
@@ -1076,6 +1088,9 @@ const EN: PageCopy = {
     measureUpdated: 'Measure updated',
     measureEmpty: 'Text cannot be empty',
     activity: 'Activity',
+    documentationTitle: 'Risk documentation',
+    attachDocumentation: 'Attach documentation',
+    noDocumentation: 'No risk documentation attached yet',
     deleteTitle: 'Delete risk {code}?',
     deleteDescription: 'The record will be removed from local storage.',
     riskDeleted: 'Risk deleted',

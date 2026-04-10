@@ -55,7 +55,10 @@ interface ProjectsContextValue {
   updateProject: (
     projectId: string,
     patch: Partial<
-      Pick<ProjectRecord, 'status' | 'description' | 'name' | 'category'>
+      Pick<
+        ProjectRecord,
+        'status' | 'description' | 'name' | 'category' | 'documentationFiles'
+      >
     >
   ) => Promise<{ ok: true } | { ok: false; error: string }>
   inviteToProject: (
@@ -133,7 +136,10 @@ async function createPendingInvitations(
 function projectActivityFromPatch(
   prev: ProjectRecord,
   patch: Partial<
-    Pick<ProjectRecord, 'status' | 'description' | 'name' | 'category'>
+    Pick<
+      ProjectRecord,
+      'status' | 'description' | 'name' | 'category' | 'documentationFiles'
+    >
   >,
   at: string
 ): RiskActivityLogEntry[] {
@@ -152,6 +158,7 @@ function projectActivityFromPatch(
     patch.description !== prev.description
   )
     push('Описание проекта обновлено')
+  if (patch.documentationFiles !== undefined) push('Документация проекта обновлена')
 
   return out
 }
@@ -356,7 +363,10 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
     async (
       projectId: string,
       patch: Partial<
-        Pick<ProjectRecord, 'status' | 'description' | 'name' | 'category'>
+        Pick<
+          ProjectRecord,
+          'status' | 'description' | 'name' | 'category' | 'documentationFiles'
+        >
       >
     ) => {
       const s = getSession()
@@ -386,6 +396,10 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
 
       const description =
         patch.description !== undefined ? patch.description : prev.description
+      const documentationFiles =
+        patch.documentationFiles !== undefined
+          ? patch.documentationFiles
+          : prev.documentationFiles
 
       const now = new Date().toISOString()
       const logPatch = {
@@ -401,6 +415,7 @@ export function ProjectsProvider({ children }: { children: React.ReactNode }) {
         category: nextCategory,
         status,
         description,
+        documentationFiles,
         updatedAt: now,
         activityLog: [...prev.activityLog, ...extraLog]
       })

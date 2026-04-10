@@ -7,6 +7,7 @@ import { motion } from 'framer-motion'
 import { ChevronDown, Save, X } from 'lucide-react'
 import { toast } from '@/lib/app-toast'
 
+import { ProjectDocumentationField } from '@/components/forms/project-documentation-field'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -35,6 +36,7 @@ import {
   IMPACTS,
   LEVELS,
   RISK_STATUSES,
+  type RiskDocumentationFile,
   type RiskRecord
 } from '@/lib/risk-types'
 import { getCurrentUserDisplayName } from '@/lib/user-display'
@@ -198,6 +200,9 @@ export function RiskFormView({
   const [status, setStatus] = useState(
     initial?.status ?? RISK_STATUSES[0]
   )
+  const [documentationFiles, setDocumentationFiles] = useState<
+    RiskDocumentationFile[]
+  >(initial?.documentationFiles ?? [])
 
   const probability = LEVELS[probIdx] ?? 'Средняя'
   const impact = IMPACTS[impactIdx] ?? 'Среднее'
@@ -259,7 +264,8 @@ export function RiskFormView({
         status,
         projectId,
         project: proj.name,
-        author: getCurrentUserDisplayName()
+        author: getCurrentUserDisplayName(),
+        documentationFiles
       })
       toast.success('Риск сохранён')
       router.push('/risks')
@@ -275,7 +281,8 @@ export function RiskFormView({
         impact,
         status,
         projectId,
-        project: proj.name
+        project: proj.name,
+        documentationFiles
       })
       toast.success('Изменения сохранены')
       router.push(`/risks/${initial.id}`)
@@ -316,6 +323,21 @@ export function RiskFormView({
                 rows={4}
               />
             </div>
+            <ProjectDocumentationField
+              id="risk-documentation"
+              files={documentationFiles}
+              onChange={setDocumentationFiles}
+              labels={{
+                label: 'Документация по риску',
+                dropPrimary: 'Перетащите документы сюда',
+                dropOr: 'или нажмите на кнопку ниже',
+                browse: 'Загрузить',
+                uploaded: 'Загруженные файлы',
+                remove: 'Удалить',
+                tooLarge: 'Файл «{name}» слишком большой (макс. 2 МБ)',
+                maxFiles: 'Не более 8 файлов'
+              }}
+            />
             <div className="grid gap-4 sm:grid-cols-2">
               <SearchableCategoryField
                 value={category}

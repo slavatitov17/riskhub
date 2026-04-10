@@ -106,6 +106,7 @@ export function RiskDetailView({ risk }: RiskDetailViewProps) {
     RiskCommentAttachment[]
   >([])
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const documentationInputRef = useRef<HTMLInputElement>(null)
   const [deleteOpen, setDeleteOpen] = useState(false)
 
   const [newMeasureLabel, setNewMeasureLabel] = useState('')
@@ -225,6 +226,40 @@ export function RiskDetailView({ risk }: RiskDetailViewProps) {
       )
   }
 
+  const handleRiskDocumentationChange = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const selected = Array.from(event.target.files ?? [])
+    event.target.value = ''
+    if (!selected.length) return
+    const next = [...(risk.documentationFiles ?? [])]
+    for (const file of selected) {
+      const dataUrl = await new Promise<string | undefined>((resolve) => {
+        const reader = new FileReader()
+        reader.onload = () =>
+          resolve(typeof reader.result === 'string' ? reader.result : undefined)
+        reader.onerror = () => resolve(undefined)
+        reader.readAsDataURL(file)
+      })
+      next.push({
+        id: crypto.randomUUID(),
+        name: file.name,
+        mimeType: file.type || 'application/octet-stream',
+        size: file.size,
+        uploadedAt: new Date().toISOString(),
+        dataUrl
+      })
+    }
+    updateRisk(risk.id, { documentationFiles: next })
+    toast.success('Документация по риску обновлена')
+  }
+
+  const handleRemoveRiskDocumentation = (fileId: string) => {
+    const next = (risk.documentationFiles ?? []).filter((file) => file.id !== fileId)
+    updateRisk(risk.id, { documentationFiles: next })
+    toast.success('Файл удалён')
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -317,6 +352,66 @@ export function RiskDetailView({ risk }: RiskDetailViewProps) {
                 <p className="text-sm leading-relaxed text-muted-foreground">
                   {risk.description || '—'}
                 </p>
+              </div>
+              <Separator />
+              <div className="space-y-2">
+                <input
+                  ref={documentationInputRef}
+                  type="file"
+                  className="sr-only"
+                  multiple
+                  onChange={(event) => void handleRiskDocumentationChange(event)}
+                />
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-medium text-foreground">
+                    {p.riskDetail.documentationTitle}
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                    onClick={() => documentationInputRef.current?.click()}
+                  >
+                    <Paperclip className="h-4 w-4" />
+                    {p.riskDetail.attachDocumentation}
+                  </Button>
+                </div>
+                {(risk.documentationFiles?.length ?? 0) > 0 ? (
+                  <ul className="space-y-2">
+                    {risk.documentationFiles!.map((file) => (
+                      <li key={file.id} className="flex items-center gap-2">
+                        {file.dataUrl ? (
+                          <a
+                            href={file.dataUrl}
+                            download={file.name}
+                            className="min-w-0 flex-1 truncate text-sm font-medium text-primary underline-offset-4 hover:underline"
+                          >
+                            {file.name}
+                          </a>
+                        ) : (
+                          <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
+                            {file.name}
+                          </span>
+                        )}
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="size-8 shrink-0"
+                          aria-label={`${p.projectForm.documentationRemove}: ${file.name}`}
+                          onClick={() => handleRemoveRiskDocumentation(file.id)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    {p.riskDetail.noDocumentation}
+                  </p>
+                )}
               </div>
               <div className="flex flex-wrap gap-2">
                 <span
@@ -624,13 +719,13 @@ export function RiskDetailView({ risk }: RiskDetailViewProps) {
             <CardHeader>
               <CardTitle className="text-base">{p.aiAnalysis.riskTitle}</CardTitle>
             </CardHeader>
-            <CardContent>
-              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+            <CardContent className="pt-1">
+              <p className="text-sm leading-relaxed text-muted-foreground">
                 {p.aiAnalysis.riskBody}
               </p>
               <Button
                 type="button"
-                className="mt-6 gap-2"
+                className="mt-8 gap-2"
                 onClick={() => toast.message(p.aiAnalysis.toastSoon)}
               >
                 <Sparkles className="h-4 w-4" aria-hidden />

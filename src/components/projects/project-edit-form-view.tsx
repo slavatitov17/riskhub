@@ -7,6 +7,7 @@ import { motion } from 'framer-motion'
 import { Save, X } from 'lucide-react'
 import { toast } from '@/lib/app-toast'
 
+import { ProjectDocumentationField } from '@/components/forms/project-documentation-field'
 import { SearchableCategoryField } from '@/components/forms/searchable-category-field'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -22,7 +23,13 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { useProjects } from '@/contexts/projects-context'
 import { saveCustomCategory } from '@/lib/custom-categories-storage'
-import type { ProjectRecord, ProjectStatus } from '@/lib/project-types'
+import type {
+  ProjectDocumentationFile,
+  ProjectRecord,
+  ProjectStatus
+} from '@/lib/project-types'
+import { getPageCopy } from '@/lib/page-copy'
+import { useLocale } from '@/contexts/locale-context'
 
 interface ProjectEditFormViewProps {
   project: ProjectRecord
@@ -30,10 +37,15 @@ interface ProjectEditFormViewProps {
 
 export function ProjectEditFormView({ project }: ProjectEditFormViewProps) {
   const router = useRouter()
+  const { locale } = useLocale()
+  const p = getPageCopy(locale)
   const { updateProject } = useProjects()
   const [name, setName] = useState(project.name)
   const [category, setCategory] = useState(project.category ?? '')
   const [description, setDescription] = useState(project.description)
+  const [documentationFiles, setDocumentationFiles] = useState<
+    ProjectDocumentationFile[]
+  >(project.documentationFiles ?? [])
   const [status, setStatus] = useState<ProjectStatus>(project.status)
   const [submitting, setSubmitting] = useState(false)
 
@@ -46,7 +58,8 @@ export function ProjectEditFormView({ project }: ProjectEditFormViewProps) {
         name: name.trim(),
         category: category.trim(),
         description,
-        status
+        status,
+        documentationFiles
       })
       if (!res.ok) {
         toast.error(res.error)
@@ -97,6 +110,21 @@ export function ProjectEditFormView({ project }: ProjectEditFormViewProps) {
                 placeholder="Кратко опишите цели и контекст проекта…"
               />
             </div>
+            <ProjectDocumentationField
+              id="edit-project-documentation"
+              files={documentationFiles}
+              onChange={setDocumentationFiles}
+              labels={{
+                label: p.projectForm.documentationLabel,
+                dropPrimary: p.projectForm.documentationDrop,
+                dropOr: p.projectForm.documentationOr,
+                browse: p.projectForm.documentationBrowse,
+                uploaded: p.projectForm.documentationUploaded,
+                remove: p.projectForm.documentationRemove,
+                tooLarge: p.projectForm.documentationTooLarge,
+                maxFiles: p.projectForm.documentationMaxFiles
+              }}
+            />
             <div className="space-y-2">
               <Label>Статус</Label>
               <Select

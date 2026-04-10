@@ -65,12 +65,17 @@ function stripTrailingDot(value: string) {
 }
 
 export function normalizeRiskRecord(r: RiskRecord): RiskRecord {
+  const documentationFiles = (r.documentationFiles ?? []).filter(
+    (file) => Boolean(file?.id) && Boolean(file?.name)
+  )
+
   return {
     ...r,
     comments: (r.comments ?? []).map((comment) => ({
       ...comment,
       text: stripTrailingDot(comment.text)
     })),
+    documentationFiles: documentationFiles.length ? documentationFiles : undefined,
     responseMeasures: r.responseMeasures ?? [],
     activityLog: r.activityLog?.length ? r.activityLog : defaultActivityLog(r)
   }

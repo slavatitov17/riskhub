@@ -66,7 +66,7 @@ export function AiAssistantDock() {
         }
       ])
     }, 400)
-  }, [attachments, input, p.aiAssistant.attach, p.aiAssistant.modelPending])
+  }, [attachments, input, p.aiAssistant.modelPending])
 
   const handleAttachFiles = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -247,7 +247,7 @@ export function AiAssistantDock() {
         {open ? (
           <X className="h-6 w-6" />
         ) : (
-          <Sparkles className="h-7 w-7" />
+          <Sparkles className="h-8 w-8" />
         )}
       </Button>
     </div>

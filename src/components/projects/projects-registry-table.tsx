@@ -438,10 +438,7 @@ export function ProjectsRegistryTable() {
                         </span>
                       </TableCell>
                       <TableCell className="whitespace-nowrap">
-                        {Math.max(
-                          counts[row.id] ?? 0,
-                          riskParticipantsByProject[row.id] ?? 0
-                        ) || '—'}
+                        {counts[row.id] || '—'}
                       </TableCell>
                       <TableCell
                         className="whitespace-nowrap text-left"

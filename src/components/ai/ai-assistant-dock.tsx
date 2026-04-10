@@ -257,7 +257,7 @@ export function AiAssistantDock() {
         className="pointer-events-auto h-14 w-14 rounded-full shadow-lg"
         onClick={() => setOpen((v) => !v)}
       >
-        {open ? <X className="h-6 w-6" /> : <Sparkles className="h-10 w-10" />}
+        {open ? <X className="h-6 w-6" /> : <Sparkles className="h-12 w-12 text-white" />}
       </Button>
     </div>
   )

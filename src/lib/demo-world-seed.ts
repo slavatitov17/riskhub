@@ -1,4 +1,4 @@
-import { getDemoCredentials } from '@/lib/auth-storage'
+import { getDemoCredentials, getUsers, saveUsers } from '@/lib/auth-storage'
 import {
   normalizeProjectRecord,
   nextProjectCode,
@@ -20,7 +20,7 @@ import {
 } from '@/lib/risks-storage'
 import { saveProfileForUser } from '@/lib/user-profile-storage'
 
-const DEMO_WORLD_KEY = 'riskhub_demo_l3_world_v2'
+const DEMO_WORLD_KEY = 'riskhub_demo_l3_world_v3'
 
 const AUTHORS = [
   'Демо Аккаунт',
@@ -260,7 +260,7 @@ type ProjectTpl = {
 
 const MES: ProjectTpl = {
   id: 'proj_demo_l3_mes',
-  name: 'MES-система для управления производством и учёта НЗП в Цех-4',
+  name: 'MES-система для управления производством в четвёртом цехе',
   category: 'Технологический',
   description:
     'Внедрение MES для оперативного учёта запусков, сменных заданий и контроля незавершённого производства с интеграцией в ERP и систему управления складом',
@@ -432,6 +432,7 @@ const ERP: ProjectTpl = {
   createdAt: '2025-08-03T11:00:00.000Z',
   updatedAt: '2026-02-14T13:25:00.000Z',
   memberUserIds: [
+    'u_dem_al_pet',
     'u_dem_ma_sok',
     'u_dem_dm_orl',
     'u_dem_an_bel',
@@ -584,7 +585,8 @@ const BPM: ProjectTpl = {
     'u_dem_el_kuz',
     'u_dem_pv_smi',
     'u_dem_ol_nov',
-    'u_dem_nk_fed'
+    'u_dem_nk_fed',
+    'u_dem_sg_mor'
   ],
   risks: [
     {
@@ -754,7 +756,7 @@ const BPM: ProjectTpl = {
 
 const CRM: ProjectTpl = {
   id: 'proj_demo_l3_crm',
-  name: 'MES-система для планирования производственных заданий и расчёта ОЭЕ',
+  name: 'MES-система для планирования производственных заданий и расчёта эффективности оборудования',
   category: 'Технологический',
   description:
     'Внедрение MES для формирования сменно-суточных заданий, расчёта показателя общей эффективности оборудования и контроля выполнения производственной программы',
@@ -924,8 +926,12 @@ const WMS: ProjectTpl = {
   createdAt: '2026-03-08T07:30:00.000Z',
   updatedAt: '2026-04-02T09:00:00.000Z',
   memberUserIds: [
+    'u_dem_al_pet',
+    'u_dem_ma_sok',
     'u_dem_ig_vol',
     'u_dem_el_kuz',
+    'u_dem_dm_orl',
+    'u_dem_an_bel',
     'u_dem_pv_smi',
     'u_dem_ol_nov',
     'u_dem_ta_leb'
@@ -1153,6 +1159,21 @@ export async function ensureDemoWorldSeeded(): Promise<void> {
     position: 'Специалист по демо-аккаунтам',
     about: 'Демо-информация'
   })
+
+  // Register fictional users in the auth users list so their names
+  // resolve correctly in the project card "Участники" section
+  const currentUsers = getUsers()
+  const fictionalToAdd = FICTIONAL_USERS.filter(
+    (u) => !currentUsers.some((cu) => cu.id === u.userId)
+  ).map((u) => ({
+    id: u.userId,
+    name: `${u.firstName} ${u.lastName}`,
+    email: u.email,
+    password: ''
+  }))
+  if (fictionalToAdd.length > 0) {
+    saveUsers([...currentUsers, ...fictionalToAdd])
+  }
 
   localStorage.setItem(DEMO_WORLD_KEY, '1')
   window.dispatchEvent(new CustomEvent('riskhub-session-changed'))

@@ -7,8 +7,6 @@ import { Paperclip, Send, Sparkles, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { useLocale } from '@/contexts/locale-context'
-import { useProjects } from '@/contexts/projects-context'
-import { useRisks } from '@/contexts/risks-context'
 import { getPageCopy } from '@/lib/page-copy'
 import { cn } from '@/lib/utils'
 
@@ -29,8 +27,6 @@ interface ChatMessage {
 export function AiAssistantDock() {
   const { locale } = useLocale()
   const p = getPageCopy(locale)
-  const { myProjects } = useProjects()
-  const { risks } = useRisks()
   const panelId = useId()
   const listRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -95,8 +91,6 @@ export function AiAssistantDock() {
   }, [])
 
   const hint = p.aiAssistant.hint
-    .replace('{projects}', String(myProjects.length))
-    .replace('{risks}', String(risks.length))
 
   return (
     <div className="pointer-events-none fixed bottom-4 right-4 z-[80] flex flex-col items-end gap-3 md:bottom-6 md:right-6">

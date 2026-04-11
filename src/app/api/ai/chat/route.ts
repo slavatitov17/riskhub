@@ -1,15 +1,16 @@
-import { createGroq } from '@ai-sdk/groq'
+import { createOpenAI } from '@ai-sdk/openai'
 import { streamText } from 'ai'
 
-const groq = createGroq({
-  apiKey: process.env.GROQ_API_KEY ?? '',
+const openrouter = createOpenAI({
+  baseURL: 'https://openrouter.ai/api/v1',
+  apiKey: process.env.QWEN_API_KEY ?? '',
 })
 
 export async function POST(req: Request) {
-  if (!process.env.GROQ_API_KEY) {
-    console.error('[ai/chat] GROQ_API_KEY is not set')
+  if (!process.env.QWEN_API_KEY) {
+    console.error('[ai/chat] QWEN_API_KEY is not set')
     return new Response(
-      JSON.stringify({ error: 'GROQ_API_KEY is not configured' }),
+      JSON.stringify({ error: 'QWEN_API_KEY is not configured' }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     )
   }
@@ -18,7 +19,7 @@ export async function POST(req: Request) {
     const { messages } = await req.json()
 
     const result = streamText({
-      model: groq('llama-3.3-70b-versatile'),
+      model: openrouter('qwen/qwen3-coder:free'),
       system:
         'Ты помощник в системе управления рисками RiskHub. Помогаешь пользователям разбираться с проектами, рисками и работой платформы. Отвечай кратко, по делу, на русском языке.',
       messages,

@@ -69,6 +69,7 @@ import {
 import { translateActivityLogMessage } from '@/lib/activity-log-i18n'
 import { getPageCopy, type PageCopy } from '@/lib/page-copy'
 import type { RiskRecord } from '@/lib/risk-types'
+import { AiAnalysisPanel } from '@/components/ai/ai-analysis-panel'
 import { formatDisplayDate, formatLocaleDateTime } from '@/lib/risks-storage'
 import { cn } from '@/lib/utils'
 
@@ -576,14 +577,7 @@ export function ProjectDetailView({ project }: ProjectDetailViewProps) {
               <p className="text-sm leading-relaxed text-muted-foreground">
                 {p.aiAnalysis.projectBody}
               </p>
-              <Button
-                type="button"
-                className="mt-8 gap-2"
-                onClick={() => toast.message(p.aiAnalysis.toastSoon)}
-              >
-                <Sparkles className="h-4 w-4" aria-hidden />
-                {p.aiAnalysis.cta}
-              </Button>
+              <AiAnalysisPanel type="project" data={project} ctaLabel={p.aiAnalysis.cta} />
             </CardContent>
           </Card>
         </div>

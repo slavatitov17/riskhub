@@ -53,6 +53,7 @@ import {
 import { translateActivityLogMessage } from '@/lib/activity-log-i18n'
 import { getCommentAttachments } from '@/lib/comment-attachments'
 import { getPageCopy } from '@/lib/page-copy'
+import { AiAnalysisPanel } from '@/components/ai/ai-analysis-panel'
 import type {
   RiskComment,
   RiskCommentAttachment,
@@ -852,14 +853,7 @@ export function RiskDetailView({ risk }: RiskDetailViewProps) {
               <p className="text-sm leading-relaxed text-muted-foreground">
                 {p.aiAnalysis.riskBody}
               </p>
-              <Button
-                type="button"
-                className="mt-8 gap-2"
-                onClick={() => toast.message(p.aiAnalysis.toastSoon)}
-              >
-                <Sparkles className="h-4 w-4" aria-hidden />
-                {p.aiAnalysis.cta}
-              </Button>
+              <AiAnalysisPanel type="risk" data={risk} ctaLabel={p.aiAnalysis.cta} />
             </CardContent>
           </Card>
         </div>

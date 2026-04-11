@@ -1,17 +1,19 @@
 'use client'
 
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { useChat } from '@ai-sdk/react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Loader2, Send, Sparkles, X } from 'lucide-react'
-
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { useLocale } from '@/contexts/locale-context'
+import { useProjects } from '@/contexts/projects-context'
+import { useRisks } from '@/contexts/risks-context'
 import { getPageCopy } from '@/lib/page-copy'
 import { cn } from '@/lib/utils'
+import { MarkdownContent } from './markdown-content'
 
 export function AiAssistantDock() {
   const { locale } = useLocale()
@@ -20,8 +22,32 @@ export function AiAssistantDock() {
   const listRef = useRef<HTMLDivElement>(null)
   const [open, setOpen] = useState(false)
 
+  const { myProjects } = useProjects()
+  const { risks } = useRisks()
+
+  const context = useMemo(
+    () => ({
+      projects: myProjects.map((pr) => ({
+        code: pr.code,
+        name: pr.name,
+        status: pr.status,
+        category: pr.category,
+      })),
+      risks: risks.map((r) => ({
+        code: r.code,
+        name: r.name,
+        category: r.category,
+        probability: r.probability,
+        impact: r.impact,
+        status: r.status,
+      })),
+    }),
+    [myProjects, risks]
+  )
+
   const { messages, input, handleInputChange, handleSubmit, isLoading, stop } = useChat({
     api: '/api/ai/chat',
+    body: { context },
     onError: () => {
       toast.error('Не удалось получить ответ от ИИ. Проверьте подключение или попробуйте позже.')
     },
@@ -95,7 +121,11 @@ export function AiAssistantDock() {
                         : 'mr-auto border border-border bg-background text-foreground'
                     )}
                   >
-                    <p className="whitespace-pre-wrap">{msg.content}</p>
+                    {msg.role === 'assistant' ? (
+                      <MarkdownContent content={msg.content} />
+                    ) : (
+                      <p className="whitespace-pre-wrap">{msg.content}</p>
+                    )}
                   </div>
                 ))
               )}

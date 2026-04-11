@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
+import { getSession } from '@/lib/auth-storage'
 import { useLocale } from '@/contexts/locale-context'
 import { useProjects } from '@/contexts/projects-context'
 import { useRisks } from '@/contexts/risks-context'
@@ -46,8 +47,19 @@ export function AiAssistantDock() {
   const { myProjects } = useProjects()
   const { risks } = useRisks()
 
-  // Filter risks to only those belonging to the current user's own projects
-  const myProjectIds = useMemo(() => new Set(myProjects.map((p) => p.id)), [myProjects])
+  // For the AI context, exclude public legacy (demo) projects that the current user
+  // does NOT own. This prevents new accounts from seeing demo data as their own.
+  const personalProjects = useMemo(() => {
+    const session = getSession()
+    return myProjects.filter(
+      (p) => !p.isPublicLegacy || p.ownerUserId === session?.userId
+    )
+  }, [myProjects])
+
+  const myProjectIds = useMemo(
+    () => new Set(personalProjects.map((p) => p.id)),
+    [personalProjects]
+  )
   const myRisks = useMemo(
     () => risks.filter((r) => r.projectId && myProjectIds.has(r.projectId)),
     [risks, myProjectIds]
@@ -56,7 +68,7 @@ export function AiAssistantDock() {
   // Build hierarchical context: each project contains its own risks.
   // This allows the AI to answer per-project risk queries without guessing.
   const context = useMemo(() => {
-    const projects = myProjects.map((pr) => {
+    const projects = personalProjects.map((pr) => {
       const projectRisks = myRisks.filter((r) => r.projectId === pr.id)
       return {
         code: pr.code,

@@ -169,11 +169,13 @@ async function buildAccessibleSet(
   const s = getSession()
   const ids = new Set<string>()
   for (const p of list) {
+    if (!s) continue
+    // Legacy demo projects are only accessible to their owner (the demo account).
+    // New regular accounts start with a completely empty workspace.
     if (p.isPublicLegacy) {
-      ids.add(p.id)
+      if (p.ownerUserId === s.userId) ids.add(p.id)
       continue
     }
-    if (!s) continue
     if (p.ownerUserId === s.userId) {
       ids.add(p.id)
       continue

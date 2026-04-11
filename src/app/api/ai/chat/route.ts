@@ -15,11 +15,16 @@ interface EntitySummary {
   impact?: string
 }
 
+interface AttachedDocSummary {
+  name: string
+  content: string
+}
+
 interface AiContext {
   projects?: EntitySummary[]
   risks?: EntitySummary[]
-  project?: EntitySummary & { risks?: EntitySummary[] }
-  risk?: EntitySummary & { project?: EntitySummary }
+  project?: EntitySummary & { risks?: EntitySummary[]; attachedDocuments?: AttachedDocSummary[] }
+  risk?: EntitySummary & { project?: EntitySummary; attachedDocuments?: AttachedDocSummary[] }
 }
 
 interface FileContent {
@@ -73,6 +78,14 @@ function buildSystemPrompt(context?: AiContext, fileContents?: FileContent[]): s
       } else {
         prompt += '\n- Риски проекта: нет'
       }
+      if (project.attachedDocuments?.length) {
+        prompt += `\n\nДокументация, прикреплённая к проекту:\n`
+        for (const doc of project.attachedDocuments) {
+          prompt += `\n--- Документ: ${doc.name} ---\n${doc.content}\n--- Конец документа ---\n`
+        }
+      } else {
+        prompt += '\n- Прикреплённые документы: отсутствуют'
+      }
     }
 
     if (risk) {
@@ -87,6 +100,14 @@ function buildSystemPrompt(context?: AiContext, fileContents?: FileContent[]): s
         `- Статус: ${risk.status ?? '—'}`
       if (risk.project) {
         prompt += `\n- Связанный проект: «${risk.project.name ?? '—'}» (${risk.project.code ?? '—'})`
+      }
+      if (risk.attachedDocuments?.length) {
+        prompt += `\n\nДокументация, прикреплённая к риску:\n`
+        for (const doc of risk.attachedDocuments) {
+          prompt += `\n--- Документ: ${doc.name} ---\n${doc.content}\n--- Конец документа ---\n`
+        }
+      } else {
+        prompt += '\n- Прикреплённые документы: отсутствуют'
       }
     }
   }

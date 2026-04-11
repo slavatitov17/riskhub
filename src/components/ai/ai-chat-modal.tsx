@@ -26,7 +26,7 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { useProjects } from '@/contexts/projects-context'
 import { useRisks } from '@/contexts/risks-context'
-import { readFileText } from '@/lib/ai-file-reader'
+import { extractTextFromDataUrl, readFileText } from '@/lib/ai-file-reader'
 import { toast } from '@/lib/app-toast'
 import type { ProjectRecord } from '@/lib/project-types'
 import type { RiskRecord } from '@/lib/risk-types'
@@ -598,7 +598,31 @@ export function AiChatModal({ open, onClose, type, data }: AiChatModalProps) {
     saveSessions(type, entityId, sessions, activeId)
   }, [type, entityId, sessions, activeId])
 
-  // Build rich context with related data (project's risks, risk's project)
+  // Async-extract text from entity's attached documentation files
+  const [entityDocContents, setEntityDocContents] = useState<FileContent[]>([])
+  useEffect(() => {
+    const files = data.documentationFiles ?? []
+    if (!files.length) { setEntityDocContents([]); return }
+
+    let cancelled = false
+    async function loadDocs() {
+      const results = await Promise.all(
+        files.map(async (f) => {
+          if (!f.dataUrl) return null
+          const content = await extractTextFromDataUrl(f.dataUrl, f.mimeType, f.name)
+          if (!content) return null
+          return { name: f.name, content }
+        })
+      )
+      if (!cancelled) {
+        setEntityDocContents(results.filter((r): r is FileContent => r !== null))
+      }
+    }
+    void loadDocs()
+    return () => { cancelled = true }
+  }, [data.documentationFiles])
+
+  // Build rich context with related data (project's risks, risk's project, attached docs)
   const context = useMemo((): Record<string, unknown> => {
     if (type === 'project') {
       const pr = data as ProjectRecord
@@ -618,7 +642,8 @@ export function AiChatModal({ open, onClose, type, data }: AiChatModalProps) {
             impact: r.impact,
             status: r.status,
             description: r.description ?? ''
-          }))
+          })),
+          attachedDocuments: entityDocContents
         }
       }
     }
@@ -641,10 +666,11 @@ export function AiChatModal({ open, onClose, type, data }: AiChatModalProps) {
               status: relatedProject.status,
               category: relatedProject.category
             }
-          : undefined
+          : undefined,
+        attachedDocuments: entityDocContents
       }
     }
-  }, [type, data, risks, myProjects])
+  }, [type, data, risks, myProjects, entityDocContents])
 
   const title =
     type === 'project'

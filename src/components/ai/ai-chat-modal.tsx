@@ -51,6 +51,82 @@ interface Session {
   messages: Message[]
 }
 
+/* ─────────────────────────── storage ───────────────────────── */
+
+interface StoredMessage {
+  id: string
+  role: string
+  content: string
+  createdAt?: string
+}
+
+interface StoredSession {
+  id: string
+  label: string
+  createdAt: string
+  messages: StoredMessage[]
+}
+
+interface StoredData {
+  sessions: StoredSession[]
+  activeId: string
+}
+
+function storageKey(type: 'project' | 'risk', id: string): string {
+  return `rh-ai-chat-${type}-${id}`
+}
+
+function loadSessions(type: 'project' | 'risk', id: string): { sessions: Session[]; activeId: string } {
+  if (typeof window === 'undefined') {
+    const s = makeSession(1, type)
+    return { sessions: [s], activeId: s.id }
+  }
+  try {
+    const raw = localStorage.getItem(storageKey(type, id))
+    if (!raw) throw new Error('empty')
+    const data = JSON.parse(raw) as StoredData
+    if (!data.sessions?.length) throw new Error('invalid')
+    const sessions: Session[] = data.sessions.map((s) => ({
+      id: s.id,
+      label: s.label,
+      createdAt: new Date(s.createdAt),
+      messages: s.messages.map((m) => ({
+        id: m.id,
+        role: m.role as 'user' | 'assistant',
+        content: m.content,
+        createdAt: m.createdAt ? new Date(m.createdAt) : undefined
+      }))
+    }))
+    return { sessions, activeId: data.activeId }
+  } catch {
+    const s = makeSession(1, type)
+    return { sessions: [s], activeId: s.id }
+  }
+}
+
+function saveSessions(type: 'project' | 'risk', id: string, sessions: Session[], activeId: string): void {
+  if (typeof window === 'undefined') return
+  try {
+    const data: StoredData = {
+      sessions: sessions.map((s) => ({
+        id: s.id,
+        label: s.label,
+        createdAt: s.createdAt.toISOString(),
+        messages: s.messages.map((m) => ({
+          id: m.id,
+          role: m.role,
+          content: m.content,
+          createdAt: (m.createdAt as Date | undefined)?.toISOString()
+        }))
+      })),
+      activeId
+    }
+    localStorage.setItem(storageKey(type, id), JSON.stringify(data))
+  } catch {
+    // ignore quota errors
+  }
+}
+
 /* ─────────────────────────── helpers ───────────────────────── */
 
 function formatTs(date?: Date): string {
@@ -484,8 +560,16 @@ interface RiskModalProps {
 export type AiChatModalProps = ProjectModalProps | RiskModalProps
 
 export function AiChatModal({ open, onClose, type, data }: AiChatModalProps) {
-  const [sessions, setSessions] = useState<Session[]>(() => [makeSession(1, type)])
-  const [activeId, setActiveId] = useState(() => sessions[0]!.id)
+  const entityId = data.id
+
+  const initialData = useRef(loadSessions(type, entityId))
+  const [sessions, setSessions] = useState<Session[]>(initialData.current.sessions)
+  const [activeId, setActiveId] = useState<string>(initialData.current.activeId)
+
+  // Persist to localStorage on every change
+  useEffect(() => {
+    saveSessions(type, entityId, sessions, activeId)
+  }, [type, entityId, sessions, activeId])
 
   const context = useMemo((): Record<string, unknown> => {
     if (type === 'project') {

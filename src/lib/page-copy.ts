@@ -542,7 +542,7 @@ const RU: PageCopy = {
     attach: 'Прикрепить файлы',
     attachedFiles: 'Прикрепленные файлы',
     close: 'Закрыть',
-    hint: 'Вы можете спросить о работе в RiskHub, ваших проектах и рисках. Ответы появятся после подключения языковой модели.',
+    hint: 'Вы можете спросить о работе в RiskHub, ваших проектах и рисках',
     modelPending:
       'Подключение языковой модели запланировано. Пока ответы недоступны — спасибо за терпение.'
   },
@@ -996,7 +996,7 @@ const EN: PageCopy = {
     attach: 'Attach files',
     attachedFiles: 'Attached files',
     close: 'Close',
-    hint: 'You can ask about RiskHub, your current projects ({projects}), and risks ({risks}). Answers will be available once the language model is connected.',
+    hint: 'You can ask about RiskHub, your projects and risks',
     modelPending:
       'The language model is not connected yet. Replies are unavailable for now — thank you for your patience.'
   },

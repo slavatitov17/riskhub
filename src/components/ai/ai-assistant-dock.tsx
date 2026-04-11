@@ -5,6 +5,8 @@ import { useChat } from '@ai-sdk/react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Loader2, Send, Sparkles, X } from 'lucide-react'
 
+import { toast } from 'sonner'
+
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { useLocale } from '@/contexts/locale-context'
@@ -20,6 +22,9 @@ export function AiAssistantDock() {
 
   const { messages, input, handleInputChange, handleSubmit, isLoading, stop } = useChat({
     api: '/api/ai/chat',
+    onError: () => {
+      toast.error('Не удалось получить ответ от ИИ. Проверьте подключение или попробуйте позже.')
+    },
   })
 
   useEffect(() => {

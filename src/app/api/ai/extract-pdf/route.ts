@@ -1,8 +1,16 @@
-// pdf-parse is listed in serverExternalPackages so webpack skips bundling it.
-// It is required natively by Node.js at runtime.
-import pdfParse from 'pdf-parse'
+// pdf-parse is in serverExternalPackages – webpack skips it, Node.js loads CJS at runtime.
+// We use createRequire to load the CJS build explicitly, bypassing the ESM type-resolution
+// issue that occurs with moduleResolution:"bundler" + pdf-parse's exports field.
+import { createRequire } from 'module'
 
 export const runtime = 'nodejs'
+
+const nodeRequire = createRequire(import.meta.url)
+
+type PdfResult = { text: string; numpages: number }
+type PdfParseFn = (buffer: Buffer, options?: Record<string, unknown>) => Promise<PdfResult>
+
+const pdfParse = nodeRequire('pdf-parse') as PdfParseFn
 
 const MAX_CHARS = 40_000
 

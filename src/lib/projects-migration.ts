@@ -19,13 +19,14 @@ export function stableLegacyProjectId(projectName: string): string {
   return `proj_legacy_${(h >>> 0).toString(16)}`
 }
 
-const LEGACY_SAMPLE_PURGE_KEY = 'riskhub_legacy_sample_yxza_r002_005_purged_v1'
+const LEGACY_SAMPLE_PURGE_KEY = 'riskhub_legacy_sample_yxza_r002_005_purged_v2'
 
 const LEGACY_SAMPLE_PROJECT_NAME_LIST = [
   'Проект Y',
   'Проект X',
   'Проект Z',
-  'Проект A'
+  'Проект A',
+  'Проект А'
 ] as const
 
 const LEGACY_SAMPLE_PROJECT_NAMES = new Set<string>(LEGACY_SAMPLE_PROJECT_NAME_LIST)
@@ -51,8 +52,8 @@ function shouldDropLegacySampleRisk(r: RiskRecord): boolean {
 }
 
 /**
- * Удаляет устаревший тестовый набор (проекты Y/X/Z/A и риски R-002…R-005) из
- * общего каталога и IndexedDB. Выполняется один раз на браузер.
+ * Удаляет устаревший тестовый набор (проекты Y/X/Z/A/А и риски R-002…R-005) из
+ * общего каталога и IndexedDB. Выполняется один раз на браузер (версия ключа v2).
  */
 export async function purgeLegacySampleDashboardRowsOnce(): Promise<void> {
   if (typeof window === 'undefined') return

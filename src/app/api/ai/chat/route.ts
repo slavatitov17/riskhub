@@ -5,7 +5,7 @@ const mistral = createMistral({
   apiKey: process.env.MISTRAL_API_KEY ?? '',
 })
 
-interface EntitySummary {
+interface RiskSummary {
   code?: string
   name?: string
   status?: string
@@ -15,21 +15,45 @@ interface EntitySummary {
   impact?: string
 }
 
+interface ProjectSummary {
+  code?: string
+  name?: string
+  status?: string
+  category?: string
+  description?: string
+  /** Risks belonging to this project */
+  risks?: RiskSummary[]
+  attachedDocuments?: AttachedDocSummary[]
+}
+
 interface AttachedDocSummary {
   name: string
   content: string
 }
 
 interface AiContext {
-  projects?: EntitySummary[]
-  risks?: EntitySummary[]
-  project?: EntitySummary & { risks?: EntitySummary[]; attachedDocuments?: AttachedDocSummary[] }
-  risk?: EntitySummary & { project?: EntitySummary; attachedDocuments?: AttachedDocSummary[] }
+  /** Hierarchical projects list (each project contains its risks) — used by the dock */
+  projects?: ProjectSummary[]
+  /** Single-project analysis context */
+  project?: ProjectSummary
+  /** Single-risk analysis context */
+  risk?: RiskSummary & { project?: ProjectSummary; attachedDocuments?: AttachedDocSummary[] }
 }
 
 interface FileContent {
   name: string
   content: string
+}
+
+function statsByStatus(risks: RiskSummary[]): string {
+  const counts = new Map<string, number>()
+  for (const r of risks) {
+    const s = r.status ?? '—'
+    counts.set(s, (counts.get(s) ?? 0) + 1)
+  }
+  return Array.from(counts)
+    .map(([s, c]) => `${s}: ${c}`)
+    .join(', ')
 }
 
 function buildSystemPrompt(context?: AiContext, fileContents?: FileContent[]): string {
@@ -40,28 +64,39 @@ function buildSystemPrompt(context?: AiContext, fileContents?: FileContent[]): s
     'Отвечай по-русски, кратко и по делу.'
 
   if (context) {
-    const { projects, risks, project, risk } = context
+    const { projects, project, risk } = context
 
+    // ── Dock mode: hierarchical projects + their risks ──────────────────
     if (projects !== undefined) {
-      prompt += `\n\nПроекты пользователя (${projects.length} шт.${projects.length === 0 ? ', проектов пока нет' : ''}):`
-      if (projects.length > 0) {
-        prompt += '\n'
+      const totalRisks = projects.reduce((acc, p) => acc + (p.risks?.length ?? 0), 0)
+      const allRisks = projects.flatMap((p) => p.risks ?? [])
+
+      prompt += `\n\nПроекты пользователя: ${projects.length} шт.`
+      if (projects.length === 0) {
+        prompt += ' (проектов пока нет)'
+      } else {
+        prompt += `\nВсего рисков: ${totalRisks} шт.`
+        if (allRisks.length > 0) {
+          prompt += ` (${statsByStatus(allRisks)})`
+        }
+        prompt += '\n\nПодробно по проектам:\n'
         for (const pr of projects) {
-          prompt += `- ${pr.code ?? ''} «${pr.name ?? ''}» — статус: ${pr.status ?? '—'}, категория: ${pr.category ?? '—'}\n`
+          const rCount = pr.risks?.length ?? 0
+          prompt += `\n• ${pr.code ?? ''} «${pr.name ?? ''}» — статус: ${pr.status ?? '—'}, рисков: ${rCount}`
+          if (rCount > 0) {
+            prompt += ` (${statsByStatus(pr.risks!)})`
+            prompt += '\n'
+            for (const r of pr.risks!) {
+              prompt += `  - ${r.code ?? ''} «${r.name ?? ''}» — ${r.status ?? '—'}, вероятность: ${r.probability ?? '—'}, влияние: ${r.impact ?? '—'}\n`
+            }
+          } else {
+            prompt += '\n'
+          }
         }
       }
     }
 
-    if (risks !== undefined) {
-      prompt += `\n\nРиски пользователя (${risks.length} шт.${risks.length === 0 ? ', рисков пока нет' : ''}):`
-      if (risks.length > 0) {
-        prompt += '\n'
-        for (const r of risks) {
-          prompt += `- ${r.code ?? ''} «${r.name ?? ''}» — категория: ${r.category ?? '—'}, вероятность: ${r.probability ?? '—'}, влияние: ${r.impact ?? '—'}, статус: ${r.status ?? '—'}\n`
-        }
-      }
-    }
-
+    // ── Single-project analysis mode ─────────────────────────────────────
     if (project) {
       prompt +=
         `\n\nАнализируемый проект:\n` +
@@ -70,14 +105,16 @@ function buildSystemPrompt(context?: AiContext, fileContents?: FileContent[]): s
         `- Описание: ${project.description || 'не указано'}\n` +
         `- Статус: ${project.status ?? '—'}\n` +
         `- Категория: ${project.category ?? '—'}`
+
       if (project.risks?.length) {
-        prompt += `\n- Риски проекта (${project.risks.length} шт.):\n`
+        prompt += `\n- Риски проекта (${project.risks.length} шт., ${statsByStatus(project.risks)}):\n`
         for (const r of project.risks) {
           prompt += `  • ${r.code ?? ''} «${r.name ?? ''}» — вероятность: ${r.probability ?? '—'}, влияние: ${r.impact ?? '—'}, статус: ${r.status ?? '—'}\n`
         }
       } else {
         prompt += '\n- Риски проекта: нет'
       }
+
       if (project.attachedDocuments?.length) {
         prompt += `\n\nДокументация, прикреплённая к проекту:\n`
         for (const doc of project.attachedDocuments) {
@@ -88,6 +125,7 @@ function buildSystemPrompt(context?: AiContext, fileContents?: FileContent[]): s
       }
     }
 
+    // ── Single-risk analysis mode ─────────────────────────────────────────
     if (risk) {
       prompt +=
         `\n\nАнализируемый риск:\n` +
@@ -98,9 +136,11 @@ function buildSystemPrompt(context?: AiContext, fileContents?: FileContent[]): s
         `- Вероятность: ${risk.probability ?? '—'}\n` +
         `- Влияние: ${risk.impact ?? '—'}\n` +
         `- Статус: ${risk.status ?? '—'}`
+
       if (risk.project) {
         prompt += `\n- Связанный проект: «${risk.project.name ?? '—'}» (${risk.project.code ?? '—'})`
       }
+
       if (risk.attachedDocuments?.length) {
         prompt += `\n\nДокументация, прикреплённая к риску:\n`
         for (const doc of risk.attachedDocuments) {
@@ -133,11 +173,7 @@ export async function POST(req: Request) {
 
   try {
     const body = await req.json()
-    const {
-      messages,
-      context,
-      fileContents
-    } = body as {
+    const { messages, context, fileContents } = body as {
       messages: Parameters<typeof streamText>[0]['messages']
       context?: AiContext
       fileContents?: FileContent[]

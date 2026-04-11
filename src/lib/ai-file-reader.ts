@@ -7,6 +7,13 @@ const READABLE_EXTENSIONS = [
 
 const MAX_CONTENT_CHARS = 40_000
 
+function isPdf(mimeType: string, fileName: string): boolean {
+  return (
+    mimeType === 'application/pdf' ||
+    fileName.toLowerCase().endsWith('.pdf')
+  )
+}
+
 function isDocx(mimeType: string, fileName: string): boolean {
   return (
     mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
@@ -30,6 +37,30 @@ async function extractDocxText(arrayBuffer: ArrayBuffer): Promise<string | null>
   }
 }
 
+async function extractPdfViaApi(base64: string): Promise<string | null> {
+  try {
+    const res = await fetch('/api/ai/extract-pdf', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ base64 })
+    })
+    if (!res.ok) return null
+    const data = await res.json() as { text?: string }
+    return data.text?.trim() || null
+  } catch {
+    return null
+  }
+}
+
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer)
+  let binary = ''
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i]!)
+  }
+  return btoa(binary)
+}
+
 function truncate(text: string): string {
   if (text.length <= MAX_CONTENT_CHARS) return text
   return text.slice(0, MAX_CONTENT_CHARS) + '\n[...файл обрезан]'
@@ -37,10 +68,17 @@ function truncate(text: string): string {
 
 /**
  * Reads a File object and returns its text content.
- * Supports plain text files and DOCX documents.
+ * Supports plain text files, DOCX, and PDF documents.
  * Returns null for binary or unreadable files.
  */
 export async function readFileText(file: File): Promise<string | null> {
+  if (isPdf(file.type, file.name)) {
+    const buf = await file.arrayBuffer()
+    const base64 = arrayBufferToBase64(buf)
+    const text = await extractPdfViaApi(base64)
+    return text ? truncate(text) : null
+  }
+
   if (isDocx(file.type, file.name)) {
     const buf = await file.arrayBuffer()
     const text = await extractDocxText(buf)
@@ -62,7 +100,7 @@ export async function readFileText(file: File): Promise<string | null> {
 
 /**
  * Extracts text content from a stored dataUrl (project/risk documentation files).
- * Supports plain text (base64 or URL-encoded) and DOCX files.
+ * Supports plain text (base64 or URL-encoded), DOCX, and PDF files.
  */
 export async function extractTextFromDataUrl(
   dataUrl: string,
@@ -77,6 +115,13 @@ export async function extractTextFromDataUrl(
   const header = dataUrl.slice(0, commaIdx)
   const data = dataUrl.slice(commaIdx + 1)
   const isBase64 = header.includes(';base64')
+
+  if (isPdf(mimeType, fileName)) {
+    // base64 is already the right format for our API
+    const base64 = isBase64 ? data : btoa(decodeURIComponent(data))
+    const text = await extractPdfViaApi(base64)
+    return text ? truncate(text) : null
+  }
 
   if (isDocx(mimeType, fileName)) {
     try {

@@ -53,25 +53,28 @@ export function AiAssistantDock() {
     [risks, myProjectIds]
   )
 
-  const context = useMemo(
-    () => ({
-      projects: myProjects.map((pr) => ({
+  // Build hierarchical context: each project contains its own risks.
+  // This allows the AI to answer per-project risk queries without guessing.
+  const context = useMemo(() => {
+    const projects = myProjects.map((pr) => {
+      const projectRisks = myRisks.filter((r) => r.projectId === pr.id)
+      return {
         code: pr.code,
         name: pr.name,
         status: pr.status,
-        category: pr.category
-      })),
-      risks: myRisks.map((r) => ({
-        code: r.code,
-        name: r.name,
-        category: r.category,
-        probability: r.probability,
-        impact: r.impact,
-        status: r.status
-      }))
-    }),
-    [myProjects, myRisks]
-  )
+        category: pr.category,
+        risks: projectRisks.map((r) => ({
+          code: r.code,
+          name: r.name,
+          category: r.category,
+          probability: r.probability,
+          impact: r.impact,
+          status: r.status
+        }))
+      }
+    })
+    return { projects }
+  }, [myProjects, myRisks])
 
   const { messages, input, handleInputChange, handleSubmit, isLoading, stop, append } = useChat({
     api: '/api/ai/chat',

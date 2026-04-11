@@ -3,6 +3,11 @@ export const runtime = 'nodejs'
 
 const MAX_CHARS = 40_000
 
+type PdfParseFn = (
+  dataBuffer: Buffer,
+  options?: Record<string, unknown>
+) => Promise<{ text: string; numpages: number }>
+
 export async function POST(req: Request) {
   try {
     const body = await req.json() as { base64?: string }
@@ -10,12 +15,10 @@ export async function POST(req: Request) {
       return Response.json({ error: 'Missing base64' }, { status: 400 })
     }
 
-    // Import via lib path to avoid pdf-parse loading its internal test fixtures
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const pdfParse = require('pdf-parse/lib/pdf-parse.js') as (
-      buffer: Buffer,
-      options?: Record<string, unknown>
-    ) => Promise<{ text: string }>
+    // Dynamic import from the lib path prevents pdf-parse from loading
+    // its bundled test fixtures at module init time (Next.js bundler compat)
+    const mod = (await import('pdf-parse/lib/pdf-parse.js')) as unknown as { default: PdfParseFn }
+    const pdfParse: PdfParseFn = mod.default
 
     const buffer = Buffer.from(body.base64, 'base64')
     const data = await pdfParse(buffer)

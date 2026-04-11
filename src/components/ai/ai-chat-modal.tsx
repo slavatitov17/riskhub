@@ -24,6 +24,9 @@ import {
 
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
+import { useProjects } from '@/contexts/projects-context'
+import { useRisks } from '@/contexts/risks-context'
+import { readFileText } from '@/lib/ai-file-reader'
 import { toast } from '@/lib/app-toast'
 import type { ProjectRecord } from '@/lib/project-types'
 import type { RiskRecord } from '@/lib/risk-types'
@@ -37,11 +40,24 @@ interface AttachedFile {
   name: string
   size: number
   type: string
+  content?: string
+}
+
+interface StoredAttachment {
+  name: string
+  size: number
+  type: string
+}
+
+interface FileContent {
+  name: string
+  content: string
 }
 
 interface MessageExtra {
   liked: boolean
-  attachments: AttachedFile[]
+  attachments: StoredAttachment[]
+  fileContents: FileContent[]
 }
 
 interface Session {
@@ -215,25 +231,33 @@ function ChatPanel({ initialMessages, context, onMessagesChange }: ChatPanelProp
 
   const [inputVal, setInputVal] = useState('')
 
-  const handleSend = useCallback(() => {
+  const handleSend = useCallback(async () => {
     const text = inputVal.trim()
     if (!text && pendingFiles.length === 0) return
 
     const msgId = crypto.randomUUID()
 
+    const fileContents: FileContent[] = pendingFiles
+      .filter((f) => f.content !== undefined)
+      .map((f) => ({ name: f.name, content: f.content! }))
+
+    const attachments: StoredAttachment[] = pendingFiles.map(({ name, size, type }) => ({
+      name,
+      size,
+      type
+    }))
+
     if (pendingFiles.length > 0) {
       setExtras((prev) => ({
         ...prev,
-        [msgId]: { liked: false, attachments: pendingFiles }
+        [msgId]: { liked: false, attachments, fileContents }
       }))
     }
 
-    void append({
-      id: msgId,
-      role: 'user',
-      content: text,
-      createdAt: new Date()
-    } as Message)
+    await append(
+      { id: msgId, role: 'user', content: text, createdAt: new Date() } as Message,
+      fileContents.length > 0 ? { body: { fileContents } } : undefined
+    )
 
     setInputVal('')
     setPendingFiles([])
@@ -242,26 +266,29 @@ function ChatPanel({ initialMessages, context, onMessagesChange }: ChatPanelProp
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
-      if (!isLoading) handleSend()
+      if (!isLoading) void handleSend()
     }
   }
 
   /* ── files ── */
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? [])
     e.target.value = ''
     if (!files.length) return
-    const newFiles: AttachedFile[] = files.map((f) => ({
-      name: f.name,
-      size: f.size,
-      type: f.type
-    }))
+
+    const newFiles: AttachedFile[] = await Promise.all(
+      files.map(async (f) => {
+        const content = await readFileText(f)
+        return { name: f.name, size: f.size, type: f.type, content: content ?? undefined }
+      })
+    )
+
     setPendingFiles((prev) => {
       const existing = new Set(prev.map((f) => f.name))
       return [...prev, ...newFiles.filter((f) => !existing.has(f.name))]
     })
-  }
+  }, [])
 
   /* ── actions ── */
 
@@ -290,20 +317,22 @@ function ChatPanel({ initialMessages, context, onMessagesChange }: ChatPanelProp
   }
 
   const handleResend = (msg: Message) => {
-    const attachments = extras[msg.id]?.attachments ?? []
+    const extra = extras[msg.id]
+    const attachments = extra?.attachments ?? []
+    const fileContents = extra?.fileContents ?? []
     const newId = crypto.randomUUID()
-    if (attachments.length) {
+
+    if (attachments.length > 0) {
       setExtras((prev) => ({
         ...prev,
-        [newId]: { liked: false, attachments }
+        [newId]: { liked: false, attachments, fileContents }
       }))
     }
-    void append({
-      id: newId,
-      role: 'user',
-      content: msg.content,
-      createdAt: new Date()
-    } as Message)
+
+    void append(
+      { id: newId, role: 'user', content: msg.content, createdAt: new Date() } as Message,
+      fileContents.length > 0 ? { body: { fileContents } } : undefined
+    )
   }
 
   /* ── render ── */
@@ -370,7 +399,6 @@ function ChatPanel({ initialMessages, context, onMessagesChange }: ChatPanelProp
               {/* Actions */}
               {!showStreamingDots && (
                 <div className="mt-1 flex items-center gap-1">
-                  {/* Copy */}
                   <button
                     type="button"
                     title="Копировать"
@@ -382,7 +410,6 @@ function ChatPanel({ initialMessages, context, onMessagesChange }: ChatPanelProp
 
                   {isAssistant && !isInitial && (
                     <>
-                      {/* Like */}
                       <motion.button
                         type="button"
                         title="Полезно"
@@ -398,7 +425,6 @@ function ChatPanel({ initialMessages, context, onMessagesChange }: ChatPanelProp
                         <ThumbsUp className="h-3.5 w-3.5" />
                       </motion.button>
 
-                      {/* Dislike */}
                       <button
                         type="button"
                         title="Не понравилось"
@@ -408,7 +434,6 @@ function ChatPanel({ initialMessages, context, onMessagesChange }: ChatPanelProp
                         <ThumbsDown className="h-3.5 w-3.5" />
                       </button>
 
-                      {/* Regenerate */}
                       <button
                         type="button"
                         title="Повторить"
@@ -422,7 +447,6 @@ function ChatPanel({ initialMessages, context, onMessagesChange }: ChatPanelProp
                   )}
 
                   {isUser && (
-                    /* Resend user message */
                     <button
                       type="button"
                       title="Повторить"
@@ -484,7 +508,7 @@ function ChatPanel({ initialMessages, context, onMessagesChange }: ChatPanelProp
           className="sr-only"
           aria-hidden
           tabIndex={-1}
-          onChange={handleFileSelect}
+          onChange={(e) => { void handleFileSelect(e) }}
         />
         <div className="flex items-end gap-2">
           <Textarea
@@ -524,7 +548,7 @@ function ChatPanel({ initialMessages, context, onMessagesChange }: ChatPanelProp
               className="h-11 w-11 shrink-0 self-end rounded-full"
               aria-label="Отправить"
               disabled={!inputVal.trim() && pendingFiles.length === 0}
-              onClick={handleSend}
+              onClick={() => { void handleSend() }}
             >
               <Send className="h-4 w-4" />
             </Button>
@@ -562,6 +586,9 @@ export type AiChatModalProps = ProjectModalProps | RiskModalProps
 export function AiChatModal({ open, onClose, type, data }: AiChatModalProps) {
   const entityId = data.id
 
+  const { myProjects } = useProjects()
+  const { risks } = useRisks()
+
   const initialData = useRef(loadSessions(type, entityId))
   const [sessions, setSessions] = useState<Session[]>(initialData.current.sessions)
   const [activeId, setActiveId] = useState<string>(initialData.current.activeId)
@@ -571,32 +598,53 @@ export function AiChatModal({ open, onClose, type, data }: AiChatModalProps) {
     saveSessions(type, entityId, sessions, activeId)
   }, [type, entityId, sessions, activeId])
 
+  // Build rich context with related data (project's risks, risk's project)
   const context = useMemo((): Record<string, unknown> => {
     if (type === 'project') {
       const pr = data as ProjectRecord
+      const projectRisks = risks.filter((r) => r.projectId === pr.id)
       return {
         project: {
           code: pr.code,
           name: pr.name,
-          description: pr.description,
+          description: pr.description ?? '',
           status: pr.status,
-          category: pr.category
+          category: pr.category,
+          risks: projectRisks.map((r) => ({
+            code: r.code,
+            name: r.name,
+            category: r.category,
+            probability: r.probability,
+            impact: r.impact,
+            status: r.status,
+            description: r.description ?? ''
+          }))
         }
       }
     }
+
     const r = data as RiskRecord
+    const relatedProject = myProjects.find((p) => p.id === r.projectId)
     return {
       risk: {
         code: r.code,
         name: r.name,
-        description: r.description,
+        description: r.description ?? '',
         category: r.category,
         probability: r.probability,
         impact: r.impact,
-        status: r.status
+        status: r.status,
+        project: relatedProject
+          ? {
+              code: relatedProject.code,
+              name: relatedProject.name,
+              status: relatedProject.status,
+              category: relatedProject.category
+            }
+          : undefined
       }
     }
-  }, [type, data])
+  }, [type, data, risks, myProjects])
 
   const title =
     type === 'project'

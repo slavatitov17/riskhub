@@ -11,6 +11,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { useLocale } from '@/contexts/locale-context'
 import { useProjects } from '@/contexts/projects-context'
 import { useRisks } from '@/contexts/risks-context'
+import { readFileText } from '@/lib/ai-file-reader'
 import { getPageCopy } from '@/lib/page-copy'
 import { cn } from '@/lib/utils'
 import { MarkdownContent } from './markdown-content'
@@ -19,14 +20,18 @@ interface AttachedFile {
   name: string
   size: number
   type: string
+  content?: string
 }
 
 interface DockMessage {
   id: string
   role: 'user' | 'assistant'
   content: string
-  attachments?: AttachedFile[]
+  attachments?: Pick<AttachedFile, 'name' | 'size' | 'type'>[]
 }
+
+// Suppress unused variable warning - DockMessage is used for type clarity
+type _DockMessage = DockMessage
 
 export function AiAssistantDock() {
   const { locale } = useLocale()
@@ -36,10 +41,17 @@ export function AiAssistantDock() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [open, setOpen] = useState(false)
   const [pendingFiles, setPendingFiles] = useState<AttachedFile[]>([])
-  const [msgAttachments, setMsgAttachments] = useState<Record<string, AttachedFile[]>>({})
+  const [msgAttachments, setMsgAttachments] = useState<Record<string, Pick<AttachedFile, 'name' | 'size' | 'type'>[]>>({})
 
   const { myProjects } = useProjects()
   const { risks } = useRisks()
+
+  // Filter risks to only those belonging to the current user's own projects
+  const myProjectIds = useMemo(() => new Set(myProjects.map((p) => p.id)), [myProjects])
+  const myRisks = useMemo(
+    () => risks.filter((r) => r.projectId && myProjectIds.has(r.projectId)),
+    [risks, myProjectIds]
+  )
 
   const context = useMemo(
     () => ({
@@ -49,7 +61,7 @@ export function AiAssistantDock() {
         status: pr.status,
         category: pr.category
       })),
-      risks: risks.map((r) => ({
+      risks: myRisks.map((r) => ({
         code: r.code,
         name: r.name,
         category: r.category,
@@ -58,7 +70,7 @@ export function AiAssistantDock() {
         status: r.status
       }))
     }),
-    [myProjects, risks]
+    [myProjects, myRisks]
   )
 
   const { messages, input, handleInputChange, handleSubmit, isLoading, stop, append } = useChat({
@@ -79,16 +91,43 @@ export function AiAssistantDock() {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
-      if (!isLoading) handleSendWithFiles(e as unknown as React.FormEvent<HTMLFormElement>)
+      if (!isLoading) void handleSendWithFiles(e as unknown as React.FormEvent<HTMLFormElement>)
     }
   }
 
+  const handleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? [])
+    e.target.value = ''
+    if (!files.length) return
+
+    const newFiles: AttachedFile[] = await Promise.all(
+      files.map(async (f) => {
+        const content = await readFileText(f)
+        return { name: f.name, size: f.size, type: f.type, content: content ?? undefined }
+      })
+    )
+
+    setPendingFiles((prev) => {
+      const existing = new Set(prev.map((f) => f.name))
+      return [...prev, ...newFiles.filter((f) => !existing.has(f.name))]
+    })
+  }, [])
+
   const handleSendWithFiles = useCallback(
-    (e: React.FormEvent<HTMLFormElement>) => {
+    async (e: React.FormEvent<HTMLFormElement>) => {
       if (pendingFiles.length > 0) {
         const msgId = crypto.randomUUID()
-        setMsgAttachments((prev) => ({ ...prev, [msgId]: pendingFiles }))
-        void append({ id: msgId, role: 'user', content: input } as Parameters<typeof append>[0])
+        const attachmentsForMsg = pendingFiles.map(({ name, size, type }) => ({ name, size, type }))
+        setMsgAttachments((prev) => ({ ...prev, [msgId]: attachmentsForMsg }))
+
+        const fileContents = pendingFiles
+          .filter((f) => f.content !== undefined)
+          .map((f) => ({ name: f.name, content: f.content! }))
+
+        await append(
+          { id: msgId, role: 'user', content: input } as Parameters<typeof append>[0],
+          fileContents.length > 0 ? { body: { fileContents } } : undefined
+        )
         setPendingFiles([])
         return
       }
@@ -96,16 +135,6 @@ export function AiAssistantDock() {
     },
     [pendingFiles, input, append, handleSubmit]
   )
-
-  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? [])
-    e.target.value = ''
-    if (!files.length) return
-    setPendingFiles((prev) => {
-      const existing = new Set(prev.map((f) => f.name))
-      return [...prev, ...files.filter((f) => !existing.has(f.name)).map((f) => ({ name: f.name, size: f.size, type: f.type }))]
-    })
-  }, [])
 
   return (
     <div className="pointer-events-none fixed bottom-4 right-4 z-[80] flex flex-col items-end gap-3 md:bottom-6 md:right-6">
@@ -226,7 +255,7 @@ export function AiAssistantDock() {
 
             {/* Input area */}
             <form
-              onSubmit={handleSendWithFiles}
+              onSubmit={(e) => { void handleSendWithFiles(e) }}
               className="shrink-0 border-t border-border bg-card p-3"
             >
               <input
@@ -236,7 +265,7 @@ export function AiAssistantDock() {
                 className="sr-only"
                 aria-hidden
                 tabIndex={-1}
-                onChange={handleFileSelect}
+                onChange={(e) => { void handleFileSelect(e) }}
               />
               <div className="flex gap-2">
                 <Textarea

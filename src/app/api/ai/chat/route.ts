@@ -1,16 +1,15 @@
-import { createOpenAI } from '@ai-sdk/openai'
+import { createMistral } from '@ai-sdk/mistral'
 import { streamText } from 'ai'
 
-const openrouter = createOpenAI({
-  baseURL: 'https://openrouter.ai/api/v1',
-  apiKey: process.env.QWEN_API_KEY ?? '',
+const mistral = createMistral({
+  apiKey: process.env.MISTRAL_API_KEY ?? '',
 })
 
 export async function POST(req: Request) {
-  if (!process.env.QWEN_API_KEY) {
-    console.error('[ai/chat] QWEN_API_KEY is not set')
+  if (!process.env.MISTRAL_API_KEY) {
+    console.error('[ai/chat] MISTRAL_API_KEY is not set')
     return new Response(
-      JSON.stringify({ error: 'QWEN_API_KEY is not configured' }),
+      JSON.stringify({ error: 'MISTRAL_API_KEY is not configured' }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     )
   }
@@ -19,7 +18,7 @@ export async function POST(req: Request) {
     const { messages } = await req.json()
 
     const result = streamText({
-      model: openrouter('qwen/qwen3-coder:free'),
+      model: mistral('mistral-small-latest'),
       system:
         'Ты помощник в системе управления рисками RiskHub. Помогаешь пользователям разбираться с проектами, рисками и работой платформы. Отвечай кратко, по делу, на русском языке.',
       messages,

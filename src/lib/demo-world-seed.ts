@@ -13,6 +13,7 @@ import {
   maybeBootstrapInvitationsFromLegacySingletonIdb,
   reconcileAllProjectStoresIntoShared
 } from '@/lib/projects-db'
+import { purgeLegacySampleDashboardRowsOnce } from '@/lib/projects-migration'
 import type { RiskComment, RiskRecord } from '@/lib/risk-types'
 import {
   mergeRisksIntoSharedCatalog,
@@ -1052,6 +1053,9 @@ const ALL_PROJECTS: ProjectTpl[] = [MES, ERP, BPM, CRM, WMS]
 
 export async function ensureDemoWorldSeeded(): Promise<void> {
   if (typeof window === 'undefined') return
+
+  await purgeLegacySampleDashboardRowsOnce()
+
   if (localStorage.getItem(DEMO_WORLD_KEY)) return
 
   await maybeBootstrapInvitationsFromLegacySingletonIdb()
